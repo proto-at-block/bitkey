@@ -9,6 +9,7 @@ import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME_RELOADING_WALLET_HISTORY
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
@@ -334,9 +335,10 @@ class AppUiStateMachineImpl(
     // If we are showing the Splash screen and then try to show a loading screen,
     // continue to show the Splash screen for more seamless app startup experience
     val shouldContinueToShowSplashScreen = remember(previousScreenModel, screenModel) {
+      val loadingBody = screenModel.body as? LoadingSuccessBodyModel
       (previousScreenModel?.body is SplashBodyModel) &&
-        (screenModel.body as? LoadingSuccessBodyModel)?.state ==
-        LoadingSuccessBodyModel.State.Loading
+        loadingBody?.state == LoadingSuccessBodyModel.State.Loading &&
+        loadingBody.id != MONEY_HOME_RELOADING_WALLET_HISTORY
     }
     if (shouldContinueToShowSplashScreen) {
       screenModel = SplashScreenModel()
@@ -444,9 +446,10 @@ class AppUiStateMachineImpl(
 
   @Composable
   private fun WelcomeScreenModel(onComplete: () -> Unit): ScreenModel {
+    val currentOnComplete by rememberUpdatedState(onComplete)
     LaunchedEffect("show-welcome-screen") {
       delay(welcomeToBitkeyScreenDuration.value)
-      onComplete()
+      currentOnComplete()
     }
     return LoadingSuccessBodyModel(
       id = null,

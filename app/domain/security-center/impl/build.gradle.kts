@@ -13,6 +13,8 @@ kotlin {
       dependencies {
         implementation(projects.domain.cloudBackupPublic)
         implementation(projects.domain.accountPublic)
+        implementation(projects.domain.databasePublic)
+        implementation(projects.domain.f8eClientPublic)
         implementation(projects.domain.inAppSecurityPublic)
         implementation(projects.domain.inheritancePublic)
         implementation(projects.domain.recoveryPublic)

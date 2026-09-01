@@ -117,9 +117,9 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
           .shouldBeTypeOf<TransactionDetailModelType.Regular>()
 
         transactionDetails.transferAmountText.shouldBe("$6.00")
-        transactionDetails.transferAmountSecondaryText.shouldBe("200,000,000 sats")
+        transactionDetails.transferAmountSecondaryText.shouldBe("₿200,000,000")
         transactionDetails.totalAmountPrimaryText.shouldBe("$6.30")
-        transactionDetails.totalAmountSecondaryText.shouldBe("210,000,000 sats")
+        transactionDetails.totalAmountSecondaryText.shouldBe("₿210,000,000")
         transactionDetails.feeAmountText.shouldBe("$0.30")
       }
     }
@@ -157,7 +157,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
 
         transactionDetails.feeAmountText.shouldBe("$0.00")
         transactionDetails.totalAmountPrimaryText.shouldBe("$6.00")
-        transactionDetails.totalAmountSecondaryText.shouldBe("200,000,000 sats")
+        transactionDetails.totalAmountSecondaryText.shouldBe("₿200,000,000")
       }
     }
 
@@ -167,11 +167,11 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
         val transactionDetails = awaitItem().transactionDetailModelType
           .shouldBeTypeOf<TransactionDetailModelType.Regular>()
 
-        transactionDetails.transferAmountText.shouldBe("200,000,000 sats")
+        transactionDetails.transferAmountText.shouldBe("₿200,000,000")
         transactionDetails.transferAmountSecondaryText.shouldBeNull()
-        transactionDetails.totalAmountPrimaryText.shouldBe("210,000,000 sats")
+        transactionDetails.totalAmountPrimaryText.shouldBe("₿210,000,000")
         transactionDetails.totalAmountSecondaryText.shouldBeNull()
-        transactionDetails.feeAmountText.shouldBe("10,000,000 sats")
+        transactionDetails.feeAmountText.shouldBe("₿10,000,000")
       }
     }
   }

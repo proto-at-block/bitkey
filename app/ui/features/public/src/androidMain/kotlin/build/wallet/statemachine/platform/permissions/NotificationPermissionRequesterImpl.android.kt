@@ -19,8 +19,8 @@ class NotificationPermissionRequesterImpl(
 ) : NotificationPermissionRequester {
   @Composable
   override fun requestNotificationPermission(
-    onGranted: () -> Unit,
-    onDeclined: () -> Unit,
+    onGrant: () -> Unit,
+    onDecline: () -> Unit,
   ) {
     if (VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
       val requestPermissionLauncher =
@@ -29,10 +29,10 @@ class NotificationPermissionRequesterImpl(
           onResult = { granted ->
             if (granted) {
               pushNotificationPermissionStatusProvider.updatePushNotificationStatus(Authorized)
-              onGranted()
+              onGrant()
             } else {
               pushNotificationPermissionStatusProvider.updatePushNotificationStatus(Denied)
-              onDeclined()
+              onDecline()
             }
           }
         )
@@ -45,7 +45,7 @@ class NotificationPermissionRequesterImpl(
       // 13 but the permission is denied.
       // TODO W-3007 investigate why this case happens when it should not
       pushNotificationPermissionStatusProvider.updatePushNotificationStatus(Authorized)
-      onGranted()
+      onGrant()
     }
   }
 }

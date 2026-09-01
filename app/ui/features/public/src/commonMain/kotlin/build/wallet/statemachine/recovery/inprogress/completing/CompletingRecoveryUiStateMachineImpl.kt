@@ -16,11 +16,11 @@ import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerSc
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.isPrivateWallet
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.catchingResult
@@ -89,72 +89,68 @@ class CompletingRecoveryUiStateMachineImpl(
         var confirmingCancellation by remember { mutableStateOf(false) }
 
         when (props.completingRecoveryData.physicalFactor) {
-          App ->
-            DelayAndNotifyNewKeyReady(
-              factorToRecover = props.completingRecoveryData.physicalFactor,
-              // TODO(W-3420): render accurate fee
-              onStopRecovery = {
-                confirmingCancellation = true
-              },
-              onCompleteRecovery = props.completingRecoveryData.startComplete,
-              onExit = props.onExit
-            )
-
-          Hardware ->
-            DelayAndNotifyNewKeyReady(
-              factorToRecover = props.completingRecoveryData.physicalFactor,
-              // TODO(W-3420): render accurate fee
-              onStopRecovery = if (props.completingRecoveryData.canCancelRecovery) {
-                { confirmingCancellation = true }
-              } else {
-                null
-              },
-              onCompleteRecovery = props.completingRecoveryData.startComplete,
-              onExit = props.onExit
-            )
-        }.asScreen(
-          presentationStyle = props.presentationStyle,
-          alertModel =
-            if (confirmingCancellation) {
-              cancelRecoveryAlertModel(
-                onConfirm = {
-                  props.completingRecoveryData.cancel()
-                  confirmingCancellation = false
-                },
-                onDismiss = {
-                  confirmingCancellation = false
-                }
-              )
+          App -> DelayAndNotifyNewKeyReady(
+            factorToRecover = props.completingRecoveryData.physicalFactor,
+            // TODO(W-3420): render accurate fee
+            onStopRecovery = {
+              confirmingCancellation = true
+            },
+            onCompleteRecovery = props.completingRecoveryData.startComplete,
+            onExit = props.onExit
+          )
+          Hardware -> DelayAndNotifyNewKeyReady(
+            factorToRecover = props.completingRecoveryData.physicalFactor,
+            // TODO(W-3420): render accurate fee
+            onStopRecovery = if (props.completingRecoveryData.canCancelRecovery) {
+              { confirmingCancellation = true }
             } else {
               null
-            }
+            },
+            onCompleteRecovery = props.completingRecoveryData.startComplete,
+            onExit = props.onExit
+          )
+        }.asScreen(
+          presentationStyle = props.presentationStyle,
+          alertModel = if (confirmingCancellation) {
+            cancelRecoveryAlertModel(
+              onConfirm = {
+                props.completingRecoveryData.cancel()
+                confirmingCancellation = false
+              },
+              onDismiss = {
+                confirmingCancellation = false
+              }
+            )
+          } else {
+            null
+          }
         )
       }
 
-      is FailedToRotateAuthData ->
-        ErrorFormBodyModel(
-          title = "We were unable to complete your recovery.",
-          subline = "Make sure you are connected to the internet and try again.",
-          primaryButton =
-            ButtonDataModel(
-              text = "OK",
-              onClick = props.completingRecoveryData.onConfirm
-            ),
-          errorData = ErrorData(
-            segment = when (props.completingRecoveryData.factorToRecover) {
-              App -> RecoverySegment.DelayAndNotify.LostApp.Completion
-              Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Completion
-            },
-            actionDescription = "Rotating auth keys with f8e to complete recovery",
-            cause = props.completingRecoveryData.cause
-          ),
-          eventTrackerScreenId = CreateAccountEventTrackerScreenId.NEW_ACCOUNT_CREATION_FAILURE
-        ).asScreen(presentationStyle = props.presentationStyle)
+      is FailedToRotateAuthData -> ErrorFormBodyModel(
+        title = "We were unable to complete your recovery.",
+        subline = "Make sure you are connected to the internet and try again.",
+        primaryButton = ButtonDataModel(
+          text = "OK",
+          onClick = props.completingRecoveryData.onConfirm
+        ),
+        errorData = ErrorData(
+          segment = when (props.completingRecoveryData.factorToRecover) {
+            App -> RecoverySegment.DelayAndNotify.LostApp.Completion
+            Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Completion
+          },
+          actionDescription = "Rotating auth keys with f8e to complete recovery",
+          cause = props.completingRecoveryData.cause
+        ),
+        eventTrackerScreenId = CreateAccountEventTrackerScreenId.NEW_ACCOUNT_CREATION_FAILURE
+      ).asScreen(presentationStyle = props.presentationStyle)
 
       is AwaitingChallengeAndCsekSignedWithHardwareData ->
         nfcModel(
           nfcSession = props.completingRecoveryData.nfcSession,
           presentationStyle = props.presentationStyle,
+          segment = RecoverySegment.DelayAndNotify,
+          actionDescription = "Signing challenge and sealing keys to complete recovery",
           eventTrackerContext = APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS,
           confirmableEventTrackerContext = W3_SIGN_CHALLENGE_AND_SEAL_SEKS
         )
@@ -164,6 +160,8 @@ class CompletingRecoveryUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             transaction = props.completingRecoveryData.nfcTransaction,
             screenPresentationStyle = props.presentationStyle,
+            segment = RecoverySegment.DelayAndNotify,
+            actionDescription = "Sealing delegated decryption key to complete recovery",
             eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SEAL_DDK,
             hardwareVerification = Required(useRecoveryPubKey = true)
           )
@@ -196,6 +194,8 @@ class CompletingRecoveryUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             transaction = props.completingRecoveryData.nfcTransaction,
             screenPresentationStyle = props.presentationStyle,
+            segment = RecoverySegment.DelayAndNotify,
+            actionDescription = "Provisioning app auth key to hardware to complete recovery",
             eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_PROVISION_APP_AUTH_KEY,
             hardwareVerification = Required(useRecoveryPubKey = true)
           )
@@ -256,6 +256,8 @@ class CompletingRecoveryUiStateMachineImpl(
         nfcModel(
           nfcSession = props.completingRecoveryData.nfcSession,
           presentationStyle = props.presentationStyle,
+          segment = RecoverySegment.DelayAndNotify.LostApp.Completion,
+          actionDescription = "Signing proof of possession and transferring keys to complete lost app recovery",
           eventTrackerContext = RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_APP,
           confirmableEventTrackerContext = W3_RECOVERY_AUTHORIZE_LOST_APP
         )
@@ -264,6 +266,8 @@ class CompletingRecoveryUiStateMachineImpl(
         nfcModel(
           nfcSession = props.completingRecoveryData.nfcSession,
           presentationStyle = props.presentationStyle,
+          segment = RecoverySegment.DelayAndNotify.LostHardware.Completion,
+          actionDescription = "Signing proof of possession and transferring keys to complete lost hardware recovery",
           eventTrackerContext = RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_HARDWARE,
           confirmableEventTrackerContext = W3_RECOVERY_AUTHORIZE_LOST_HW
         )
@@ -386,6 +390,8 @@ class CompletingRecoveryUiStateMachineImpl(
               data.onFailure(Error("Hardware descriptor validation cancelled"))
             },
             screenPresentationStyle = props.presentationStyle,
+            segment = RecoverySegment.DelayAndNotify,
+            actionDescription = "Verifying keys and building hardware descriptor to complete recovery",
             eventTrackerContext = NfcEventTrackerScreenIdContext.VERIFY_KEYS_AND_BUILD_HARDWARE_DESCRIPTOR,
             hardwareVerification = Required(useRecoveryPubKey = true),
             hardwareTypeOverride = HardwareType.W3,
@@ -669,6 +675,8 @@ class CompletingRecoveryUiStateMachineImpl(
   private fun nfcModel(
     nfcSession: RecoveryNfcSession,
     presentationStyle: ScreenPresentationStyle,
+    segment: AppSegment,
+    actionDescription: String,
     eventTrackerContext: NfcEventTrackerScreenIdContext,
     confirmableEventTrackerContext: NfcEventTrackerScreenIdContext,
   ): ScreenModel =
@@ -678,6 +686,8 @@ class CompletingRecoveryUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             transaction = nfcSession.transaction,
             screenPresentationStyle = presentationStyle,
+            segment = segment,
+            actionDescription = actionDescription,
             eventTrackerContext = eventTrackerContext,
             hardwareVerification = Required(useRecoveryPubKey = true),
             hardwareTypeOverride = HardwareType.W1
@@ -692,6 +702,8 @@ class CompletingRecoveryUiStateMachineImpl(
             onSuccess = confirmable.onSuccess,
             onCancel = confirmable.onCancel,
             screenPresentationStyle = presentationStyle,
+            segment = segment,
+            actionDescription = actionDescription,
             eventTrackerContext = confirmableEventTrackerContext,
             confirmationContent = HardwareConfirmationContent.LostAppRecovery,
             hardwareVerification = Required(useRecoveryPubKey = true),

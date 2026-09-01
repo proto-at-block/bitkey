@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.hot-reload:hot-reload-gradle-plugin",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "hot-reload-gradle-plugin-1.0.0.jar": "3551b2a31d84ecf95ad140cfdc5b04b3b6b506bf1566187adef9b91a05c66b04"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -28,19 +28,6 @@
             ]
         },
         {
-            "version": "2.1.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-reflect-2.1.20.jar": "419778f2b7a826bad6ee2ca1e4bdebe639ab306d2904fa3ef2a308ecfaab3811"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
-            ]
-        },
-        {
             "version": "2.2.20",
             "variants": [
                 {
@@ -50,6 +37,7 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[bitkey]"
             ]
         }

@@ -8,6 +8,7 @@ import bitkey.f8e.error.code.CreateAccountClientErrorCode.APP_AUTH_PUBKEY_IN_USE
 import bitkey.f8e.error.code.CreateAccountClientErrorCode.HW_AUTH_PUBKEY_IN_USE
 import bitkey.onboarding.CreateFullAccountService
 import bitkey.onboarding.FullAccountCreationError
+import bitkey.recovery.WalletMetadataServerBackupService
 import bitkey.onboarding.UpgradeLiteAccountToFullService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
@@ -60,6 +61,7 @@ class OnboardFullAccountServiceImpl(
   private val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val onboardingF8eClient: OnboardingF8eClient,
+  private val walletMetadataServerBackupService: WalletMetadataServerBackupService,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val eventTracker: EventTracker,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
@@ -133,7 +135,7 @@ class OnboardFullAccountServiceImpl(
         config = configWithDetectedHardwareType
       )
 
-      when (context) {
+      val fullAccount = when (context) {
         is NewFullAccount -> createFullAccountService.createAccount(
           appAndHwKeys
         ).bind()
@@ -142,6 +144,19 @@ class OnboardFullAccountServiceImpl(
           keyCrossDraft = appAndHwKeys
         ).bind()
       }
+
+      // The F8e account already exists at this point. Persist durable metadata retry intent before
+      // returning it; an upload failure must not make onboarding retry account creation with keys
+      // that F8e has already claimed. Startup sync will retry after this account becomes active.
+      walletMetadataServerBackupService.provision(
+        accountId = fullAccount.accountId,
+        sealedSsek = hwActivation.sealedSsek,
+        // The account is not active yet, so pass its environment explicitly instead of relying
+        // on ambient config, which could fall back to the default environment.
+        f8eEnvironment = fullAccount.config.f8eEnvironment
+      ).logFailure { "Failed to provision the initial wallet metadata backup; retry is pending" }
+
+      fullAccount
     }
       .mapError {
         when (it.createAccountClientErrorCode()) {

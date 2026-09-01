@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-savedstate",
     "components": [
         {
-            "version": "2.9.5",
+            "version": "2.9.6",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-savedstate-2.9.5.jar": "8f469bd07f195cd63cfac400f1459c7deb116f28dbd357aed4a6464d4ae3481c"
+                        "lifecycle-viewmodel-savedstate-2.9.6.jar": "74239398cb1f20a8113b37b93d309f1f57494a14f70d6578648e8bb083f80f5d"
                     }
                 }
             ],

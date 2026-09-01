@@ -9,6 +9,8 @@ import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.explorer.BitcoinExplorerMock
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
+import build.wallet.bitcoin.metadata.TransactionNoteServiceError
+import build.wallet.bitcoin.metadata.TransactionNoteServiceFake
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
@@ -16,6 +18,9 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.TransactionNotesFeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
@@ -41,6 +46,7 @@ import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiStateMachi
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilSheet
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
@@ -99,6 +105,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   val clipboard = ClipboardMock()
   val haptics = HapticsMock()
   val speedUpTransactionService = SpeedUpTransactionServiceFake()
+  val transactionNoteService = TransactionNoteServiceFake()
+  val transactionNotesFeatureFlag = TransactionNotesFeatureFlag(FeatureFlagDaoFake())
 
   val stateMachine =
     TransactionDetailsUiStateMachineImpl(
@@ -123,7 +131,12 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       transactionsActivityService = transactionActivityService,
       clipboard = clipboard,
       haptics = haptics,
-      feeEstimationErrorUiStateMachine = feeEstimationErrorUiStateMachine
+      feeEstimationErrorUiStateMachine = feeEstimationErrorUiStateMachine,
+      transactionNoteService = transactionNoteService,
+      transactionNoteEditUiStateMachine = TransactionNoteEditUiStateMachineImpl(
+        transactionNoteService = transactionNoteService
+      ),
+      transactionNotesFeatureFlag = transactionNotesFeatureFlag
     )
 
   val receivedProps =
@@ -212,6 +225,249 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     bitcoinWalletService.spendingWallet.value = spendingWallet
     bitcoinTransactionBumpabilityChecker.isBumpable = false
     transactionActivityService.reset()
+    transactionNoteService.reset()
+    transactionNotesFeatureFlag.reset()
+  }
+
+  test("shows existing transaction note when flag is enabled") {
+    transactionNotesFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    transactionNoteService.setNote(
+      transactionId = BitcoinTransactionId(BitcoinTransactionSend.id),
+      note = "Coffee with Sam"
+    )
+
+    stateMachine.test(sentProps) {
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model ->
+          model.noteRow()?.sideText == "Coffee with Sam"
+        }
+      ) {
+        noteRow().shouldNotBeNull().expect(
+          title = "Note",
+          sideText = "Coffee with Sam"
+        )
+      }
+    }
+  }
+
+  test("creates transaction note from transaction details") {
+    transactionNotesFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+    stateMachine.test(sentProps) {
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model ->
+          model.noteRow()?.sideText == "Add a note"
+        }
+      ) {
+        noteRow().shouldNotBeNull().apply {
+          expect(
+            title = "Note",
+            sideText = "Add a note"
+          )
+          onClick?.invoke()
+        }
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel> {
+        note.shouldBe("")
+        header.shouldNotBeNull().apply {
+          headline.shouldBe("Add a note")
+          sublineModel?.string.shouldBe(
+            "Add a note to help you keep track of what this payment was for"
+          )
+        }
+        onNoteChange("Coffee stop")
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel>(
+        matching = { it.note == "Coffee stop" }
+      ) {
+        note.shouldBe("Coffee stop")
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model ->
+          model.noteRow()?.sideText == "Coffee stop"
+        }
+      ) {
+        noteRow().shouldNotBeNull().expect(
+          title = "Note",
+          sideText = "Coffee stop"
+        )
+      }
+    }
+  }
+
+  test("editing an existing note shows the Edit note sheet title") {
+    transactionNotesFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    transactionNoteService.setNote(
+      transactionId = BitcoinTransactionId(BitcoinTransactionSend.id),
+      note = "Coffee with Sam"
+    )
+
+    stateMachine.test(sentProps) {
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model ->
+          model.noteRow()?.sideText == "Coffee with Sam"
+        }
+      ) {
+        noteRow().shouldNotBeNull().onClick?.invoke()
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel> {
+        note.shouldBe("Coffee with Sam")
+        header.shouldNotBeNull().apply {
+          headline.shouldBe("Edit note")
+          sublineModel?.string.shouldBe(
+            "Add a note to help you keep track of what this payment was for"
+          )
+        }
+        secondaryButton.shouldNotBeNull().text.shouldBe("Delete note")
+      }
+    }
+  }
+
+  test("edits an existing note and dismisses save sheet") {
+    transactionNotesFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    transactionNoteService.setNote(
+      transactionId = BitcoinTransactionId(BitcoinTransactionSend.id),
+      note = "Coffee with Sam"
+    )
+
+    stateMachine.test(sentProps) {
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model -> model.noteRow()?.sideText == "Coffee with Sam" }
+      ) {
+        noteRow().shouldNotBeNull().onClick?.invoke()
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel> {
+        note.shouldBe("Coffee with Sam")
+        onNoteChange("Coffee with Dana")
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel>(matching = { it.note == "Coffee with Dana" }) {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model -> model.noteRow()?.sideText == "Coffee with Dana" }
+      ) {
+        noteRow().shouldNotBeNull().expect(
+          title = "Note",
+          sideText = "Coffee with Dana"
+        )
+      }
+    }
+  }
+
+  test("discards unsaved note drafts on close") {
+    transactionNotesFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+    stateMachine.test(sentProps) {
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model -> model.noteRow()?.sideText == "Add a note" }
+      ) {
+        noteRow().shouldNotBeNull().onClick?.invoke()
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel> {
+        onNoteChange("Unsaved coffee")
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel>(matching = { it.note == "Unsaved coffee" }) {
+        onClose()
+      }
+
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model -> model.noteRow()?.sideText == "Add a note" }
+      ) {
+        noteRow().shouldNotBeNull().onClick?.invoke()
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel>(matching = { it.note == "" }) {
+        note.shouldBe("")
+      }
+    }
+  }
+
+  test("discards unsaved edits to existing note on close") {
+    transactionNotesFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    transactionNoteService.setNote(
+      transactionId = BitcoinTransactionId(BitcoinTransactionSend.id),
+      note = "Saved coffee"
+    )
+
+    stateMachine.test(sentProps) {
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model -> model.noteRow()?.sideText == "Saved coffee" }
+      ) {
+        noteRow().shouldNotBeNull().onClick?.invoke()
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel> {
+        onNoteChange("Unsaved edit")
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel>(matching = { it.note == "Unsaved edit" }) {
+        onClose()
+      }
+
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model -> model.noteRow()?.sideText == "Saved coffee" }
+      ) {
+        noteRow().shouldNotBeNull().onClick?.invoke()
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel>(matching = { it.note == "Saved coffee" }) {
+        note.shouldBe("Saved coffee")
+      }
+    }
+  }
+
+  test("surfaces an error in the note edit sheet when saving fails") {
+    transactionNotesFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    transactionNoteService.createOrUpdateNoteError =
+      TransactionNoteServiceError.PersistenceFailed(Error("db write failed"))
+
+    stateMachine.test(sentProps) {
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { model ->
+          model.noteRow()?.sideText == "Add a note"
+        }
+      ) {
+        noteRow().shouldNotBeNull().onClick?.invoke()
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel> {
+        errorText.shouldBe(null)
+        onNoteChange("Coffee stop")
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel>(
+        matching = { it.note == "Coffee stop" }
+      ) {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel>(
+        matching = { it.errorText != null }
+      ) {
+        errorText.shouldBe("Couldn't save note. Please try again.")
+        isSaving.shouldBe(false)
+        // Typing again clears the error.
+        onNoteChange("Coffee stop again")
+      }
+
+      awaitUntilSheet<TransactionNoteEditBodyModel>(
+        matching = { it.note == "Coffee stop again" }
+      ) {
+        errorText.shouldBe(null)
+      }
+
+      cancelAndIgnoreRemainingEvents()
+    }
   }
 
   test("pending receive transaction returns correct model") {
@@ -238,7 +494,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             .shouldNotBeNull()
             .expect(
               title = "Amount",
-              sideText = "100,000,000 sats"
+              sideText = "₿100,000,000"
             )
         }
       }
@@ -253,7 +509,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             .expect(
               title = "Amount",
               sideText = "$3.00",
-              secondarySideText = "100,000,000 sats"
+              secondarySideText = "₿100,000,000"
             )
         }
       }
@@ -318,7 +574,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             .shouldNotBeNull()
             .expect(
               title = "Amount",
-              sideText = "100,000,000 sats"
+              sideText = "₿100,000,000"
             )
         }
       }
@@ -332,7 +588,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             .expect(
               title = "Amount",
               sideText = "$3.00",
-              secondarySideText = "100,000,000 sats"
+              secondarySideText = "₿100,000,000"
             )
         }
       }
@@ -366,18 +622,18 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         with(content[4].shouldBeInstanceOf<DataList>()) {
           items[0].expect(
             title = "Amount",
-            sideText = "100,000,000 sats"
+            sideText = "₿100,000,000"
           )
           items[1].expect(
             title = "Network fees",
-            sideText = "1,000,000 sats"
+            sideText = "₿1,000,000"
           )
           total
             .shouldNotBeNull()
             .expect(
               title = "Total",
               sideText = "$0.00",
-              secondarySideText = "101,000,000 sats"
+              secondarySideText = "₿101,000,000"
             )
         }
       }
@@ -389,19 +645,19 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           items[0].expect(
             title = "Amount",
             sideText = "$4.00",
-            secondarySideText = "100,000,000 sats"
+            secondarySideText = "₿100,000,000"
           )
           items[1].expect(
             title = "Network fees",
             sideText = "$0.04",
-            secondarySideText = "1,000,000 sats"
+            secondarySideText = "₿1,000,000"
           )
           total
             .shouldNotBeNull()
             .expect(
               title = "Total",
               sideText = "$4.04",
-              secondarySideText = "101,000,000 sats"
+              secondarySideText = "₿101,000,000"
             )
         }
       }
@@ -428,7 +684,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
         // Amount Details (no time details shown for this case)
         with(content[3].shouldBeInstanceOf<DataList>()) {
-          items[0].expect(title = "Amount", sideText = "100,000,000 sats")
+          items[0].expect(title = "Amount", sideText = "₿100,000,000")
         }
       }
 
@@ -464,18 +720,18 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         with(content[4].shouldBeInstanceOf<DataList>()) {
           items[0].expect(
             title = "Amount",
-            sideText = "100,000,000 sats"
+            sideText = "₿100,000,000"
           )
           items[1].expect(
             title = "Network fees",
-            sideText = "1,000,000 sats"
+            sideText = "₿1,000,000"
           )
           total
             .shouldNotBeNull()
             .expect(
               title = "Total",
               sideText = "$0.00",
-              secondarySideText = "101,000,000 sats"
+              secondarySideText = "₿101,000,000"
             )
         }
       }
@@ -487,19 +743,19 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           items[0].expect(
             title = "Amount",
             sideText = "$4.00",
-            secondarySideText = "100,000,000 sats"
+            secondarySideText = "₿100,000,000"
           )
           items[1].expect(
             title = "Network fees",
             sideText = "$0.04",
-            secondarySideText = "1,000,000 sats"
+            secondarySideText = "₿1,000,000"
           )
           total
             .shouldNotBeNull()
             .expect(
               title = "Total",
               sideText = "$4.04",
-              secondarySideText = "101,000,000 sats"
+              secondarySideText = "₿101,000,000"
             )
         }
       }
@@ -623,18 +879,18 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           with(content[4].shouldBeInstanceOf<DataList>()) {
             items[0].expect(
               title = "Amount",
-              sideText = "100,000,000 sats"
+              sideText = "₿100,000,000"
             )
             items[1].expect(
               title = "Network fees",
-              sideText = "1,000,000 sats"
+              sideText = "₿1,000,000"
             )
             total
               .shouldNotBeNull()
               .expect(
                 title = "Total",
                 sideText = "$0.00",
-                secondarySideText = "101,000,000 sats"
+                secondarySideText = "₿101,000,000"
               )
           }
         }
@@ -646,19 +902,19 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             items[0].expect(
               title = "Amount",
               sideText = "$4.00",
-              secondarySideText = "100,000,000 sats"
+              secondarySideText = "₿100,000,000"
             )
             items[1].expect(
               title = "Network fees",
               sideText = "$0.04",
-              secondarySideText = "1,000,000 sats"
+              secondarySideText = "₿1,000,000"
             )
             total
               .shouldNotBeNull()
               .expect(
                 title = "Total",
                 sideText = "$4.04",
-                secondarySideText = "101,000,000 sats"
+                secondarySideText = "₿101,000,000"
               )
           }
         }
@@ -936,7 +1192,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             items[0].expect(title = "UTXOs consolidated", sideText = "2 → 1")
             items[1].expect(
               title = "Consolidation cost",
-              sideText = "10,000,000 sats"
+              sideText = "₿10,000,000"
             )
             total.shouldBeNull()
           }
@@ -949,7 +1205,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             items[1].expect(
               title = "Consolidation cost",
               sideText = "$0.30",
-              secondarySideText = "10,000,000 sats"
+              secondarySideText = "₿10,000,000"
             )
             total.shouldBeNull()
           }
@@ -986,7 +1242,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             items[0].expect(title = "UTXOs consolidated", sideText = "2 → 1")
             items[1].expect(
               title = "Consolidation cost",
-              sideText = "10,000,000 sats"
+              sideText = "₿10,000,000"
             )
             total.shouldBeNull()
           }
@@ -999,7 +1255,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             items[1].expect(
               title = "Consolidation cost",
               sideText = "$0.30",
-              secondarySideText = "10,000,000 sats"
+              secondarySideText = "₿10,000,000"
             )
             total.shouldBeNull()
           }
@@ -1033,7 +1289,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
               .shouldNotBeNull()
               .expect(
                 title = "Amount",
-                sideText = "100,000,000 sats"
+                sideText = "₿100,000,000"
               )
           }
         }
@@ -1048,7 +1304,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
               .expect(
                 title = "Amount",
                 sideText = "$3.00",
-                secondarySideText = "100,000,000 sats"
+                secondarySideText = "₿100,000,000"
               )
           }
         }
@@ -1091,18 +1347,18 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           with(content[4].shouldBeInstanceOf<DataList>()) {
             items[0].expect(
               title = "Amount",
-              sideText = "100,000,000 sats"
+              sideText = "₿100,000,000"
             )
             items[1].expect(
               title = "Network fees",
-              sideText = "1,000,000 sats"
+              sideText = "₿1,000,000"
             )
             total
               .shouldNotBeNull()
               .expect(
                 title = "Total",
                 sideText = "$0.00",
-                secondarySideText = "101,000,000 sats"
+                secondarySideText = "₿101,000,000"
               )
           }
         }
@@ -1114,19 +1370,19 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             items[0].expect(
               title = "Amount",
               sideText = "$4.00",
-              secondarySideText = "100,000,000 sats"
+              secondarySideText = "₿100,000,000"
             )
             items[1].expect(
               title = "Network fees",
               sideText = "$0.04",
-              secondarySideText = "1,000,000 sats"
+              secondarySideText = "₿1,000,000"
             )
             total
               .shouldNotBeNull()
               .expect(
                 title = "Total",
                 sideText = "$4.04",
-                secondarySideText = "101,000,000 sats"
+                secondarySideText = "₿101,000,000"
               )
           }
         }
@@ -1174,7 +1430,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
               .shouldNotBeNull()
               .expect(
                 title = "Amount",
-                sideText = "5,000,000 sats"
+                sideText = "₿5,000,000"
               )
           }
         }
@@ -1189,7 +1445,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
               .expect(
                 title = "Amount",
                 sideText = "$0.15",
-                secondarySideText = "5,000,000 sats"
+                secondarySideText = "₿5,000,000"
               )
           }
         }
@@ -1290,3 +1546,9 @@ private fun DataList.Data.expect(
   this.sideText.shouldBe(sideText)
   this.secondarySideText.shouldBe(secondarySideText)
 }
+
+private fun TransactionDetailModel.noteRow(): DataList.Data? =
+  content
+    .filterIsInstance<DataList>()
+    .flatMap { it.items }
+    .firstOrNull { it.title == "Note" }

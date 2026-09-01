@@ -66,6 +66,7 @@ class BitcoinTransactionItemUiStateMachineImpl(
         date = formattedDateTime(),
         amount = fiatAmountFormatted,
         amountEquivalent = moneyDisplayFormatter.format(totalToUse),
+        note = props.transactionNote,
         transactionType = transactionType,
         isPending = confirmationStatus == Pending,
         isLate = isLate(clock = clock) && confirmationStatus == Pending,

@@ -4,7 +4,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.TransactionsDataMock
-import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayServiceMock
@@ -14,8 +14,11 @@ import build.wallet.money.currency.BTC
 import build.wallet.money.currency.USD
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
+import build.wallet.money.exchange.ExchangeRate
+import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
@@ -24,20 +27,23 @@ import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
-import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.statemachine.send.amountentry.TransferCardUiProps
-import build.wallet.statemachine.send.amountentry.TransferCardUiStateMachine
+import build.wallet.statemachine.send.amountentry.SmartBarModel
+import build.wallet.statemachine.send.amountentry.SmartBarUiProps
+import build.wallet.statemachine.send.amountentry.SmartBarUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.matchers.shouldBeDisabled
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
+import kotlinx.datetime.Clock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   val conversionRate = 3.3333
@@ -48,6 +54,14 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   val balanceSecondaryAmount = bitcoinBalance
 
   val defaultSecondaryAmount = BitcoinMoney.sats(1000)
+  val exchangeRates = immutableListOf(
+    ExchangeRate(
+      fromCurrency = BTC.textCode,
+      toCurrency = USD.textCode,
+      rate = conversionRate,
+      timeRetrieved = Clock.System.now()
+    )
+  )
   val defaultMoneyCalculatorModel =
     MoneyCalculatorModel(
       primaryAmount = FiatMoney.usd(1.0),
@@ -66,22 +80,24 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         defaultMoneyCalculatorModel
       ) {}
 
-  val transferCardUiStateMachine =
-    object : TransferCardUiStateMachine,
-      StateMachineMock<TransferCardUiProps, CardModel?>(
+  val smartBarUiStateMachine =
+    object : SmartBarUiStateMachine,
+      StateMachineMock<SmartBarUiProps, SmartBarModel?>(
         null
       ) {}
   val mobilePayService = MobilePayServiceMock(turbines::create)
 
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val bitcoinWalletService = BitcoinWalletServiceFake()
+  val exchangeRateService = ExchangeRateServiceFake()
   val stateMachine = TransferAmountEntryUiStateMachineImpl(
     currencyConverter = CurrencyConverterFake(conversionRate = 3.3333),
     moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
     bitcoinWalletService = bitcoinWalletService,
-    transferCardUiStateMachine = transferCardUiStateMachine
+    smartBarUiStateMachine = smartBarUiStateMachine,
+    exchangeRateService = exchangeRateService
   )
 
   val onContinueClickCalls = turbines.create<ContinueTransferParams>("onContinueClick calls")
@@ -91,7 +107,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       onBack = {},
       initialAmount = FiatMoney.usd(1.0),
       onContinueClick = { onContinueClickCalls += it },
-      exchangeRates = emptyImmutableList(),
+      exchangeRates = exchangeRates,
       flow = TransferAmountEntryUiProps.Flow.Send(allowSendAll = true)
     )
   val sellProps =
@@ -106,6 +122,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     mobilePayService.reset()
     mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
     bitcoinWalletService.reset()
+    exchangeRateService.reset()
 
     bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
       balance = BitcoinBalanceFake(confirmed = bitcoinBalance)
@@ -119,7 +136,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   test("initial balance amount and balance update") {
     stateMachine.test(props) {
       awaitBody<TransferAmountBodyModel> {
-        toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
+        toolbar.title.shouldBeInstanceOf<ToolbarTitleModel.Inline>().subtitle.shouldBe("\$16.67 available")
         moneyCalculatorUiStateMachine.props.inputAmountCurrency.shouldBe(USD)
         moneyCalculatorUiStateMachine.props.secondaryDisplayAmountCurrency
           .shouldBe(BTC)
@@ -131,7 +148,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
       // After balance update – now with amount from balance provider
       awaitBody<TransferAmountBodyModel> {
-        toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$33.33 available")
+        toolbar.title.shouldBeInstanceOf<ToolbarTitleModel.Inline>().subtitle.shouldBe("\$33.33 available")
       }
     }
   }
@@ -139,8 +156,8 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   test("initial amount in btc") {
     stateMachine.test(props.copy(initialAmount = BitcoinMoney.btc(1.0))) {
       awaitBody<TransferAmountBodyModel> {
-        toolbar.middleAccessory.shouldNotBeNull().subtitle
-          .shouldBe("500,000,000 sats available")
+        toolbar.title.shouldBeInstanceOf<ToolbarTitleModel.Inline>().subtitle
+          .shouldBe("₿500,000,000 available")
         moneyCalculatorUiStateMachine.props.inputAmountCurrency.shouldBe(BTC)
         moneyCalculatorUiStateMachine.props.secondaryDisplayAmountCurrency
           .shouldBe(USD)
@@ -151,7 +168,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   test("entered amount at exactly balance") {
     stateMachine.test(props) {
       awaitBody<TransferAmountBodyModel> {
-        toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
+        toolbar.title.shouldBeInstanceOf<ToolbarTitleModel.Inline>().subtitle.shouldBe("\$16.67 available")
       }
 
       moneyCalculatorUiStateMachine.emitModel(
@@ -168,7 +185,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   test("entered amount above balance in fiat") {
     stateMachine.test(props) {
       awaitBody<TransferAmountBodyModel> {
-        toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
+        toolbar.title.shouldBeInstanceOf<ToolbarTitleModel.Inline>().subtitle.shouldBe("\$16.67 available")
       }
 
       val primaryAmountAboveBalance = balancePrimaryAmount + FiatMoney.usd(0.1)
@@ -368,7 +385,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(sellProps) {
       awaitBody<TransferAmountBodyModel> {
-        cardModel.shouldBeNull()
+        smartBarModel.shouldBeNull()
         useSmartBar.shouldBeFalse()
         primaryButton.treatment.shouldBe(ButtonModel.Treatment.Primary)
         primaryButton.leadingIcon.shouldBeNull()
@@ -430,7 +447,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
           primaryButton.shouldBeDisabled()
         }
 
-        transferCardUiStateMachine.props.transferAmountState
+        smartBarUiStateMachine.props.transferAmountState
           .shouldBe(TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState)
       }
     }
@@ -453,7 +470,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
       stateMachine.test(props) {
         awaitBody<TransferAmountBodyModel> {
-          toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
+          toolbar.title.shouldBeInstanceOf<ToolbarTitleModel.Inline>().subtitle.shouldBe("\$16.67 available")
           useSmartBar.shouldBeTrue()
         }
       }
@@ -613,10 +630,10 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         onSwapCurrencyClick.shouldBeNull()
         shouldTriggerContextualErrorFeedback.shouldBeTrue()
         primaryButton.shouldBeDisabled()
-        cardModel.shouldBeNull()
+        smartBarModel.shouldBeNull()
       }
 
-      transferCardUiStateMachine.props.transferAmountState
+      smartBarUiStateMachine.props.transferAmountState
         .shouldBe(TransferAmountUiState.InvalidAmountEnteredUiState.InvalidAmountEqualOrAboveBalanceUiState)
     }
   }
@@ -624,8 +641,42 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   test("given exchange rates are null, should not show fiat amount") {
     stateMachine.test(props.copy(exchangeRates = null, initialAmount = BitcoinMoney.btc(1.0))) {
       awaitBody<TransferAmountBodyModel> {
-        toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("500,000,000 sats available")
+        toolbar.title.shouldBeInstanceOf<ToolbarTitleModel.Inline>().subtitle.shouldBe("₿500,000,000 available")
       }
+    }
+  }
+
+  test("fiat entry without bitcoin conversion shows retryable exchange rate error when refresh fails") {
+    exchangeRateService.syncRatesResult = com.github.michaelbull.result.Err(Error("sync failed"))
+    moneyCalculatorUiStateMachine.emitModel(
+      MoneyCalculatorModel(
+        primaryAmount = FiatMoney.usd(1.0),
+        secondaryAmount = null,
+        amountModel = MoneyAmountEntryModel(
+          primaryAmount = "$1",
+          primaryAmountGhostedSubstringRange = null,
+          secondaryAmount = null
+        ),
+        keypadModel = KeypadModel(showDecimal = true, onButtonPress = {})
+      )
+    )
+    val onBackCalls = turbines.create<Unit>("onBack calls")
+
+    stateMachine.test(
+      props.copy(
+        exchangeRates = null,
+        initialAmount = FiatMoney.zeroUsd(),
+        onBack = { onBackCalls += Unit }
+      )
+    ) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("Exchange rates unavailable")
+        primaryButton.shouldNotBeNull().text.shouldBe("Try again")
+        secondaryButton.shouldNotBeNull().text.shouldBe("Go back")
+        secondaryButton.shouldNotBeNull().onClick()
+      }
+      onBackCalls.awaitItem().shouldBe(Unit)
     }
   }
 

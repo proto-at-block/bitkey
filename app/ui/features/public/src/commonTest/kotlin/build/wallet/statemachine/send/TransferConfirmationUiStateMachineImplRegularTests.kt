@@ -88,7 +88,6 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   val signTransactionNfcSessionUiStateMachine = SignTransactionNfcSessionUiStateMachineMock("sign-txn-nfc-regular")
 
   // Define the TransferConfirmationUiProps with callbacks connected to the turbine instances
-  @Suppress("DEPRECATION")
   val props = TransferConfirmationUiProps(
     account = FullAccountMock,
     variant = TransferConfirmationScreenVariant.Regular,

@@ -1,0 +1,264 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "url": "../../trailblaze-quickjs-tools/2026.06.01/trailblaze-quickjs-tools-2026.06.01.module",
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-quickjs-tools",
+    "version": "2026.06.01",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "debugApiElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.test",
+          "module": "monitor",
+          "version": {
+            "requires": "1.8.0"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-quickjs-tools-debug.aar",
+          "url": "trailblaze-quickjs-tools-android-debug-2026.06.01.aar",
+          "size": 136578,
+          "sha512": "35597e60a242f56654f6eefb86cb70d0387aef7433422bcde2e57ee6b86c22d4d68826ade32c6badb97f69ae1b4e798e0f4f8c41d8c4a31dfdd5ca20cde41d65",
+          "sha256": "4689f63fcf7713863a72e0a73d961ebff864fc319199ec8cd1567361ae38136b",
+          "sha1": "3b79e7ac818ba9b6215e617b5f1ab3960849f549",
+          "md5": "3bd2fffbe772205639ab1159f4fe62a9"
+        }
+      ]
+    },
+    {
+      "name": "debugRuntimeElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.test",
+          "module": "monitor",
+          "version": {
+            "requires": "1.8.0"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.06.01"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.06.01"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "io.github.dokar3",
+          "module": "quickjs-kt",
+          "version": {
+            "requires": "1.0.5"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.10.0"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-quickjs-tools-debug.aar",
+          "url": "trailblaze-quickjs-tools-android-debug-2026.06.01.aar",
+          "size": 136578,
+          "sha512": "35597e60a242f56654f6eefb86cb70d0387aef7433422bcde2e57ee6b86c22d4d68826ade32c6badb97f69ae1b4e798e0f4f8c41d8c4a31dfdd5ca20cde41d65",
+          "sha256": "4689f63fcf7713863a72e0a73d961ebff864fc319199ec8cd1567361ae38136b",
+          "sha1": "3b79e7ac818ba9b6215e617b5f1ab3960849f549",
+          "md5": "3bd2fffbe772205639ab1159f4fe62a9"
+        }
+      ]
+    },
+    {
+      "name": "debugSourcesElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "files": [
+        {
+          "name": "trailblaze-quickjs-tools-android-debug-2026.06.01-sources.jar",
+          "url": "trailblaze-quickjs-tools-android-debug-2026.06.01-sources.jar",
+          "size": 35655,
+          "sha512": "38e143f39a1a2a6be554ffabca69c06a1d1e6e4ceb13cd59569e8749a2a03e0ff327606e0db4d4a21044618508d00fc1c957993dc1984f13a3bace0d8cef8d60",
+          "sha256": "15fbf59d3bcd1cbca5fe960199e1e010e334322d321ef781d72399c16d5a6e05",
+          "sha1": "c9c71b7f48a7a7f839ba51a83d2342c89bfb6887",
+          "md5": "62db7d8f87a5cd9e99bfddd2bffcd3a6"
+        }
+      ]
+    }
+  ]
+}

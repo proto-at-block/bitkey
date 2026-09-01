@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.material:material",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "material-1.9.1.jar": "7c7c3fa4592730edc5d46d660c6c32505f101b73b9c37fdf253da94e8c827ee6"
+                        "material-1.10.0-rc02.jar": "2d2118f77ba789b8fa179803856a7ae1ec753f9ff9928ef48f2077540ab83205"
                     }
                 }
             ],

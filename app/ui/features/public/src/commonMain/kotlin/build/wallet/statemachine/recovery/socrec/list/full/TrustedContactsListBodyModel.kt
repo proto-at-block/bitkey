@@ -18,7 +18,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.statemachine.recovery.socrec.list.listItemModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -89,8 +89,10 @@ data class TrustedContactsListBodyModel(
   val onBackPressed: () -> Unit,
 ) : FormBodyModel(
     id = TC_MANAGEMENT_SETTINGS_LIST,
-    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBackPressed)),
-    formScreenTitle = FormScreenTitleModel(title = RECOVERY_CONTACTS_TITLE),
+    toolbar = ToolbarModel(
+      leadingAccessory = BackAccessory(onBackPressed),
+      title = ToolbarTitleModel.Large(title = RECOVERY_CONTACTS_TITLE)
+    ),
     formScreenLayout = FormScreenLayoutModel.LargeTitle(),
     header = FormHeaderModel(
       headline = null,
@@ -266,8 +268,10 @@ private fun statusText(
         "Pending"
       }
     is EndorsedTrustedContact ->
-      when (recoveryContact.authenticationState) {
-        VERIFIED -> "Active"
+      when {
+        recoveryContact.needsHwVerification -> "Needs verification"
+        recoveryContact.authenticationState == VERIFIED -> "Active"
+        recoveryContact.authenticationState == TAMPERED -> "Invalid"
         else -> null
       }
     is UnendorsedTrustedContact ->

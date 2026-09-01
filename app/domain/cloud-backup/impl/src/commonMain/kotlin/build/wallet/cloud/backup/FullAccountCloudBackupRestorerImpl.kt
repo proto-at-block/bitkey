@@ -63,6 +63,13 @@ class FullAccountCloudBackupRestorerImpl(
         )
       }
 
+      is CloudBackupRestorerError.SsekStorageError -> {
+        AccountBackupRestorationError(
+          cause = error.cause,
+          message = "Error storing SSEK"
+        )
+      }
+
       is CloudBackupRestorerError.AccountBackupDecryptionError -> {
         AccountBackupRestorationError(
           cause = error.cause,

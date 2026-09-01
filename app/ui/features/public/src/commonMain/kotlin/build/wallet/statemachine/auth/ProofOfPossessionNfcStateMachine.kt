@@ -86,9 +86,8 @@ data class ProofOfPossessionNfcProps(
   val fullAccountId: FullAccountId,
   val appAuthKey: PublicKey<AppGlobalAuthKey>? = null,
   val authTokens: AccountAuthTokens? = null,
-  // TODO: BKR-1117: make non-nullable
-  val segment: AppSegment? = null,
-  val actionDescription: String? = null,
+  val segment: AppSegment,
+  val actionDescription: String,
   val screenPresentationStyle: ScreenPresentationStyle,
   val onBack: () -> Unit,
   val onTokenRefresh: (() -> ScreenModel)? = null,

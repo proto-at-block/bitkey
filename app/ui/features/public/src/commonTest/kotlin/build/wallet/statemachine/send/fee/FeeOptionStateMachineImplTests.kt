@@ -45,7 +45,7 @@ class FeeOptionStateMachineImplTests : FunSpec({
       with(awaitItem()) {
         optionName.shouldBe("Priority")
         transactionTime.shouldBe("~10 mins")
-        transactionFee.shouldBe("$3.00 (100,000,000 sats)")
+        transactionFee.shouldBe("$3.00 (₿100,000,000)")
         selected.shouldBeFalse()
         enabled.shouldBeTrue()
         onClick.shouldNotBeNull().invoke()

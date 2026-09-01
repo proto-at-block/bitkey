@@ -106,8 +106,8 @@ class NfcConfirmableSessionUIStateMachineProps<T>(
   val needsAuthentication: Boolean get() = config.needsAuthentication
   val hardwareVerification: NfcSessionUIStateMachineProps.HardwareVerification get() = config.hardwareVerification
   val shouldLock: Boolean get() = config.shouldLock
-  val segment: AppSegment? get() = config.segment
-  val actionDescription: String? get() = config.actionDescription
+  val segment: AppSegment get() = config.segment
+  val actionDescription: String get() = config.actionDescription
   val screenPresentationStyle: ScreenPresentationStyle get() = config.screenPresentationStyle
   val eventTrackerContext: NfcEventTrackerScreenIdContext get() = config.eventTrackerContext
   val shouldShowLongRunningOperation: Boolean get() = config.shouldShowLongRunningOperation
@@ -126,8 +126,8 @@ class NfcConfirmableSessionUIStateMachineProps<T>(
     needsAuthentication: Boolean = true,
     hardwareVerification: NfcSessionUIStateMachineProps.HardwareVerification = Required(),
     shouldLock: Boolean = true,
-    segment: AppSegment? = null,
-    actionDescription: String? = null,
+    segment: AppSegment,
+    actionDescription: String,
     screenPresentationStyle: ScreenPresentationStyle,
     eventTrackerContext: NfcEventTrackerScreenIdContext,
     shouldShowLongRunningOperation: Boolean = false,
@@ -175,8 +175,8 @@ class NfcConfirmableSessionUIStateMachineProps<T>(
     transaction: NfcTransaction<T>,
     screenPresentationStyle: ScreenPresentationStyle,
     eventTrackerContext: NfcEventTrackerScreenIdContext,
-    segment: AppSegment? = null,
-    actionDescription: String? = null,
+    segment: AppSegment,
+    actionDescription: String,
     hardwareVerification: NfcSessionUIStateMachineProps.HardwareVerification,
     onInauthenticHardware: (Throwable) -> Unit = {},
     onError: (NfcException) -> Boolean = { false },

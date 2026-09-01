@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.layoutlib:layoutlib",
     "components": [
         {
-            "version": "14.0.11",
+            "version": "15.2.3",
             "variants": [
                 {
                     "artifacts": {
-                        "layoutlib-14.0.11.jar": "9a8ab05c9617ec18a3bd8546ef9d56b4ea6271208ade27710b0baf564fe4dd59"
+                        "layoutlib-15.2.3.jar": "e826a88e448a0c1d42abc30c9d047131badbac6fc3922b8e93ac3ea27bb0eb2c"
                     }
                 }
             ],

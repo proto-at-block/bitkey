@@ -2,19 +2,6 @@
     "module-identifier": "com.google.protobuf:protobuf-java",
     "components": [
         {
-            "version": "3.22.3",
-            "variants": [
-                {
-                    "artifacts": {
-                        "protobuf-java-3.22.3.jar": "59d388ea6a2d2d76ae8efff7fd4d0c60c6f0f464c3d3ab9be8e5add092975708"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
-            ]
-        },
-        {
             "version": "3.25.5",
             "variants": [
                 {
@@ -24,6 +11,7 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[bitkey]"
             ]
         }

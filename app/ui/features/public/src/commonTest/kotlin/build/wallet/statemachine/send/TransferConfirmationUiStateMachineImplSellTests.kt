@@ -81,7 +81,6 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
   val signTransactionNfcSessionUiStateMachine = SignTransactionNfcSessionUiStateMachineMock("sign-txn-nfc-sell")
 
   // Define the TransferConfirmationUiProps with callbacks connected to the turbine instances
-  @Suppress("DEPRECATION")
   val sellProps = TransferConfirmationUiProps(
     account = FullAccountMock,
     variant = TransferConfirmationScreenVariant.Sell(PartnerInfoFake),

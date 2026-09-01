@@ -1,0 +1,178 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-report",
+    "version": "2026.06.01",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-report-2026.06.01.jar",
+          "url": "trailblaze-report-2026.06.01.jar",
+          "size": 392823,
+          "sha512": "107275deca69f2130bfa47565c0583487dcbe07289da834626547cca459d3974a8ceae62e6bbabf748e4b10a1e78bfc720f350f4dcdc53791178309a11c37716",
+          "sha256": "c100a75bc16bb26566defa65371173eed23bb94ac4aa165be562942273fd9d1e",
+          "sha1": "c084188a55df3d5061d32d19727253f91d4b906c",
+          "md5": "a09a0a6a169a58c0770370817870d19a"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-capture",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1-0.6.x-compat"
+          }
+        },
+        {
+          "group": "com.github.ajalt.clikt",
+          "module": "clikt",
+          "version": {
+            "requires": "5.0.3"
+          }
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-orchestra-models",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.10.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.10.0"
+          }
+        },
+        {
+          "group": "com.charleskorn.kaml",
+          "module": "kaml",
+          "version": {
+            "requires": "0.104.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          }
+        },
+        {
+          "group": "org.slf4j",
+          "module": "slf4j-simple",
+          "version": {
+            "requires": "2.0.17"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-report-2026.06.01.jar",
+          "url": "trailblaze-report-2026.06.01.jar",
+          "size": 392823,
+          "sha512": "107275deca69f2130bfa47565c0583487dcbe07289da834626547cca459d3974a8ceae62e6bbabf748e4b10a1e78bfc720f350f4dcdc53791178309a11c37716",
+          "sha256": "c100a75bc16bb26566defa65371173eed23bb94ac4aa165be562942273fd9d1e",
+          "sha1": "c084188a55df3d5061d32d19727253f91d4b906c",
+          "md5": "a09a0a6a169a58c0770370817870d19a"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "trailblaze-report-2026.06.01-sources.jar",
+          "url": "trailblaze-report-2026.06.01-sources.jar",
+          "size": 66790,
+          "sha512": "824589a80c11e23f1de002fe71ef08800eda06d749dfe1da8547fd2f413e90ee6a2aca32226375cd8e0e73eee49066c389f1120860473e033c73030dd60a398c",
+          "sha256": "7b32e77b0968431c9f3f88928edd894668eff8db02f82b4ccfd80a643f8a39cb",
+          "sha1": "8d9e153c6393600b3d182243b9c14f866580b504",
+          "md5": "91fc8211ff6397924a90b2e5d0ac2221"
+        }
+      ]
+    }
+  ]
+}

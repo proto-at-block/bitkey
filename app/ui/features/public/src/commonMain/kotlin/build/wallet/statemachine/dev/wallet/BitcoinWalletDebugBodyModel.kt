@@ -14,7 +14,7 @@ import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.toImmutableList
 
@@ -26,7 +26,7 @@ internal data class BitcoinWalletDebugBodyModel(
     onBack = onBack,
     toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBack),
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Bitcoin Wallet")
+      title = ToolbarTitleModel.Inline(title = "Bitcoin Wallet")
     ),
     header = null,
     mainContentList = buildImmutableList {

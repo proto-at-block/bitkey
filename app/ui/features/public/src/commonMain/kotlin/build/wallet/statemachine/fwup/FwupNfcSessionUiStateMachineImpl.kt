@@ -20,6 +20,7 @@ import build.wallet.crypto.random.SecureRandom
 import build.wallet.crypto.random.nextBytes
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.feature.flags.FwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag
@@ -32,6 +33,7 @@ import build.wallet.fwup.FwupFinishResponseStatus.*
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
 import build.wallet.nfc.*
 import build.wallet.nfc.NfcAvailability.Available.Disabled
@@ -145,7 +147,7 @@ class FwupNfcSessionUiStateMachineImpl(
       )
     }
 
-    var fwupProgress by remember { mutableStateOf(0.0f) }
+    var fwupProgress by remember { mutableFloatStateOf(0.0f) }
     val nfcCooldownDurationSeconds = fwupNfcCooldownPeriodSecondsFeatureFlag.intValue()
     val hiddenNfcScreenRevealDelayMs =
       fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag.intValue()
@@ -704,6 +706,9 @@ class FwupNfcSessionUiStateMachineImpl(
     getCurrentState: () -> FwupNfcSessionUiState,
     setState: (FwupNfcSessionUiState) -> Unit,
   ) {
+    val currentSetProgress by rememberUpdatedState(setProgress)
+    val currentGetCurrentState by rememberUpdatedState(getCurrentState)
+    val currentSetState by rememberUpdatedState(setState)
     val continuation = state.fetchResult
     // Include hardwareType in the key so the NFC session restarts if the config changes
     // (e.g., when activeOrDefaultConfig() emits the active account's config after initially
@@ -720,8 +725,8 @@ class FwupNfcSessionUiStateMachineImpl(
         // the normal searching UI.
         launch {
           delay(hiddenNfcScreenRevealDelayMs.milliseconds)
-          if (getCurrentState() == state) {
-            setState(
+          if (currentGetCurrentState() == state) {
+            currentSetState(
               state.copy(
                 displayMode = InNfcSessionUiState.DisplayMode.Searching
               )
@@ -747,8 +752,15 @@ class FwupNfcSessionUiStateMachineImpl(
               shouldLock = true,
               skipFirmwareTelemetry = true,
               nfcFlowName = if (continuation != null) "fwup-confirmation" else "fwup",
-              requirePairedHardware = hwPubKey?.let {
-                RequirePairedHardware.Required(
+              requirePairedHardware = when {
+                hwPubKey == null -> RequirePairedHardware.NotRequired
+                // EEK-restored keyboxes persist a sentinel string in place of a real hardware
+                // auth key, so pairing verification is impossible and must fail open (W-17444).
+                EmergencyExitPayloadRestorer.isEekSentinelKey(hwPubKey.value) -> {
+                  logInfo { "Bypassing hardware pairing check due to EEK mode" }
+                  RequirePairedHardware.NotRequired
+                }
+                else -> RequirePairedHardware.Required(
                   challenge = secureRandom.nextBytes(32).toByteString(),
                   checkHardwareIsPaired = { signature, challengeString ->
                     val verification = signatureVerifier.verifyEcdsaResult(
@@ -759,7 +771,7 @@ class FwupNfcSessionUiStateMachineImpl(
                     verification.get() == true
                   }
                 )
-              } ?: RequirePairedHardware.NotRequired,
+              },
               asyncNfcSigning = false, // Unused for FWUP
               maxNfcRetryAttempts = nfcSessionRetryAttemptsFeatureFlag.intValue()
             ),
@@ -779,7 +791,7 @@ class FwupNfcSessionUiStateMachineImpl(
                       finalSequenceId = state.currentMcu.finalSequenceId()
                     )
                   session.message = "${progress.roundToInt()}%"
-                  setProgress(progress)
+                  currentSetProgress(progress)
                 }
               )
             } else {
@@ -798,7 +810,7 @@ class FwupNfcSessionUiStateMachineImpl(
                       finalSequenceId = state.currentMcu.finalSequenceId()
                     )
                   session.message = "${progress.roundToInt()}%"
-                  setProgress(progress)
+                  currentSetProgress(progress)
                 }
               )
             }
@@ -816,12 +828,12 @@ class FwupNfcSessionUiStateMachineImpl(
                   event.result as FwupTransactionResult,
                   state,
                   props,
-                  setProgress,
-                  setState
+                  currentSetProgress,
+                  currentSetState
                 )
               }
               is NfcTransactionEvent.Failed ->
-                handleNfcTransactionFailure(event.error, state, continuation, props, setState)
+                handleNfcTransactionFailure(event.error, state, continuation, props, currentSetState)
               NfcTransactionEvent.TagDisconnected,
               NfcTransactionEvent.SessionCanceled,
               -> Unit
@@ -831,16 +843,18 @@ class FwupNfcSessionUiStateMachineImpl(
           // UI state mutation — Flow is already conflated by transactEvents.
           when (event) {
             is NfcTransactionEvent.TagConnected -> {
-              when (val currentState = getCurrentState()) {
+              when (val currentState = currentGetCurrentState()) {
                 is InNfcSessionUiState ->
-                  setState(currentState.copy(displayMode = InNfcSessionUiState.DisplayMode.Updating))
+                  currentSetState(
+                    currentState.copy(displayMode = InNfcSessionUiState.DisplayMode.Updating)
+                  )
                 else -> Unit
               }
             }
             NfcTransactionEvent.TagDisconnected -> {
-              when (val currentState = getCurrentState()) {
+              when (val currentState = currentGetCurrentState()) {
                 is InNfcSessionUiState ->
-                  setState(
+                  currentSetState(
                     currentState.copy(displayMode = InNfcSessionUiState.DisplayMode.LostConnection)
                   )
                 else -> Unit

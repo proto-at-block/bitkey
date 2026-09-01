@@ -29,6 +29,12 @@ value class AppGlobalAuthKeyHwSignature(val value: String) {
     }
   }
 
+  val isPlaceholder: Boolean
+    get() = value == ORPHANED_KEY_RECOVERY_SENTINEL || value == W3_ONBOARDING_PLACEHOLDER
+
+  val isW3OnboardingPlaceholder: Boolean
+    get() = value == W3_ONBOARDING_PLACEHOLDER
+
   companion object {
     /**
      * Sentinel value used to indicate that this signature was not obtained from hardware.

@@ -55,6 +55,13 @@ enum class CloudEventTrackerScreenId : EventTrackerScreenId {
   /** Error shown when restoring account from cloud backup fails */
   FAILURE_RESTORE_FROM_CLOUD_BACKUP,
 
+  /**
+   * Shown when the customer backs out of the final "provision app auth key" tap
+   * of cloud restoration. Not a failure — the backup is already restored, so
+   * this invites the customer to complete the remaining tap.
+   */
+  RESUME_CLOUD_BACKUP_RESTORATION,
+
   /** Error shown when failing transparently restore a lite account backup during full account onboarding */
   FAILURE_RESTORE_FROM_LITE_ACCOUNT_CLOUD_BACKUP_AFTER_ONBOARDING,
 

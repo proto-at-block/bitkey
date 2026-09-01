@@ -14,8 +14,6 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.ensureNotNull
-import build.wallet.feature.flags.WipeOldW1DeviceFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcException
@@ -68,7 +66,6 @@ class DeviceWipeEligibilityServiceImpl(
   private val bitcoinBlockchain: BitcoinBlockchain,
   private val sweepService: SweepService,
   private val w3UpgradeDeviceHistoryRepository: W3UpgradeDeviceHistoryRepository,
-  private val wipeOldW1DeviceFeatureFlag: WipeOldW1DeviceFeatureFlag,
 ) : DeviceWipeEligibilityService {
   override suspend fun evaluateLoggedInDevice(
     account: FullAccount,
@@ -106,7 +103,7 @@ class DeviceWipeEligibilityServiceImpl(
   override suspend fun oldW1WipeReadiness(
     account: FullAccount,
   ): Result<OldW1WipeReadiness, DeviceWipeEligibilityError> = coroutineBinding {
-    if (!wipeOldW1DeviceFeatureFlag.isEnabled() || account.config.hardwareType != W3) {
+    if (account.config.hardwareType != W3) {
       return@coroutineBinding OldW1WipeReadiness.NotReady
     }
 
@@ -176,9 +173,6 @@ class DeviceWipeEligibilityServiceImpl(
     expectedDevice: InactiveHardwareDevice,
     bitcoinNetworkType: BitcoinNetworkType?,
   ): Result<Unit, InactiveDeviceWipeValidationError> {
-    if (!wipeOldW1DeviceFeatureFlag.isEnabled()) {
-      return Err(InactiveDeviceWipeValidationError.FeatureDisabled)
-    }
     val fullAccount = account ?: return Err(InactiveDeviceWipeValidationError.DeviceCheckFailed)
 
     return try {
@@ -250,9 +244,6 @@ class DeviceWipeEligibilityServiceImpl(
     account: FullAccount,
     tappedDevice: TappedDeviceIdentity,
   ): Result<DeviceWipeEligibility, DeviceWipeEligibilityError> = coroutineBinding {
-    ensure(wipeOldW1DeviceFeatureFlag.isEnabled()) {
-      DeviceWipeEligibilityError.UnknownDevice
-    }
     val tappedFingerprint = ensureNotNull(tappedDevice.initialSpendingKeyFingerprint) {
       DeviceWipeEligibilityError.OldDeviceCheckFailed
     }

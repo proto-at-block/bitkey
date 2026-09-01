@@ -393,7 +393,7 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
         val listGroup = body.mainContentList[0].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
         listGroup.listGroupModel.header.shouldBe("Your funds")
         listGroup.listGroupModel.items[0].title.shouldBe("$0.00")
-        listGroup.listGroupModel.items[0].secondaryText.shouldBe("100,000 sats")
+        listGroup.listGroupModel.items[0].secondaryText.shouldBe("₿100,000")
       }
     }
   }

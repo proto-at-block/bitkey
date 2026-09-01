@@ -50,6 +50,15 @@ interface CloudBackupRestorer {
       override val cause: Throwable,
     ) : CloudBackupRestorerError()
 
+    /**
+     * An SSEK from the backup could not be persisted to encrypted storage. Failing the
+     * restoration attempt keeps it retryable; reporting success would leave server-side
+     * encrypted data undecryptable with no later path to re-copy the keys.
+     */
+    data class SsekStorageError(
+      override val cause: Throwable,
+    ) : CloudBackupRestorerError()
+
     data class AccountBackupDecryptionError(
       override val cause: Throwable,
     ) : CloudBackupRestorerError()

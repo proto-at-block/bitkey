@@ -11,10 +11,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.loading.LoadingBadge
@@ -25,6 +31,7 @@ import build.wallet.ui.model.icon.IconImage.*
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
+import build.wallet.ui.tokens.colors
 import build.wallet.ui.tokens.painter
 import org.jetbrains.compose.resources.painterResource
 
@@ -182,44 +189,78 @@ private fun IconAlignmentInBackground.toAlignment(): Alignment =
   }
 
 private fun Modifier.iconBackground(type: IconBackgroundType): Modifier =
-  composed {
-    when (type) {
-      Transient -> this
-      is Circle -> background(type.color.toComposeColor(), CircleShape)
-      is Square -> background(type.color.toComposeColor(), RoundedCornerShape(type.cornerRadius))
-    }
+  when (type) {
+    Transient -> this
+    is Circle, is Square -> this.then(IconBackgroundElement(type))
   }
 
-@Composable
-private fun Circle.CircleColor.toComposeColor(): Color =
-  when (this) {
+private data class IconBackgroundElement(
+  val type: IconBackgroundType,
+) : ModifierNodeElement<IconBackgroundNode>() {
+  override fun create() = IconBackgroundNode(type)
+
+  override fun update(node: IconBackgroundNode) = node.update(type)
+}
+
+private class IconBackgroundNode(
+  private var type: IconBackgroundType,
+) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
+  fun update(type: IconBackgroundType) {
+    this.type = type
+    invalidateDraw()
+  }
+
+  override fun ContentDrawScope.draw() {
+    // Resolve the theme at draw time so theme switches pick up fresh colors.
+    val theme = currentValueOf(LocalTheme)
+    when (val backgroundType = type) {
+      Transient -> Unit
+      is Circle -> drawOutline(
+        outline = CircleShape.createOutline(size, layoutDirection, this),
+        color = backgroundType.color.toComposeColor(theme)
+      )
+      is Square -> drawOutline(
+        outline = RoundedCornerShape(backgroundType.cornerRadius)
+          .createOutline(size, layoutDirection, this),
+        color = backgroundType.color.toComposeColor(theme)
+      )
+    }
+    drawContent()
+  }
+}
+
+private fun Circle.CircleColor.toComposeColor(theme: Theme): Color {
+  val colors = theme.colors()
+  return when (this) {
     Circle.CircleColor.Foreground10 ->
-      if (LocalTheme.current == Theme.LIGHT) WalletTheme.colors.secondary else WalletTheme.colors.foreground10
-    Circle.CircleColor.SubtleBackground -> WalletTheme.colors.subtleBackground
-    Circle.CircleColor.PrimaryBackground20 -> WalletTheme.colors.bitkeyPrimary.copy(alpha = .2f)
-    Circle.CircleColor.InverseBackground -> WalletTheme.colors.inverseBackground
+      if (theme == Theme.LIGHT) colors.secondary else colors.foreground10
+    Circle.CircleColor.SubtleBackground -> colors.subtleBackground
+    Circle.CircleColor.PrimaryBackground20 -> colors.bitkeyPrimary.copy(alpha = .2f)
+    Circle.CircleColor.InverseBackground -> colors.inverseBackground
     Circle.CircleColor.TranslucentBlack -> Color.Black.copy(alpha = .1f)
     Circle.CircleColor.TranslucentWhite -> Color.White.copy(alpha = .2f)
-    Circle.CircleColor.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground.copy(alpha = .25f)
-    Circle.CircleColor.InheritanceSurface -> WalletTheme.colors.inheritanceSurface
-    Circle.CircleColor.Dark -> WalletTheme.colors.accentDarkBackground
-    Circle.CircleColor.Primary -> WalletTheme.colors.primaryIconBackground
+    Circle.CircleColor.Information -> colors.calloutInformationTrailingIconBackground.copy(alpha = .25f)
+    Circle.CircleColor.InheritanceSurface -> colors.inheritanceSurface
+    Circle.CircleColor.Dark -> colors.accentDarkBackground
+    Circle.CircleColor.Primary -> colors.primaryIconBackground
     Circle.CircleColor.Hero ->
-      if (LocalTheme.current == Theme.LIGHT) WalletTheme.colors.inverseBackground else WalletTheme.colors.primaryIconBackground
-    Circle.CircleColor.BitkeyPrimary -> WalletTheme.colors.bitkeyPrimary
-    Circle.CircleColor.TransparentForeground -> WalletTheme.colors.foreground.copy(alpha = .2f)
-    Circle.CircleColor.Secondary -> WalletTheme.colors.secondary
+      if (theme == Theme.LIGHT) colors.inverseBackground else colors.primaryIconBackground
+    Circle.CircleColor.BitkeyPrimary -> colors.bitkeyPrimary
+    Circle.CircleColor.TransparentForeground -> colors.foreground.copy(alpha = .2f)
+    Circle.CircleColor.Secondary -> colors.secondary
   }
+}
 
-@Composable
-private fun Square.Color.toComposeColor(): Color =
-  when (this) {
-    Square.Color.Default -> WalletTheme.colors.calloutDefaultTrailingIconBackground
-    Square.Color.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground
-    Square.Color.Success -> WalletTheme.colors.calloutSuccessTrailingIconBackground
-    Square.Color.Warning -> WalletTheme.colors.calloutWarningTrailingIconBackground
-    Square.Color.Danger -> WalletTheme.colors.danger
-    Square.Color.InverseBackground -> WalletTheme.colors.inverseBackground
-    Square.Color.White -> WalletTheme.colors.subtleBackground
+private fun Square.Color.toComposeColor(theme: Theme): Color {
+  val colors = theme.colors()
+  return when (this) {
+    Square.Color.Default -> colors.calloutDefaultTrailingIconBackground
+    Square.Color.Information -> colors.calloutInformationTrailingIconBackground
+    Square.Color.Success -> colors.calloutSuccessTrailingIconBackground
+    Square.Color.Warning -> colors.calloutWarningTrailingIconBackground
+    Square.Color.Danger -> colors.danger
+    Square.Color.InverseBackground -> colors.inverseBackground
+    Square.Color.White -> colors.subtleBackground
     Square.Color.Transparent -> Color.Transparent
   }
+}

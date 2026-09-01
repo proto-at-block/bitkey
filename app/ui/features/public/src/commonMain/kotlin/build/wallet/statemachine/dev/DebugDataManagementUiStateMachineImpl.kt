@@ -39,7 +39,10 @@ import build.wallet.statemachine.core.AppSegment
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.errorFormBodyModelWithOptionalErrorData
+import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import build.wallet.ui.model.StandardClick
@@ -381,34 +384,32 @@ class DebugDataManagementUiStateMachineImpl(
   )
 
   private fun DebugDataDeletionReport.resultSheet(onDismiss: () -> Unit) =
-    errorFormBodyModelWithOptionalErrorData(
-      title = if (succeeded) "Deleted selected data" else "Some items failed",
-      subline = StringModel(if (succeeded) {
-        deletedTargets.joinToString(separator = "\n") { "Deleted ${it.displayName}" }
-      } else {
-        failures.joinToString(separator = "\n") { "${it.target.displayName}: ${it.message}" }
-      }),
-      primaryButton = ButtonDataModel(
-        text = "Done",
-        onClick = onDismiss
-      ),
-      eventTrackerScreenId = if (succeeded) {
-        DebugMenuEventTrackerScreenId.DEBUG_MENU_DATA_MANAGEMENT_RESULT
-      } else {
-        DebugMenuEventTrackerScreenId.DEBUG_MENU_ERROR
-      },
-      errorData = if (succeeded) {
-        null
-      } else {
-        ErrorData(
+    if (succeeded) {
+      // Success is not an error — render a plain informational sheet instead of an
+      // error form model with null errorData.
+      DebugDataDeletionSuccessBodyModel(
+        subline = deletedTargets.joinToString(separator = "\n") { "Deleted ${it.displayName}" },
+        onDismiss = onDismiss
+      ).asSheetModalScreen(onClosed = onDismiss)
+    } else {
+      ErrorFormBodyModel(
+        title = "Some items failed",
+        subline = failures.joinToString(separator = "\n") { "${it.target.displayName}: ${it.message}" },
+        primaryButton = ButtonDataModel(
+          text = "Done",
+          onClick = onDismiss
+        ),
+        eventTrackerScreenId = DebugMenuEventTrackerScreenId.DEBUG_MENU_ERROR,
+        errorData = ErrorData(
           segment = DebugAppSegment,
           actionDescription = "Deleting debug data",
           cause = IllegalStateException(
             failures.joinToString(separator = "; ") { "${it.target.displayName}: ${it.message}" }
           )
-        )
-      }
-    ).asSheetModalScreen(onClosed = onDismiss)
+        ),
+        renderContext = Sheet
+      ).asSheetModalScreen(onClosed = onDismiss)
+    }
 
   private fun ImmutableSet<DebugDataDeletionTarget>.toManualDeletionOrder() =
     manualDeletionTargetOrder().filter { contains(it) }
@@ -503,6 +504,29 @@ class DebugDataManagementUiStateMachineImpl(
     }
 }
 
-private object DebugAppSegment : AppSegment {
+internal object DebugAppSegment : AppSegment {
   override val id: String = "Debug"
 }
+
+/**
+ * Informational sheet shown when debug data deletion succeeds. Not an error screen,
+ * so it carries no [ErrorData].
+ */
+private data class DebugDataDeletionSuccessBodyModel(
+  val subline: String,
+  val onDismiss: () -> Unit,
+) : FormBodyModel(
+    id = DebugMenuEventTrackerScreenId.DEBUG_MENU_DATA_MANAGEMENT_RESULT,
+    onBack = onDismiss,
+    toolbar = null,
+    header = FormHeaderModel(
+      headline = "Deleted selected data",
+      subline = subline
+    ),
+    primaryButton = ButtonModel(
+      text = "Done",
+      size = ButtonModel.Size.Footer,
+      onClick = StandardClick(onDismiss)
+    ),
+    renderContext = Sheet
+  )

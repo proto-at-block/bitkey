@@ -13,6 +13,7 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.inheritance.InheritanceService
 import build.wallet.statemachine.core.*
+import build.wallet.statemachine.inheritance.InheritanceAppSegment
 import build.wallet.statemachine.nfc.HardwarePresenceProps
 import build.wallet.statemachine.nfc.HardwarePresenceUiStateMachine
 import com.github.michaelbull.result.onFailure
@@ -59,12 +60,6 @@ class CancelingClaimUiStateMachineImpl(
                   relationshipId = current.relationshipId
                 )
             },
-            onFailure = {
-              state =
-                State.ConfirmingClaimCancelation(
-                  relationshipId = current.relationshipId
-                )
-            },
             onCancel = {
               state =
                 State.ConfirmingClaimCancelation(
@@ -72,6 +67,8 @@ class CancelingClaimUiStateMachineImpl(
                 )
             },
             screenPresentationStyle = ScreenPresentationStyle.Modal,
+            segment = InheritanceAppSegment.BenefactorClaim.Deny,
+            actionDescription = "Verifying hardware presence to cancel inheritance claim",
             eventTrackerContext = NfcEventTrackerScreenIdContext.CANCEL_INHERITANCE_CLAIM
           )
         )

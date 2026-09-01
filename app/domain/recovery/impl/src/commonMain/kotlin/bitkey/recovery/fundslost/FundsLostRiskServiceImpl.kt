@@ -53,6 +53,9 @@ class FundsLostRiskServiceImpl(
         return@combine FundsLostRiskLevel.Protected
       }
 
+      // Note: SpendingKeysetSyncStatus.IncompleteKeysetListUnrecoverable is deliberately excluded.
+      // AtRisk drives a banner whose only remediation is the repair flow, which cannot resolve
+      // those keysets, so including it would show a warning the customer can never clear.
       if (
         keysetSyncStatus is SpendingKeysetSyncStatus.Mismatch ||
         keysetSyncStatus is SpendingKeysetSyncStatus.IncompleteKeysetList ||
@@ -64,6 +67,11 @@ class FundsLostRiskServiceImpl(
       } else if (firmwareData.firmwareDeviceInfo == null) {
         FundsLostRiskLevel.AtRisk(
           AtRiskCause.MissingHardware
+        )
+      } else if (account.keybox.appGlobalAuthKeyHwSignature.isW3OnboardingPlaceholder) {
+        // Only the W3 sentinel is repairable through descriptor delivery.
+        FundsLostRiskLevel.AtRisk(
+          AtRiskCause.UnverifiedHardwareSignature
         )
       } else if (
         appKeyStatus is AppKeyBackupStatus.ProblemWithBackup &&

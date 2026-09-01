@@ -1,0 +1,18 @@
+import build.wallet.bitkey.f8e.FullAccountId;
+
+CREATE TABLE delayNotifyConfigurationEntity(
+  accountId  TEXT AS FullAccountId NOT NULL PRIMARY KEY,
+  periodDays INTEGER NOT NULL
+);
+
+get:
+SELECT *
+FROM delayNotifyConfigurationEntity
+WHERE accountId = ?;
+
+set:
+INSERT OR REPLACE INTO delayNotifyConfigurationEntity(accountId, periodDays)
+VALUES (?, ?);
+
+clear:
+DELETE FROM delayNotifyConfigurationEntity;

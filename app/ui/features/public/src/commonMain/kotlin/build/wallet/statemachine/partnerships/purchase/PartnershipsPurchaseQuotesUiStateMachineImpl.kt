@@ -16,6 +16,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.CashAppFeePromotionFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.logging.logError
+import build.wallet.nfc.NfcException
 import build.wallet.nfc.platform.requireW3
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRate
@@ -29,6 +30,8 @@ import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.nfc.DescriptorRepairUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
@@ -53,8 +56,10 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
   private val accountService: AccountService,
   private val bitcoinAddressService: BitcoinAddressService,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val descriptorRepairUiStateMachine: DescriptorRepairUiStateMachine,
 ) : PartnershipsPurchaseQuotesUiStateMachine {
   @Composable
+  @Suppress("CyclomaticComplexMethod")
   override fun model(props: PartnershipsPurchaseQuotesUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.LoadingQuotes) }
     var showCashAppInfoSheet by remember { mutableStateOf(false) }
@@ -155,7 +160,8 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
               .onSuccess { addressInfo ->
                 state = State.AddressVerificationPrompt(
                   quote = currentState.quote,
-                  addressInfo = addressInfo
+                  addressInfo = addressInfo,
+                  account = account
                 )
               }
           } else {
@@ -176,7 +182,8 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
           onVerify = {
             state = State.VerifyingOnDevice(
               quote = currentState.quote,
-              addressInfo = currentState.addressInfo
+              addressInfo = currentState.addressInfo,
+              account = currentState.account
             )
           },
           onSkip = {
@@ -216,11 +223,52 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
             onCancel = {
               state = State.AddressVerificationPrompt(
                 quote = currentState.quote,
-                addressInfo = currentState.addressInfo
+                addressInfo = currentState.addressInfo,
+                account = currentState.account
               )
             },
+            onError = { error ->
+              if (error is NfcException.DescriptorNotLoaded) {
+                // Hardware wallet descriptor is missing — trigger delivery flow
+                state = State.DeliveringDescriptor(
+                  quote = currentState.quote,
+                  addressInfo = currentState.addressInfo,
+                  account = currentState.account
+                )
+                true // handled
+              } else {
+                false // let default error UI handle it
+              }
+            },
             screenPresentationStyle = ScreenPresentationStyle.Modal,
+            segment = PartnershipsSegment.Purchase,
+            actionDescription = "Verifying purchase deposit address on hardware",
             eventTrackerContext = ADDRESS_VERIFICATION
+          )
+        )
+      }
+
+      is State.DeliveringDescriptor -> {
+        descriptorRepairUiStateMachine.model(
+          DescriptorRepairUiProps(
+            fullAccount = currentState.account,
+            presentationStyle = ScreenPresentationStyle.ModalFullScreen,
+            onRepairComplete = {
+              // Delivery succeeded — retry address verification
+              state = State.VerifyingOnDevice(
+                quote = currentState.quote,
+                addressInfo = currentState.addressInfo,
+                account = currentState.account
+              )
+            },
+            onBack = {
+              // Delivery cancelled or failed — return to verification prompt
+              state = State.AddressVerificationPrompt(
+                quote = currentState.quote,
+                addressInfo = currentState.addressInfo,
+                account = currentState.account
+              )
+            }
           )
         )
       }
@@ -295,11 +343,23 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
     data class AddressVerificationPrompt(
       val quote: PurchaseQuote,
       val addressInfo: BitcoinAddressInfo,
+      val account: FullAccount,
     ) : State
 
     data class VerifyingOnDevice(
       val quote: PurchaseQuote,
       val addressInfo: BitcoinAddressInfo,
+      val account: FullAccount,
+    ) : State
+
+    /**
+     * The W3 hardware is missing its wallet descriptor ([NfcException.DescriptorNotLoaded]);
+     * delivering it via [DescriptorRepairUiStateMachine] before retrying address verification.
+     */
+    data class DeliveringDescriptor(
+      val quote: PurchaseQuote,
+      val addressInfo: BitcoinAddressInfo,
+      val account: FullAccount,
     ) : State
 
     data class LoadingRedirect(

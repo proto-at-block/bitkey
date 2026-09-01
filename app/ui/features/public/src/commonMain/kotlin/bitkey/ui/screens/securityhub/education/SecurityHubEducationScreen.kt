@@ -46,6 +46,20 @@ sealed class SecurityHubEducationScreen(
     override val firmwareData: FirmwareData.FirmwareUpdateState,
     override val onStateChange: ((SecurityHubUiState) -> Unit)? = null,
   ) : SecurityHubEducationScreen(originScreen, firmwareData, onStateChange)
+
+  /**
+   * Education for provisioning the app auth key to hardware.
+   *
+   * This is its own screen rather than a [RecommendationEducation] because the generic
+   * education content is keyed by [bitkey.securitycenter.SecurityActionType], and this
+   * recommendation shares the FINGERPRINTS action type with "add a backup fingerprint".
+   * It also continues into an NFC tap rather than a navigation destination.
+   */
+  data class ProvisionAppKeyEducation(
+    override val originScreen: SecurityHubScreen,
+    override val firmwareData: FirmwareData.FirmwareUpdateState,
+    override val onStateChange: ((SecurityHubUiState) -> Unit)? = null,
+  ) : SecurityHubEducationScreen(originScreen, firmwareData, onStateChange)
 }
 
 @BitkeyInject(ActivityScope::class)
@@ -58,9 +72,35 @@ class SecurityHubEducationScreenPresenter(
     navigator: Navigator,
     screen: SecurityHubEducationScreen,
   ): ScreenModel {
+    val onBack = {
+      navigator.goTo(
+        SecurityHubScreen(
+          account = screen.originScreen.account
+        )
+      )
+    }
+
+    // Branch before collecting the flows below, which this screen doesn't need.
+    if (screen is SecurityHubEducationScreen.ProvisionAppKeyEducation) {
+      return ProvisionAppKeyEducationBodyModel(
+        onBack = onBack,
+        onContinue = {
+          // Continue into the NFC tap that provisions the app key, rather than a
+          // navigation destination.
+          navigator.goTo(
+            SecurityHubScreen(
+              account = screen.originScreen.account,
+              initialState = SecurityHubUiState.ProvisioningAppKeyState
+            )
+          )
+        }
+      ).asRootScreen()
+    }
+
     val navigationId = when (screen) {
       is SecurityHubEducationScreen.ActionEducation -> screen.action.navigationScreenId()
       is SecurityHubEducationScreen.RecommendationEducation -> screen.recommendation.navigationScreenId()
+      is SecurityHubEducationScreen.ProvisionAppKeyEducation -> error("Handled above")
     }
 
     val isFingerprintResetEnabled by remember { fingerprintResetAvailabilityService.isAvailable() }
@@ -76,14 +116,9 @@ class SecurityHubEducationScreenPresenter(
       actionType = when (screen) {
         is SecurityHubEducationScreen.ActionEducation -> screen.action.type()
         is SecurityHubEducationScreen.RecommendationEducation -> screen.recommendation.actionType
+        is SecurityHubEducationScreen.ProvisionAppKeyEducation -> error("Handled above")
       },
-      onBack = {
-        navigator.goTo(
-          SecurityHubScreen(
-            account = screen.originScreen.account
-          )
-        )
-      },
+      onBack = onBack,
       onContinue = {
         navigator.navigateToScreen(
           id = navigationId,

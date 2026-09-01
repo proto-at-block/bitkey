@@ -1,0 +1,7 @@
+# Read by AndroidTrailblazeRule on-device to resolve the default LLM model. Replay runs with
+# trailblaze.aiEnabled=false and never calls the model, but the rule requires this to resolve
+# at construction. Keep in sync with ../../../../../trails/config/trailblaze.yaml (the CLI
+# authoring workspace config).
+llm:
+  defaults:
+    model: openai/gpt-4.1

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.collection-internal:collection",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "collection-1.9.1.jar": "5220f63792fc68e0004b33b88b70e89a1d5d46a94a036ceb4ec8f53ab4b3f41e"
+                        "collection-1.10.0-rc02.jar": "367b8ea28496dc024531a0fe97576dd76864bb066ffa09ba2141f73c79bf3c3d"
                     }
                 }
             ],

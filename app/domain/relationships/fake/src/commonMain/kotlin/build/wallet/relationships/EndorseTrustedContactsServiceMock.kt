@@ -25,6 +25,7 @@ class EndorseTrustedContactsServiceMock(
     val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     val newHwAuthKey: HwAuthPublicKey,
+    val allowW3OnboardingPlaceholder: Boolean,
   )
 
   override suspend fun authenticateRegenerateAndEndorse(
@@ -35,6 +36,7 @@ class EndorseTrustedContactsServiceMock(
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     newHwAuthKey: HwAuthPublicKey,
+    allowW3OnboardingPlaceholder: Boolean,
   ): Result<Unit, Error> {
     lastRegenerateAndEndorseArgs = RegenerateAndEndorseArgs(
       accountId = accountId,
@@ -42,7 +44,8 @@ class EndorseTrustedContactsServiceMock(
       oldHwAuthKey = oldHwAuthKey,
       newAppGlobalAuthKey = newAppGlobalAuthKey,
       newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature,
-      newHwAuthKey = newHwAuthKey
+      newHwAuthKey = newHwAuthKey,
+      allowW3OnboardingPlaceholder = allowW3OnboardingPlaceholder
     )
     return Ok(Unit)
   }

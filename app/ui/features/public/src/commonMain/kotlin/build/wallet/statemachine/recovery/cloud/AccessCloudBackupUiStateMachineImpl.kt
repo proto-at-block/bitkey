@@ -20,10 +20,12 @@ import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingProps
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiStateMachine
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorAccessMessages
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.*
 import build.wallet.statemachine.root.StartIntent
 import com.github.michaelbull.result.onFailure
@@ -228,7 +230,11 @@ class AccessCloudBackupUiStateMachineImpl(
               },
               screenId = CloudEventTrackerScreenId.LOADING_RESTORING_FROM_CLOUD_BACKUP,
               presentationStyle = Root,
-              errorData = null
+              errorData = ErrorData(
+                segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+                actionDescription = "Accessing cloud backup for restoration",
+                cause = currentState.rectifiableCloudBackupError
+              )
             )
         )
     }

@@ -24,6 +24,7 @@ import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorerMock
 import build.wallet.cloud.backup.csek.Csek
+import bitkey.recovery.WalletMetadataServerBackupServiceFake
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
@@ -76,6 +77,7 @@ import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiSt
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
@@ -174,6 +176,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
         val authF8eClient = AuthF8eClientMock()
         val w3MidUpgradeRecoveryGuardFeatureFlag =
           W3MidUpgradeRecoveryGuardFeatureFlag(FeatureFlagDaoFake())
+        val walletMetadataServerBackupService = WalletMetadataServerBackupServiceFake()
         val stateMachineActiveDeviceFlagOn =
           FullAccountCloudBackupRestorationUiStateMachineImpl(
             appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
@@ -210,7 +213,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             hardwareUnlockInfoService = hardwareUnlockInfoService,
             selectCloudBackupUiStateMachine = selectCloudBackupUiStateMachine,
             authF8eClient = authF8eClient,
-            w3MidUpgradeRecoveryGuardFeatureFlag = w3MidUpgradeRecoveryGuardFeatureFlag
+            w3MidUpgradeRecoveryGuardFeatureFlag = w3MidUpgradeRecoveryGuardFeatureFlag,
+            walletMetadataServerBackupService = walletMetadataServerBackupService
           )
 
         val props = FullAccountCloudBackupRestorationUiProps(
@@ -333,6 +337,158 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
               .shouldBeOk()
               .shouldNotBeNull()
             migrationService.isW3UpgradeInProgressCalls.shouldBe(0)
+          }
+        }
+
+        test("canceling the app auth key provisioning tap offers a retry, not a cloud backup error") {
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            accountAuthorizer.authResults =
+              mutableListOf(
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id")),
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id"))
+              )
+
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              onSuccess(Pair(CsekFake, backup as CloudBackup))
+            }
+
+            awaitBody<LoadingSuccessBodyModel> {
+              state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+            }
+
+            eventTracker.eventCalls.awaitItem().shouldBe(
+              TrackedAction(ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED)
+            )
+            accountAuthorizer.authCalls.awaitItem()
+            accountAuthorizer.authCalls.awaitItem()
+            deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+            recoveryStatusService.clearCalls.awaitItem()
+            relationshipsService.syncCalls.awaitItem()
+            spendingWallet.syncCalls.awaitItem()
+
+            // Cancel the final provisioning tap. Restoration already succeeded,
+            // so this must not claim there is a problem with the cloud backup.
+            awaitUntilBodyMock<NfcSessionUIStateMachineProps<Unit>>(
+              id = nfcSessionUIStateMachine.id
+            ) {
+              onCancel()
+            }
+
+            awaitUntilBody<ResumeCloudBackupRestorationModel> {
+              clickPrimaryButton()
+            }
+
+            // "Continue" re-opens the provisioning NFC session.
+            awaitUntilBodyMock<NfcSessionUIStateMachineProps<Unit>>(
+              id = nfcSessionUIStateMachine.id
+            ) {
+              onSuccess(Unit)
+            }
+
+            awaitUntilBody<LoadingSuccessBodyModel> {
+              state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+            }
+
+            fullAccountAuthKeyRotationService.recommendKeyRotationCalls.awaitItem()
+
+            // The customer was never pushed toward Lost App & Cloud recovery,
+            // which would have overwritten their valid backup.
+            onRecoverAppKeyCalls.expectNoEvents()
+          }
+        }
+
+        test("dismissing a genuine provisioning NFC error exits instead of resuming") {
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            accountAuthorizer.authResults =
+              mutableListOf(
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id")),
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id"))
+              )
+
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              onSuccess(Pair(CsekFake, backup as CloudBackup))
+            }
+
+            awaitBody<LoadingSuccessBodyModel> {
+              state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+            }
+
+            eventTracker.eventCalls.awaitItem().shouldBe(
+              TrackedAction(ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED)
+            )
+            accountAuthorizer.authCalls.awaitItem()
+            accountAuthorizer.authCalls.awaitItem()
+            deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+            recoveryStatusService.clearCalls.awaitItem()
+            relationshipsService.syncCalls.awaitItem()
+            spendingWallet.syncCalls.awaitItem()
+
+            // A real NFC failure is surfaced by the shared NFC error screen,
+            // whose primary button also routes through `onCancel`. Dismissing it
+            // must exit rather than present the resume screen.
+            awaitUntilBodyMock<NfcSessionUIStateMachineProps<Unit>>(
+              id = nfcSessionUIStateMachine.id
+            ) {
+              onError(NfcException.CommandError()).shouldBe(false)
+              onCancel()
+            }
+
+            onExitCalls.awaitItem()
+            onRecoverAppKeyCalls.expectNoEvents()
+          }
+        }
+
+        test("canceling from the resume restoration screen exits recovery") {
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            accountAuthorizer.authResults =
+              mutableListOf(
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id")),
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id"))
+              )
+
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              onSuccess(Pair(CsekFake, backup as CloudBackup))
+            }
+
+            awaitBody<LoadingSuccessBodyModel> {
+              state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+            }
+
+            eventTracker.eventCalls.awaitItem().shouldBe(
+              TrackedAction(ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED)
+            )
+            accountAuthorizer.authCalls.awaitItem()
+            accountAuthorizer.authCalls.awaitItem()
+            deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+            recoveryStatusService.clearCalls.awaitItem()
+            relationshipsService.syncCalls.awaitItem()
+            spendingWallet.syncCalls.awaitItem()
+
+            awaitUntilBodyMock<NfcSessionUIStateMachineProps<Unit>>(
+              id = nfcSessionUIStateMachine.id
+            ) {
+              onCancel()
+            }
+
+            // "Cancel" exits the flow rather than routing to a backup error.
+            awaitUntilBody<ResumeCloudBackupRestorationModel> {
+              onCancel()
+            }
+
+            onExitCalls.awaitItem()
+            onRecoverAppKeyCalls.expectNoEvents()
           }
         }
 

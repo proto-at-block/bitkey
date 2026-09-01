@@ -23,19 +23,16 @@ class StartSweepCardUiStateMachineImpl(
 
     return when (sweepRequiredState) {
       false -> null
-      true -> CardModel(
-        title = null,
-        content = null,
-        style = CardModel.CardStyle.Callout(
-          CalloutModel(
-            title = "Funds in inactive wallet",
-            subtitle = LabelModel.StringModel("Transfer funds now"),
-            treatment = Treatment.Warning,
-            useMonochromeStyle = true,
-            leadingIcon = Icon.Information,
-            trailingIcon = Icon.ArrowRight,
-            onClick = StandardClick(props.onStartSweepClicked)
-          )
+      true -> CardModel.Callout(
+        id = "StartSweep",
+        callout = CalloutModel(
+          title = "Funds in inactive wallet",
+          subtitle = LabelModel.StringModel("Transfer funds now"),
+          treatment = Treatment.Warning,
+          useMonochromeStyle = true,
+          leadingIcon = Icon.Information,
+          trailingIcon = Icon.ArrowRight,
+          onClick = StandardClick(props.onStartSweepClicked)
         )
       )
     }

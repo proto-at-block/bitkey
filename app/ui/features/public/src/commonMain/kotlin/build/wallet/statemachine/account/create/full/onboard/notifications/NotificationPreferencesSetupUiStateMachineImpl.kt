@@ -10,15 +10,11 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.collectIsEnabledAsState
-import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.notifications.NotificationTouchpointService
 import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
 import build.wallet.onboarding.OnboardingKeyboxStepStateDao
-import build.wallet.platform.settings.TelephonyCountryCodeProvider
-import build.wallet.platform.settings.isCountry
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineImpl.RecoveryState.*
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineImpl.RecoveryState.PushNotificationsSetupUiState.OverlayState
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineImpl.RecoveryState.PushNotificationsSetupUiState.OverlayState.PushAlertState
@@ -49,8 +45,6 @@ class NotificationPreferencesSetupUiStateMachineImpl(
   private val notificationTouchpointInputAndVerificationUiStateMachine:
     NotificationTouchpointInputAndVerificationUiStateMachine,
   private val pushItemModelProvider: RecoveryChannelsSetupPushItemModelProvider,
-  private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider,
-  private val usSmsFeatureFlag: UsSmsFeatureFlag,
 ) : NotificationPreferencesSetupUiStateMachine {
   @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
   @Composable
@@ -102,25 +96,15 @@ class NotificationPreferencesSetupUiStateMachineImpl(
       }
     }
 
-    // Whether SMS features are enabled for US customers via feature flag
-    val usSmsEnabled by remember {
-      usSmsFeatureFlag.flagValue()
-    }.collectAsState()
-
-    // SMS is not allowed in the USA unless the feature flag is enabled
-    val isCountryUS = telephonyCountryCodeProvider.isCountry("us")
-    val shouldShowSmsItem = !isCountryUS || usSmsEnabled.value
-
     // One-shot redirect for resumed onboarding. If email is already stored, skip ahead in the
-    // sequential flow to the next pending step, respecting SMS availability and push completion.
-    // Re-run if SMS eligibility or push completion changes so routing stays accurate if
-    // feature flags update mid-session. The state guard ensures we only redirect while
-    // the user is still on the email step.
-    LaunchedEffect(shouldShowSmsItem, pushItemModel.state) {
+    // sequential flow to the next pending step, respecting push completion.
+    // Re-run if push completion changes so routing stays accurate mid-session. The state
+    // guard ensures we only redirect while the user is still on the email step.
+    LaunchedEffect(pushItemModel.state) {
       val initialData = notificationTouchpointService.notificationTouchpointData().first()
       if (initialData.email != null && state == EnteringAndVerifyingEmailUiState) {
         state = when {
-          initialData.phoneNumber == null && shouldShowSmsItem -> EnteringAndVerifyingPhoneNumberUiState
+          initialData.phoneNumber == null -> EnteringAndVerifyingPhoneNumberUiState
           pushItemModel.state == Completed -> TransactionsAndProductUpdatesState
           else -> PushNotificationsSetupUiState()
         }
@@ -139,11 +123,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
 
     // Where to go when navigating back from the push setup screen
     val backFromPush = {
-      if (shouldShowSmsItem) {
-        state = EnteringAndVerifyingPhoneNumberUiState
-      } else {
-        state = EnteringAndVerifyingEmailUiState
-      }
+      state = EnteringAndVerifyingPhoneNumberUiState
     }
 
     // Auto-advance to transactions when returning from OS settings with push now enabled
@@ -165,11 +145,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
               onClose = null,
               onSuccess = {
                 emailState = Completed
-                when {
-                  shouldShowSmsItem -> state = EnteringAndVerifyingPhoneNumberUiState
-                  pushItemModel.state == Completed -> advanceToTransactions()
-                  else -> state = PushNotificationsSetupUiState()
-                }
+                state = EnteringAndVerifyingPhoneNumberUiState
               }
             )
         )

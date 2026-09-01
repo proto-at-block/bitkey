@@ -24,6 +24,7 @@ import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.export.ExportTransactionsService
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.keys.ExtendedKeyGenerator
+import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
@@ -114,6 +115,7 @@ interface JvmAppComponent {
   val appWorkerExecutor: AppWorkerExecutor
   val authF8eClient: AuthF8eClient
   val authTokensService: AuthTokensService
+  val bdk2InitialSyncCompletionDaoFake: Bdk2InitialSyncCompletionDaoFake
   val bitcoinBlockchain: BitcoinBlockchain
   val bitcoinWalletService: BitcoinWalletService
   val cloudBackupDao: CloudBackupDao
@@ -136,6 +138,7 @@ interface JvmAppComponent {
   val defaultAccountConfigService: AccountConfigService
   val delegatedDecryptionKeyService: DelegatedDecryptionKeyService
   val exportTransactionsService: ExportTransactionsService
+  val electrumServerSettingProvider: ElectrumServerSettingProvider
   val extendedKeyGenerator: ExtendedKeyGenerator
   val f8eNetworkReachabilityService: F8eNetworkReachabilityService
   val fingerprintResetService: FingerprintResetService
@@ -203,18 +206,13 @@ interface JvmAppComponent {
   val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao
   val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag
   val onboardingCanUseKeyboxKeysetsFeatureFlag: OnboardingCanUseKeyboxKeysetsFeatureFlag
-  val privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag
-  val balanceThresholdFeatureFlag: PrivateWalletMigrationBalanceThresholdFeatureFlag
   val privateWalletMigrationDao: PrivateWalletMigrationDao
   val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag
   val ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag
-  val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag
   val updateToPrivateWalletOnRecoveryFeatureFlag: UpdateToPrivateWalletOnRecoveryFeatureFlag
   val bdk2FeatureFlag: Bdk2FeatureFlag
-  val w3UpgradeBlockerFeatureFlag: W3UpgradeBlockerFeatureFlag
   val onboardingCompletionDao: OnboardingCompletionDao
   val sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag
-  val usSmsFeatureFlag: UsSmsFeatureFlag
   val jvmInternetConnectionChecker: InternetConnectionCheckerImpl
   val networkReachabilityProvider: NetworkReachabilityProvider
   val appFunctionalityService: AppFunctionalityService

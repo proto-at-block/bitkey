@@ -5,6 +5,8 @@ import com.github.michaelbull.result.Result
 import kotlin.reflect.KClass
 
 class FeatureFlagDaoMock : FeatureFlagDao {
+  override suspend fun getFlags(): Result<Map<String, FeatureFlagValue>, Error> = Ok(emptyMap())
+
   override suspend fun <T : FeatureFlagValue> getFlag(
     featureFlagId: String,
     kClass: KClass<T>,

@@ -9,6 +9,7 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.form.rememberHardwareInteractionRevealed
 
 @BitkeyInject(ActivityScope::class)
 class HardwareConfirmationUiStateMachineImpl(
@@ -23,6 +24,7 @@ class HardwareConfirmationUiStateMachineImpl(
 
     return when (uiState) {
       HardwareConfirmationUiState.ShowingConfirmation -> {
+        val footerRevealed = rememberHardwareInteractionRevealed(props.isHardwareFake)
         ScreenModel(
           body = HardwareConfirmationScreenModel(
             onBack = props.onBack,
@@ -35,7 +37,7 @@ class HardwareConfirmationUiStateMachineImpl(
                 { uiState = HardwareConfirmationUiState.ShowingHelp }
               },
             content = props.content,
-            isHardwareFake = props.isHardwareFake
+            footerRevealed = footerRevealed
           )
         )
       }

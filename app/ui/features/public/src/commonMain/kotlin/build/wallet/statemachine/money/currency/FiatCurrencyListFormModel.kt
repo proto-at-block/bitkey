@@ -14,7 +14,7 @@ import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.toImmutableList
 
@@ -28,7 +28,7 @@ data class FiatCurrencyListFormModel(
     onBack = onClose,
     toolbar = ToolbarModel(
       leadingAccessory = CloseAccessory(onClick = onClose),
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Fiat")
+      title = ToolbarTitleModel.Inline(title = "Fiat")
     ),
     header = null,
     mainContentList = immutableListOf(

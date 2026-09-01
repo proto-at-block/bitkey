@@ -8,6 +8,8 @@ import bitkey.recovery.fundslost.FundsLostRiskSyncWorker
 import build.wallet.bdk.bindings.BdkBlockchainFactory
 import build.wallet.bdk.bindings.BdkBlockchainFactoryImpl
 import build.wallet.bitcoin.AppPrivateKeyDao
+import build.wallet.bitcoin.wallet.Bdk2InitialSyncCompletionDao
+import build.wallet.bitcoin.wallet.Bdk2InitialSyncCompletionDaoImpl
 import build.wallet.cloud.backup.CloudBackupStore
 import build.wallet.cloud.backup.CloudBackupStoreDelegate
 import build.wallet.cloud.backup.CloudBackupStoreFakeImpl
@@ -50,6 +52,7 @@ import kotlin.time.Duration.Companion.seconds
   // These interfaces are substituted below using `@Provides`.
   exclude = [
     BdkBlockchainFactoryImpl::class,
+    Bdk2InitialSyncCompletionDaoImpl::class,
     CoroutinesComponent::class,
     CloudBackupStoreImpl::class,
     CloudKeyValueStoreImpl::class,
@@ -116,6 +119,16 @@ abstract class JvmAppComponentImpl(
   @Provides
   @SingleIn(AppScope::class) // ExchangeRateF8eClientFake is stateful.
   fun provideExchangeRateF8eClient(): ExchangeRateF8eClient = ExchangeRateF8eClientFake()
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun provideBdk2InitialSyncCompletionDaoFake(): Bdk2InitialSyncCompletionDaoFake =
+    Bdk2InitialSyncCompletionDaoFake()
+
+  @Provides
+  fun provideBdk2InitialSyncCompletionDao(
+    fake: Bdk2InitialSyncCompletionDaoFake,
+  ): Bdk2InitialSyncCompletionDao = fake
 
   @Provides
   fun provideTeltra(): Teltra = TeltraFake()

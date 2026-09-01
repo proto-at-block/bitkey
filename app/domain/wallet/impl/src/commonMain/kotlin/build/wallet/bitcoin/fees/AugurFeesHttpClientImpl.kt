@@ -26,6 +26,8 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.ContentType.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.atomicfu.locks.ReentrantLock
+import kotlinx.atomicfu.locks.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -92,11 +94,22 @@ class AugurFeesHttpClientImpl(
       )
     }
 
+  /**
+   * Cache clients per network type (only the base URL differs) so we reuse
+   * connection pools and TLS sessions instead of building a new client per request.
+   */
+  private val clients = mutableMapOf<BitcoinNetworkType, HttpClient>()
+  private val clientsLock = ReentrantLock()
+
   private fun client(networkType: BitcoinNetworkType): HttpClient {
-    return if (engine == null) {
-      HttpClient { configureClient(this, networkType) }
-    } else {
-      HttpClient(engine) { configureClient(this, networkType) }
+    return clientsLock.withLock {
+      clients.getOrPut(networkType) {
+        if (engine == null) {
+          HttpClient { configureClient(this, networkType) }
+        } else {
+          HttpClient(engine) { configureClient(this, networkType) }
+        }
+      }
     }
   }
 
@@ -119,9 +132,9 @@ class AugurFeesHttpClientImpl(
       }
 
       install(HttpTimeout) {
-        connectTimeoutMillis = 15.seconds.inWholeMilliseconds
-        requestTimeoutMillis = 60.seconds.inWholeMilliseconds
-        socketTimeoutMillis = 60.seconds.inWholeMilliseconds
+        connectTimeoutMillis = 5.seconds.inWholeMilliseconds
+        requestTimeoutMillis = 10.seconds.inWholeMilliseconds
+        socketTimeoutMillis = 10.seconds.inWholeMilliseconds
       }
 
       defaultRequest {

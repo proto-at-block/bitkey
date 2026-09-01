@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.components:components-resources-desktop",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "library-desktop-1.9.1.jar": "f3b8f331b6bb4312a74ed16d7bb3654427cfa73728a5817addbff64c6e77dfec"
+                        "library-desktop-1.10.0-rc02.jar": "7dbbe06683befa8110b4ac926a7432b7e2ee446ed156adf55ad17e9c868ae0e2"
                     }
                 }
             ],

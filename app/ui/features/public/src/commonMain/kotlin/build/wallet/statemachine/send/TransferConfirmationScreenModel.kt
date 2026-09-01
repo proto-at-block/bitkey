@@ -26,7 +26,7 @@ import build.wallet.ui.model.icon.IconSize.Avatar
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.collections.immutable.ImmutableList
@@ -134,7 +134,7 @@ data class FeeSelectionSheetModel(
     onBack = onBack,
     toolbar = ToolbarModel(
       leadingAccessory = CloseAccessory(onClick = onBack),
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Transfer speed")
+      title = ToolbarTitleModel.Inline(title = "Transfer speed")
     ),
     header = null,
     primaryButton = null,

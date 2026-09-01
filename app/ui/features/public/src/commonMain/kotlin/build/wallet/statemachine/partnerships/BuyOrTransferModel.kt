@@ -11,7 +11,7 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle.CARD_ITEM
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 fun BuyOrTransferModel(
@@ -59,7 +59,7 @@ data class BuyOrTransferBodyModel(
     header = null,
     toolbar =
       ToolbarModel(
-        middleAccessory = ToolbarMiddleAccessoryModel(title = "Add bitcoin")
+        title = ToolbarTitleModel.Inline(title = "Add bitcoin")
       ),
     mainContentList = immutableListOf(ListGroup(listGroupModel)),
     primaryButton = null,

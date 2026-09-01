@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:atomicfu",
     "components": [
         {
-            "version": "2.1.20",
+            "version": "2.2.20",
             "variants": [
                 {
                     "artifacts": {
-                        "atomicfu-2.1.20-gradle85.jar": "0b4b6380be5b1a48c36b48a7283c5b9e0d15a74071237fbe25d8a6a88c0e4658"
+                        "atomicfu-2.2.20-gradle813.jar": "545a68e2f7e3a8b7da018d0f9b20599e0e65986677bca06334bd469c58081ced"
                     }
                 }
             ],

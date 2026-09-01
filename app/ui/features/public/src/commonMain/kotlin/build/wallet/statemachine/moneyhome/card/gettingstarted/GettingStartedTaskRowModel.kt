@@ -7,7 +7,7 @@ import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.*
-import build.wallet.statemachine.moneyhome.card.CardModel.GettingStartedTileModel
+
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint

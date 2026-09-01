@@ -96,14 +96,14 @@ class PartnerTransactionItemUiStateMachineImplTests : FunSpec({
         title.shouldBe("Purchase")
         secondaryText.shouldBe("date-time")
         sideText.shouldBe("~~")
-        secondarySideText.shouldBe("5,000 sats")
+        secondarySideText.shouldBe("₿5,000")
       }
 
       awaitItem().apply {
         title.shouldBe("Purchase")
         secondaryText.shouldBe("date-time")
         sideText.shouldBe("+ $0.00")
-        secondarySideText.shouldBe("5,000 sats")
+        secondarySideText.shouldBe("₿5,000")
         onClick.shouldNotBeNull().invoke()
       }
 

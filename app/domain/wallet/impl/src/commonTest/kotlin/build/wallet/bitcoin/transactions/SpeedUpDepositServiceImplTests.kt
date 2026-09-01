@@ -9,6 +9,7 @@ import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
 import build.wallet.bitcoin.fees.Fee
+import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
@@ -222,6 +223,82 @@ class SpeedUpDepositServiceImplTests : FunSpec({
     // transferAmount = tipUtxoValue - childFee = 50_000 - 500 = 49_500 sats
     speedUp.transferAmount.shouldBe(BitcoinMoney.sats(49_500))
   }
+  test("calculates re-bump absolute fee from the full CPFP ancestor package") {
+    // Parent: fee=100 sats, weight=400 WU.
+    // Existing child1: fee=200 sats, weight=325 WU.
+    // New child dummy PSBT: vsize=100 vB → weight=400 WU.
+    // Target rate: 5 sat/vB.
+    // Required package fee:
+    //   totalVbytes = ceil((400 + 325 + 400) / 4) = 282 vbytes
+    //   requiredTotalFee = ceil(5.0 * 282) = 1_410 sats
+    //   child2Fee = 1_410 - (100 + 200) = 1_110 sats
+    feeRateEstimator.estimatedFeeRateResult = FeeRate(satsPerVByte = 5f)
+    bitcoinWalletService.spendingWallet.value = spendingWallet
+    spendingWallet.createSignedPsbtResult = Ok(
+      Psbt(
+        id = "cpfp-psbt-id",
+        base64 = "cpfp-base64",
+        fee = Fee(BitcoinMoney.sats(50)),
+        vsize = 100,
+        numOfInputs = 1,
+        amountSats = 49_950UL
+      )
+    )
+
+    val parentTxId = "parent-tx-id"
+    val childTxId = "child-1"
+    val firstChildTx = BitcoinTransactionMock(
+      txid = childTxId,
+      total = BitcoinMoney.sats(49_800),
+      fee = BitcoinMoney.sats(200),
+      transactionType = UtxoConsolidation,
+      confirmationTime = null,
+      inputs = persistentListOf(
+        BdkTxIn(
+          outpoint = BdkOutPoint(parentTxId, 0u),
+          sequence = 0u,
+          witness = emptyList()
+        )
+      )
+    )
+    bitcoinWalletService.transactionsData.value = TransactionsData(
+      balance = BitcoinBalance.ZeroBalance,
+      fiatBalance = null,
+      transactions = persistentListOf(firstChildTx),
+      utxos = Utxos(
+        confirmed = emptySet(),
+        unconfirmed = setOf(
+          BdkUtxo(
+            outPoint = BdkOutPoint(childTxId, 0u),
+            txOut = BdkTxOut(value = 49_800u, scriptPubkey = BdkScriptMock()),
+            isSpent = false
+          )
+        )
+      )
+    )
+    val transaction = BitcoinTransaction(
+      id = parentTxId,
+      recipientAddress = null,
+      broadcastTime = null,
+      estimatedConfirmationTime = null,
+      confirmationStatus = Pending,
+      total = BitcoinMoney.sats(50_000),
+      subtotal = BitcoinMoney.sats(49_900),
+      fee = BitcoinMoney.sats(100),
+      weight = 400uL,
+      vsize = 100uL,
+      transactionType = Incoming,
+      inputs = emptyImmutableList(),
+      outputs = emptyImmutableList()
+    )
+
+    service.prepareSpeedUpDepositTransaction(transaction).isOk.shouldBe(true)
+
+    val cpfp = spendingWallet.lastCreateSignedPsbtConstructionType as PsbtConstructionMethod.Cpfp
+    cpfp.utxoOutpoint.shouldBe(BdkOutPoint(childTxId, 0u))
+    cpfp.feePolicy.shouldBe(FeePolicy.Absolute(Fee(BitcoinMoney.sats(1_110))))
+  }
+
   test("prefers the best descendant CPFP tip over first matching branch") {
     feeRateEstimator.estimatedFeeRateResult = FeeRate(satsPerVByte = 5f)
     bitcoinWalletService.spendingWallet.value = spendingWallet

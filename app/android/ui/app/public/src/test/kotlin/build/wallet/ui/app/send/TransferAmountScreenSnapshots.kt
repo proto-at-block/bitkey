@@ -1,13 +1,12 @@
 package build.wallet.ui.app.send
 
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.statemachine.core.Icon.Bitkey
 import build.wallet.statemachine.core.LabelModel
+import build.wallet.statemachine.core.LabelModel.Color.ON60
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
-import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
 import build.wallet.statemachine.send.TransferAmountBodyModel
+import build.wallet.statemachine.send.amountentry.SmartBarModel
 import build.wallet.ui.components.label.LabelTreatment
 import io.kotest.core.spec.style.FunSpec
 
@@ -31,7 +30,7 @@ class TransferAmountScreenSnapshots : FunSpec({
               showDecimal = false,
               onButtonPress = {}
             ),
-          cardModel = null,
+          smartBarModel = null,
           continueButtonEnabled = true,
           amountDisabled = false,
           onContinueClick = {},
@@ -58,7 +57,7 @@ class TransferAmountScreenSnapshots : FunSpec({
               showDecimal = false,
               onButtonPress = {}
             ),
-          cardModel = null,
+          smartBarModel = null,
           continueButtonEnabled = true,
           amountDisabled = false,
           onContinueClick = {},
@@ -68,7 +67,7 @@ class TransferAmountScreenSnapshots : FunSpec({
     }
   }
 
-  test("transfer amount entry screen - with banner") {
+  test("transfer amount entry screen - with smart bar") {
     paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(
@@ -76,27 +75,23 @@ class TransferAmountScreenSnapshots : FunSpec({
           balanceTitle = "$961.24 available",
           amountModel =
             MoneyAmountEntryModel(
-              primaryAmount = "$4.00",
+              primaryAmount = "$961.24",
               primaryAmountGhostedSubstringRange = null,
-              secondaryAmount = "70,000 sats"
+              secondaryAmount = "1,672,500 sats"
             ),
-          cardModel = CardModel(
-            title =
-              LabelModel.StringWithStyledSubstringModel.from(
-                string = "Bitkey approval required",
-                substringToColor = emptyMap()
-              ),
-            subtitle = null,
-            leadingImage = CardModel.CardImage.StaticImage(Bitkey),
-            content = null,
-            style = Outline()
+          smartBarModel = SmartBarModel(
+            title = LabelModel.StringWithStyledSubstringModel.from(
+              string = "Send Max (balance minus fees)",
+              substringToColor = mapOf("(balance minus fees)" to ON60)
+            ),
+            onClick = {}
           ),
           keypadModel =
             KeypadModel(
               showDecimal = false,
               onButtonPress = {}
             ),
-          continueButtonEnabled = true,
+          continueButtonEnabled = false,
           amountDisabled = false,
           onContinueClick = {},
           onSwapCurrencyClick = {}
@@ -122,7 +117,7 @@ class TransferAmountScreenSnapshots : FunSpec({
               showDecimal = true,
               onButtonPress = {}
             ),
-          cardModel = null,
+          smartBarModel = null,
           continueButtonEnabled = false,
           amountDisabled = false,
           amountContextLineTreatment = LabelTreatment.Destructive,
@@ -150,7 +145,7 @@ class TransferAmountScreenSnapshots : FunSpec({
               showDecimal = true,
               onButtonPress = {}
             ),
-          cardModel = null,
+          smartBarModel = null,
           continueButtonEnabled = false,
           amountDisabled = false,
           amountContextLineTreatment = LabelTreatment.Destructive,
@@ -178,51 +173,13 @@ class TransferAmountScreenSnapshots : FunSpec({
               showDecimal = true,
               onButtonPress = {}
             ),
-          cardModel = null,
+          smartBarModel = null,
           continueButtonEnabled = false,
           amountDisabled = false,
           amountContextLineTreatment = LabelTreatment.Destructive,
           shouldTriggerContextualErrorFeedback = true,
           onContinueClick = {},
           onSwapCurrencyClick = null
-        )
-      )
-    }
-  }
-
-  test("transfer amount entry screen - insufficient funds") {
-    paparazzi.snapshot {
-      TransferAmountScreen(
-        model = TransferAmountBodyModel(
-          onBack = {},
-          balanceTitle = "$961.24 available",
-          amountModel =
-            MoneyAmountEntryModel(
-              primaryAmount = "$1,500.00",
-              primaryAmountGhostedSubstringRange = null,
-              secondaryAmount = "2,625,000 sats"
-            ),
-          cardModel = CardModel(
-            title =
-              LabelModel.StringWithStyledSubstringModel.from(
-                string = "You don't have enough available",
-                substringToColor = emptyMap()
-              ),
-            subtitle = null,
-            leadingImage = null,
-            content = null,
-            style = Outline(),
-            titleTreatment = CardModel.TitleTreatment.Destructive
-          ),
-          keypadModel =
-            KeypadModel(
-              showDecimal = true,
-              onButtonPress = {}
-            ),
-          continueButtonEnabled = false,
-          amountDisabled = true,
-          onContinueClick = {},
-          onSwapCurrencyClick = {}
         )
       )
     }

@@ -23,6 +23,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.sync.F8eSyncSequencer
 import build.wallet.isOk
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.platform.app.AppSessionManager
@@ -313,7 +314,6 @@ class RelationshipsServiceImpl(
         else -> relationships
       }
 
-      // Update database
       relationshipsDao.setRelationships(verifiedRelationships).bind()
 
       verifiedRelationships
@@ -343,15 +343,26 @@ class RelationshipsServiceImpl(
     appAuthKey: PublicKey<AppGlobalAuthKey>?,
     hwAuthPublicKey: HwAuthPublicKey?,
   ): EndorsedTrustedContact {
-    val isVerified = relationshipsCrypto
+    val verification = relationshipsCrypto
       .verifyKeyCertificate(keyCertificate, hwAuthPublicKey, appAuthKey)
       // DO NOT REMOVE this log line. We alert on it.
       // See BKR-858
       .logFailure { "[socrec_key_certificate_verification_failure] Error verifying TC certificate $this" }
-      .isOk()
+      .onFailure { error ->
+        // Emit a stable signal for placeholder certificates.
+        if (error is RelationshipsCryptoError.KeyCertificateContainsPlaceholder) {
+          logError {
+            "[socrec_placeholder_hw_signature] TC certificate for ${id.value} has a " +
+              "placeholder HW endorsement; keybox signature repair and re-endorsement required"
+          }
+        }
+      }
 
     val authState = when {
-      isVerified -> TrustedContactAuthenticationState.VERIFIED
+      verification.isOk() -> TrustedContactAuthenticationState.VERIFIED
+      verification.error is RelationshipsCryptoError.KeyCertificateContainsPlaceholder ->
+        TrustedContactAuthenticationState.AWAITING_VERIFY
+      verification.error is RelationshipsCryptoError.AuthKeysNotPresent -> authenticationState
       else -> TrustedContactAuthenticationState.TAMPERED
     }
 

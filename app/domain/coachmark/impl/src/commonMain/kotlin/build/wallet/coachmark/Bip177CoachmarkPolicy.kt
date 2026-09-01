@@ -3,8 +3,6 @@ package build.wallet.coachmark
 import build.wallet.coachmark.Bip177CoachmarkPolicy.Companion.NEW_USER_THRESHOLD
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.onboarding.OnboardingCompletionService
@@ -21,14 +19,14 @@ import kotlin.time.Duration.Companion.minutes
  *
  * Users are marked ineligible (and never see the coachmark) if:
  * - They completed onboarding within [NEW_USER_THRESHOLD] of an eligibility check, OR
- * - They had BTC selected when the flag was enabled
+ * - They had BTC selected when eligibility was first evaluated after rollout
  *
- * Eligibility is captured once and persisted.
+ * Eligibility is captured on the first evaluation and persisted. This preserves eligibility for
+ * dormant users who experienced the legacy sats format but did not open the app during rollout.
  */
 @BitkeyInject(AppScope::class)
 class Bip177CoachmarkPolicy(
   private val clock: Clock,
-  private val bip177FeatureFlag: Bip177FeatureFlag,
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
   private val bip177CoachmarkEligibilityDao: Bip177CoachmarkEligibilityDao,
   private val onboardingCompletionService: OnboardingCompletionService,
@@ -45,15 +43,11 @@ class Bip177CoachmarkPolicy(
    * Determines if the BIP177 coachmark should be created.
    *
    * The coachmark is only created for users who:
-   * 1. Already had sats as their Bitcoin display preference when the BIP177 feature
-   *    flag was first enabled (not users who manually switch to sats later)
+   * 1. Have sats as their Bitcoin display preference when eligibility is first evaluated
+   *    after rollout
    * 2. Are not "new" users who just completed onboarding (they've never seen "sats")
    */
   suspend fun shouldCreate(): Boolean {
-    if (!bip177FeatureFlag.isEnabled()) {
-      return false
-    }
-
     // Store false so user stays ineligible even after reopening the app later.
     if (justCompletedOnboarding()) {
       bip177CoachmarkEligibilityDao.setEligibility(false)
@@ -64,7 +58,7 @@ class Bip177CoachmarkPolicy(
 
     return when (storedEligibility) {
       null -> {
-        // First check after BIP177 enabled - capture current preference as eligibility
+        // First eligibility check after rollout - capture the current preference.
         val currentlyHasSats =
           bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.value == BitcoinDisplayUnit.Satoshi
         bip177CoachmarkEligibilityDao.setEligibility(currentlyHasSats)
@@ -87,10 +81,6 @@ class Bip177CoachmarkPolicy(
    * Similar to [shouldCreate], but used for existing coachmarks.
    */
   suspend fun shouldShow(): Boolean {
-    if (!bip177FeatureFlag.isEnabled()) {
-      return false
-    }
-
     val storedEligibility = bip177CoachmarkEligibilityDao.getEligibility().getOr(null)
 
     // Only show if user was eligible and is still on sats

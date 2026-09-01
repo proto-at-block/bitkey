@@ -36,9 +36,6 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import bitkey.account.HardwareType
 import build.wallet.statemachine.core.form.FormMainContentModel.DeviceStatusCard
 import build.wallet.ui.components.video.VideoPlayer
@@ -226,7 +223,6 @@ internal actual fun BitkeyDeviceMedia(
     loadBitkeyDeviceSerialTypeface(androidContext)
   }
   val composeView = LocalView.current
-  val lifecycleOwner = LocalLifecycleOwner.current
   val requestDisallowInterceptTouchEvent = remember { RequestDisallowInterceptTouchEvent() }
   val velocityTracker = remember { VelocityTracker.obtain() }
   val minimumFlingVelocity = remember(composeView) {
@@ -358,12 +354,12 @@ internal actual fun BitkeyDeviceMedia(
     }
   }
 
-  fun updateSceneVisibility(sceneView: SceneView) {
-    sceneView.visibility = if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-      VISIBLE
-    } else {
-      INVISIBLE
-    }
+  fun showSceneView(sceneView: SceneView) {
+    sceneView.visibility = VISIBLE
+  }
+
+  fun hideSceneView(sceneView: SceneView?) {
+    sceneView?.visibility = INVISIBLE
   }
 
   fun startIdleMotion() {
@@ -429,31 +425,10 @@ internal actual fun BitkeyDeviceMedia(
     }
   }
 
-  DisposableEffect(composeView, lifecycleOwner, requestDisallowInterceptTouchEvent) {
-    val observer = LifecycleEventObserver { _, event ->
-      when (event) {
-        Lifecycle.Event.ON_START,
-        Lifecycle.Event.ON_RESUME,
-        -> latestSceneView?.let(::updateSceneVisibility)
-        Lifecycle.Event.ON_PAUSE,
-        Lifecycle.Event.ON_STOP,
-        -> {
-          latestSceneView?.visibility = INVISIBLE
-          updateGestureInterception(disallowIntercept = false)
-        }
-        Lifecycle.Event.ON_DESTROY -> {
-          latestSceneView?.visibility = INVISIBLE
-          updateGestureInterception(disallowIntercept = false)
-        }
-        else -> Unit
-      }
-    }
-    lifecycleOwner.lifecycle.addObserver(observer)
-
+  DisposableEffect(composeView, requestDisallowInterceptTouchEvent) {
     onDispose {
-      lifecycleOwner.lifecycle.removeObserver(observer)
       updateGestureInterception(disallowIntercept = false)
-      latestSceneView?.visibility = INVISIBLE
+      hideSceneView(latestSceneView)
     }
   }
 
@@ -622,11 +597,10 @@ internal actual fun BitkeyDeviceMedia(
     },
     onViewCreated = {
       sceneView = this
-      updateSceneVisibility(this)
+      showSceneView(this)
     },
     onViewUpdated = {
       sceneView = this
-      updateSceneVisibility(this)
     },
     onFrame = { frameTimeNanos ->
       when (rotationMotionMode) {

@@ -15,14 +15,14 @@ import build.wallet.ui.tokens.LabelType
 
 @Preview
 @Composable
-fun PreviewCard() {
+fun PreviewCardContainer() {
   Box(
     modifier =
       Modifier
         .background(color = WalletTheme.colors.background)
         .padding(24.dp)
   ) {
-    Card {
+    CardContainer {
       Spacer(modifier = Modifier.height(8.dp))
       Label(text = "PreviewCard Title", type = LabelType.Title2)
       Label(text = "PreviewCard Body", type = LabelType.Body2Regular)

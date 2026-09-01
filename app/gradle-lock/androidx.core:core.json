@@ -2,11 +2,11 @@
     "module-identifier": "androidx.core:core",
     "components": [
         {
-            "version": "1.13.1",
+            "version": "1.16.0",
             "variants": [
                 {
                     "artifacts": {
-                        "core-1.13.1.aar": "2c27de199535675005553066597a4b20fa1eea7c228ab4ef6b32b5fe39ca1f59"
+                        "core-1.16.0.aar": "6bf03d39dbe3744acce227d3b697374c3625aae1025fbec8ad9fd7bd58bce431"
                     }
                 }
             ],

@@ -19,6 +19,7 @@ import kotlinx.collections.immutable.toImmutableList
 data class FingerprintResetConfirmationBodyModel(
   val onClose: () -> Unit,
   val onConfirmReset: () -> Unit,
+  val delayPeriodDays: Int?,
 ) : FormBodyModel(
     id = FingerprintResetEventTrackerScreenId.CONFIRM_RESET_FINGERPRINTS,
     onBack = onClose,
@@ -27,7 +28,7 @@ data class FingerprintResetConfirmationBodyModel(
     ),
     header = FormHeaderModel(
       headline = "Start fingerprint reset",
-      subline = "If you're unable to unlock your Bitkey device, you can reset your fingerprints."
+      subline = "If you’re unable to unlock your Bitkey device, you can reset your fingerprints."
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
@@ -35,7 +36,7 @@ data class FingerprintResetConfirmationBodyModel(
           header = "How it works",
           headerTreatment = ListGroupModel.HeaderTreatment.PRIMARY,
           style = ListGroupStyle.NONE,
-          items = confirmationSteps.map { (number, title, secondaryText) ->
+          items = confirmationSteps(delayPeriodDays).map { (number, title, secondaryText) ->
             ListItemModel(
               leadingAccessory = ListItemAccessory.CircularCharacterAccessory(number),
               leadingAccessoryAlignment = ListItemAccessoryAlignment.TOP,
@@ -55,11 +56,14 @@ data class FingerprintResetConfirmationBodyModel(
     )
   )
 
-private val confirmationSteps = listOf(
+private fun confirmationSteps(delayPeriodDays: Int?) = listOf(
   Triple(
     '1',
-    "7-day security period",
-    "During the security period, you'll receive notifications that allow you to cancel the process."
+    when (delayPeriodDays) {
+      null -> "Security period"
+      else -> "$delayPeriodDays-day security period"
+    },
+    "During the security period, you’ll receive notifications that allow you to cancel the process."
   ),
   Triple(
     '2',
@@ -69,6 +73,9 @@ private val confirmationSteps = listOf(
   Triple(
     '3',
     "Set up new fingerprints",
-    "After 7 days, you’ll be able to save a new set of fingerprints."
+    when (delayPeriodDays) {
+      null -> "At the end of the security period, you’ll be able to save a new set of fingerprints."
+      else -> "After $delayPeriodDays days, you’ll be able to save a new set of fingerprints."
+    }
   )
 )

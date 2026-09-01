@@ -2,11 +2,11 @@
     "module-identifier": "androidx.core:core-ktx",
     "components": [
         {
-            "version": "1.13.1",
+            "version": "1.16.0",
             "variants": [
                 {
                     "artifacts": {
-                        "core-ktx-1.13.1.aar": "19ba50d094c7368ede1b4ccf1195ceb83e35970736593f823e5af716f8d05d70"
+                        "core-ktx-1.16.0.aar": "1766dbd82f64a12dcd359ecb6f15f3cf35db4d66d22961a7c51b2ffc6468314c"
                     }
                 }
             ],

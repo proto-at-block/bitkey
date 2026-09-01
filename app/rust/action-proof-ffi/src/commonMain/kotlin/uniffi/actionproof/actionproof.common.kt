@@ -147,7 +147,8 @@ public enum class Action {
     CANCEL_CONFLICTING_RECOVERY,
     SEND_RECOVERY_VERIFICATION_CODE,
     VERIFY_RECOVERY_VERIFICATION_CODE,
-    ROTATE_APP_AUTH_KEYS;
+    ROTATE_APP_AUTH_KEYS,
+    SET_DELAY_NOTIFY_PERIOD;
     public companion object
 }
 
@@ -268,4 +269,3 @@ public expect fun `contextBindingKey`(`binding`: ContextBinding): kotlin.String
  */
 @Throws(ActionProofException::class)
 public expect fun `validateValue`(`value`: kotlin.String)
-

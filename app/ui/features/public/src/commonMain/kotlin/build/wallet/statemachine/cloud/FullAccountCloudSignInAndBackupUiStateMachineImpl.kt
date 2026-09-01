@@ -323,6 +323,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             onCancel = { uiState = ShowingBackupInstructionsUiState(false) },
             needsAuthentication = false,
             screenPresentationStyle = props.presentationStyle,
+            segment = RecoverySegment.CloudBackup.FullAccount.Creation,
+            actionDescription = "Sealing CSEK with hardware to create cloud backup",
             eventTrackerContext = METADATA
           )
         )
@@ -376,10 +378,11 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
   }
 
   @Composable
-  private fun GenerateCsek(onCsekGenerated: (csek: Csek) -> Unit) {
+  private fun GenerateCsek(onCsekGenerate: (csek: Csek) -> Unit) {
+    val currentOnCsekGenerate by rememberUpdatedState(onCsekGenerate)
     LaunchedEffect("generating-csek") {
       val csek = sekGenerator.generate()
-      onCsekGenerated(csek)
+      currentOnCsekGenerate(csek)
     }
   }
 
@@ -444,6 +447,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
     onRectifiableError: (RectifiableCloudBackupError, ErrorData) -> Unit,
     setUiState: (FullAccountCloudSignInAndBackupUiState) -> Unit,
   ) {
+    val currentOnRectifiableError by rememberUpdatedState(onRectifiableError)
+    val currentSetUiState by rememberUpdatedState(setUiState)
     LaunchedEffect("create-and-save-backup") {
       coroutineBinding {
         // Create the cloud backup.
@@ -455,7 +460,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             )
             .logFailure { "Error creating cloud backup" }
             .onFailure {
-              setUiState(
+              currentSetUiState(
                 UnrectifiableFailureUiState.CreatingBackupFailure(
                   ErrorData(
                     segment = RecoverySegment.CloudBackup.FullAccount.Creation,
@@ -488,12 +493,12 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
               actionDescription = "Uploading full account backup to cloud"
             )
             if (cloudBackupFailure is RectifiableCloudBackupError) {
-              onRectifiableError(
+              currentOnRectifiableError(
                 cloudBackupFailure,
                 errorData
               )
             } else {
-              setUiState(UnrectifiableFailureUiState.UploadingBackupFailure(errorData))
+              currentSetUiState(UnrectifiableFailureUiState.UploadingBackupFailure(errorData))
             }
           }
           .bind()
@@ -507,7 +512,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             )
             .logFailure { "Error creating Emergency Exit Kit data" }
             .onFailure {
-              setUiState(
+              currentSetUiState(
                 UnrectifiableFailureUiState.CreatingEmergencyExitKitFailure(
                   ErrorData(
                     segment = RecoverySegment.EmergencyExit.Creation,
@@ -533,12 +538,12 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
               actionDescription = "Uploading Emergency Exit Kit to cloud"
             )
             if (writeFailure is RectifiableCloudError) {
-              onRectifiableError(
+              currentOnRectifiableError(
                 writeFailure.toRectifiableCloudBackupError,
                 errorData
               )
             } else {
-              setUiState(UnrectifiableFailureUiState.UploadingEmergencyExitKitFailure(errorData))
+              currentSetUiState(UnrectifiableFailureUiState.UploadingEmergencyExitKitFailure(errorData))
             }
           }
           .bind()

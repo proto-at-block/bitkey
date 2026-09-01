@@ -8,6 +8,7 @@ import build.wallet.cloud.backup.appGlobalAuthKeypair
 import build.wallet.cloud.backup.appKeys
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.*
 import build.wallet.di.AppScope
@@ -25,6 +26,7 @@ import okio.ByteString.Companion.encodeUtf8
 class FullAccountFieldsCreatorImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val csekDao: CsekDao,
+  private val ssekDao: SsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
   private val relationshipsCrypto: RelationshipsCrypto,
 ) : FullAccountFieldsCreator {
@@ -45,6 +47,13 @@ class FullAccountFieldsCreatorImpl(
           AppSpendingPrivateKeyRetrievalError(it)
         }.bind()
 
+      // Include all locally known SSEKs in the backup. An enumeration failure fails this
+      // backup attempt: uploading without them would replace a backup that may hold the
+      // only recoverable copy of these keys. The backup worker retries later.
+      val sealedSseks = ssekDao.getAll()
+        .mapError { SsekRetrievalError(it) }
+        .bind()
+
       val fullAccountKeys = FullAccountKeys(
         activeSpendingKeyset = keybox.activeSpendingKeyset,
         // If the local keysets are not authoritative, do not persist them in the cloud backup; this
@@ -54,7 +63,8 @@ class FullAccountFieldsCreatorImpl(
         activeHwAuthKey = keybox.activeHwKeyBundle.authKey,
         appGlobalAuthKeypair = appAuthKeypair,
         appSpendingKeys = appPrivateKeysMap,
-        rotationAppGlobalAuthKeypair = null
+        rotationAppGlobalAuthKeypair = null,
+        sealedSseks = sealedSseks
       )
 
       val fullCustomerKeysInfoEncoded = Json
@@ -93,7 +103,8 @@ class FullAccountFieldsCreatorImpl(
         socRecSealedFullAccountKeys = socRecPKMatOutput.sealedPrivateKeyMaterial,
         rotationAppRecoveryAuthKeypair = null,
         appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
-        hardwareType = keybox.config.hardwareType
+        hardwareType = keybox.config.hardwareType,
+        sealedSsekIds = sealedSseks.keys.map { it.hex() }.toSet()
       )
     }
 }

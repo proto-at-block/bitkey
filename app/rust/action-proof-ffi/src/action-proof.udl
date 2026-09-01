@@ -51,7 +51,8 @@ enum Action {
   "CancelConflictingRecovery",
   "SendRecoveryVerificationCode",
   "VerifyRecoveryVerificationCode",
-  "RotateAppAuthKeys"
+  "RotateAppAuthKeys",
+  "SetDelayNotifyPeriod"
 };
 
 /// Context binding types for action proofs.

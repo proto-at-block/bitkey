@@ -179,6 +179,8 @@ class SweepUiStateMachineImpl(
     }
   }
 
+  // Single-when state dispatcher; block body needed for rememberUpdatedState wrappers.
+  @Suppress("CyclomaticComplexMethod")
   @Composable
   private fun getSweepScreen(
     props: SweepUiProps,
@@ -187,6 +189,8 @@ class SweepUiStateMachineImpl(
     initiatedSigningForData: AwaitingHardwareSignedSweepsData?,
     onInitiateSigning: (AwaitingHardwareSignedSweepsData) -> Unit,
   ): ScreenModel {
+    val currentSetState by rememberUpdatedState(setState)
+    val currentOnInitiateSigning by rememberUpdatedState(onInitiateSigning)
     // TODO: Add Hardware Proof of Possession state machine if GetAccountKeysets
     //   endpoint ends up requiring it.
 
@@ -326,17 +330,17 @@ class SweepUiStateMachineImpl(
 
         if (shouldInitiateSigning) {
           LaunchedEffect(sweepData) {
-            onInitiateSigning(sweepData)
+            currentOnInitiateSigning(sweepData)
             // Show warning screen first if W3 with multiple PSBTs
             if (isW3 && hasMultiplePsbts) {
-              setState(
+              currentSetState(
                 ScreenState.ShowingMultipleTransactionsWarning(
                   psbtsToSign = psbtsToSign,
                   sweepData = sweepData
                 )
               )
             } else {
-              setState(
+              currentSetState(
                 ScreenState.SigningSinglePsbt(
                   currentPsbt = psbtsToSign.first(),
                   remainingPsbts = psbtsToSign.drop(1),

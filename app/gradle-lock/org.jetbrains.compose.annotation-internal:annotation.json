@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.annotation-internal:annotation",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "annotation-1.9.1.jar": "597b893edebd7ec3ee66f3c63c91e3c23733f896745d17bc72aef6618a47a68f"
+                        "annotation-1.10.0-rc02.jar": "59a0e9b77b3e1f61d3e3f0df8f99ed2a12b168ded809ea39e6fd75eeff94be12"
                     }
                 }
             ],

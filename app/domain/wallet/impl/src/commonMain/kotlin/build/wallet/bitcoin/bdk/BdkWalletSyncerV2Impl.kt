@@ -62,9 +62,6 @@ class BdkWalletSyncerV2Impl(
   ): Result<Unit, BdkError> =
     coroutineBinding {
       logDebug { "Attempting BDK 2 wallet sync..." }
-      if (syncLock.isLocked) {
-        return@coroutineBinding Unit
-      }
 
       syncLock.withLock {
         val electrumServerSetting = electrumServerSettingProvider.get().first()

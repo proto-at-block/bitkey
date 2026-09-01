@@ -1,14 +1,14 @@
 package build.wallet.statemachine.moneyhome.card.gettingstarted
 
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.model.alert.ButtonAlertModel
 
 /**
- * State machine which renders a [CardModel] represent "Getting Started" in [MoneyHomeStateMachine].
- * The model is null when there is no card to show
+ * State machine which renders a [GettingStartedSectionModel] hosted directly by Money Home.
+ * The model is null when there is no section to show.
  */
-interface GettingStartedCardUiStateMachine : StateMachine<GettingStartedCardUiProps, CardModel?>
+interface GettingStartedCardUiStateMachine :
+  StateMachine<GettingStartedCardUiProps, GettingStartedSectionModel?>
 
 /**
  * @property onAddBitcoin Incomplete [AddBitcoin] task row clicked

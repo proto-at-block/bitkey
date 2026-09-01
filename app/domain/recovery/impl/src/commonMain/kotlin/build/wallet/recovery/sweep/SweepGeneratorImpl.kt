@@ -20,11 +20,13 @@ import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.flags.Bdk2FeatureFlag
+import build.wallet.feature.flags.SweepKeysetReconciliationFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
+import build.wallet.logging.logWarn
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.notifications.RegisterWatchAddressProcessor
 import build.wallet.platform.random.UuidGenerator
@@ -48,6 +50,7 @@ class SweepGeneratorImpl(
   private val descriptorBackupService: DescriptorBackupService,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val bdk2FeatureFlag: Bdk2FeatureFlag,
+  private val sweepKeysetReconciliationFeatureFlag: SweepKeysetReconciliationFeatureFlag,
 ) : SweepGenerator {
   override suspend fun generateSweep(
     keybox: Keybox,
@@ -58,7 +61,24 @@ class SweepGeneratorImpl(
       // Use local keysets if available and authoritative, otherwise fetch from F8e
       val keysets = if (keybox.canUseKeyboxKeysets) {
         logInfo { "Using local keysets for sweep generation" }
-        keybox.keysets
+        // Local keysets are authoritative, but they can be incomplete: a recovery can write a
+        // keybox that omits a previously active keyset. Any funds left on an omitted keyset are
+        // then invisible to sweep detection -- no PSBT is generated, so the "funds in inactive
+        // wallet" prompt never appears and the balance is silently unreachable.
+        //
+        // Legacy keysets carry full descriptors in the listKeysets response, so we can rebuild
+        // them without a descriptor backup or hardware interaction. Backfill those. Private
+        // keysets cannot be rebuilt this way (their chaincode never leaves the client), so they
+        // are only reported.
+        //
+        // Flag-gated: this adds an f8e call to a path that runs on every foreground and every few
+        // minutes, so it is limited to accounts we are actively investigating until we understand
+        // fleet-wide prevalence.
+        if (sweepKeysetReconciliationFeatureFlag.isEnabled()) {
+          withLegacyKeysetsMissingFromLocal(keybox)
+        } else {
+          keybox.keysets
+        }
       } else if (keybox.isPrivateWallet) {
         // This should never happen as private wallets require local keysets
         Err(PrivateWalletMissingLocalKeysets).bind()
@@ -82,9 +102,11 @@ class SweepGeneratorImpl(
         keybox.activeSpendingKeyset.hardwareKey.key.origin.fingerprint
 
       // Find the list of keysets we can sign for and determine their signature plans
-      val signableKeysets = keysets
+      val candidateKeysets = keysets
         .filter { it.f8eSpendingKeyset.keysetId != keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId }
         .filter { it.matchesSweepContext(sweepContext) }
+
+      val signableKeysets = candidateKeysets
         .mapNotNull { keyset ->
           val isHwSignable = isHardwareSignable(hardwareMasterKeyFingerprint, keyset, sweepContext)
           val isAppSignable = isAppSignable(keyset).getOrElse { false }
@@ -96,12 +118,31 @@ class SweepGeneratorImpl(
           ).fold(
             success = { signaturePlan -> SignableKeyset(keyset, signaturePlan) },
             failure = { error ->
-              // Log the error but continue with other keysets
-              logInfo { "Skipping keyset ${keyset.f8eSpendingKeyset.keysetId}: $error" }
+              // Continue with other keysets, but do not let this pass quietly: an inactive keyset
+              // we cannot sign for may still hold funds, and dropping it here is exactly how funds
+              // become silently unreachable (no sweep is generated, so no "transfer funds" prompt
+              // is ever shown). Logged at warn so it is visible in telemetry.
+              //
+              // Deliberately omits the hardware key fingerprints. They are stable per-device
+              // identifiers, and this line runs on every sweep generation, so logging them would
+              // put device-linkable values into telemetry on a hot path. `hwSignable` already
+              // records the outcome of the fingerprint comparison, which is what triage needs.
+              logWarn {
+                "Cannot sign for inactive keyset ${keyset.f8eSpendingKeyset.keysetId} " +
+                  "(appSignable=$isAppSignable, hwSignable=$isHwSignable): $error. " +
+                  "Any funds on this keyset cannot be swept."
+              }
               null
             }
           )
         }
+
+      if (signableKeysets.size < candidateKeysets.size) {
+        logWarn {
+          "Sweep generation excluded ${candidateKeysets.size - signableKeysets.size} of " +
+            "${candidateKeysets.size} inactive keyset(s) due to missing signing factors"
+        }
+      }
 
       val feeRate =
         bitcoinFeeRateEstimator.estimatedFeeRateForTransaction(
@@ -109,14 +150,84 @@ class SweepGeneratorImpl(
           estimatedTransactionPriority = EstimatedTransactionPriority.sweepPriority()
         )
 
-      buildList<SweepPsbt> {
+      val psbts = buildList<SweepPsbt> {
         signableKeysets.forEach { keyset ->
           // Generate the sweep psbt(s), failing fast on the first non-recoverable error
           buildPsbt(keyset, keybox.activeSpendingKeyset, feeRate, keybox, context).bind()
             ?.let { psbt -> add(psbt) }
         }
       }
+
+      // Unconditional summary of how keysets narrowed at each stage. When a customer reports funds
+      // stranded on an inactive wallet, this is what distinguishes "the keyset was never in the
+      // local list" from "it was excluded for signing factors" from "PSBT building produced
+      // nothing" -- without it, every one of those looks identical in telemetry (silence).
+      logInfo {
+        "Sweep keyset resolution: local=${keybox.keysets.size}, resolved=${keysets.size}, " +
+          "candidates=${candidateKeysets.size}, signable=${signableKeysets.size}, " +
+          "psbts=${psbts.size}"
+      }
+
+      psbts
     }.logFailure { "Error generating sweep psbts" }
+
+  /**
+   * Returns the local keysets, plus any legacy keysets f8e knows about that the local keybox is
+   * missing.
+   *
+   * Best-effort: if the f8e call fails we fall back to the local keysets alone, so a network
+   * failure never breaks sweep generation for keysets we can already sign for.
+   */
+  private suspend fun withLegacyKeysetsMissingFromLocal(keybox: Keybox): List<SpendingKeyset> {
+    val localKeysets = keybox.keysets
+
+    return listKeysetsF8eClient.listKeysets(
+      keybox.config.f8eEnvironment,
+      keybox.fullAccountId
+    )
+      .map { response ->
+        val localKeysetIds = localKeysets.map { it.f8eSpendingKeyset.keysetId }.toSet()
+        // Never backfill the server's active keyset. Downstream candidate selection only excludes
+        // the *local* active keyset, so if the two disagree (the stale-backup case) a backfilled
+        // server-active keyset would be treated as inactive and swept -- moving funds out of the
+        // real active wallet and into the stale local one. That mismatch is the repair flow's job,
+        // not sweep's.
+        val missingRemoteKeysets = response.keysets.filter {
+          it.keysetId !in localKeysetIds && it.keysetId != response.activeKeysetId
+        }
+        if (missingRemoteKeysets.isEmpty()) {
+          return@map localKeysets
+        }
+
+        val (missingLegacy, missingOther) = missingRemoteKeysets
+          .partition { it is LegacyRemoteKeyset }
+
+        if (missingOther.isNotEmpty()) {
+          logWarn {
+            "Local keybox is missing ${missingOther.size} non-legacy server keyset(s) that cannot " +
+              "be rebuilt from server data; they cannot be swept: " +
+              missingOther.joinToString { it.keysetId }
+          }
+        }
+
+        if (missingLegacy.isEmpty()) {
+          return@map localKeysets
+        }
+
+        logWarn {
+          "Local keybox is missing ${missingLegacy.size} legacy server keyset(s); including them " +
+            "in sweep generation: ${missingLegacy.joinToString { it.keysetId }}"
+        }
+        // These keysets are not persisted, so a random localId would change every app session.
+        // localId is used as the on-disk BDK wallet identifier, which would create a fresh
+        // database and full rescan each cold start. Derive it from the stable f8e keyset id.
+        localKeysets + missingLegacy.filterIsInstance<LegacyRemoteKeyset>()
+          .toSpendingKeysets(uuidGenerator)
+          .map { it.copy(localId = it.f8eSpendingKeyset.keysetId) }
+      }
+      .logFailure { "Could not reconcile local keysets against f8e during sweep generation" }
+      .getOr(localKeysets)
+  }
 
   /**
    * Determines the signature plan for a sweep based on context and keyset capabilities.
@@ -240,7 +351,17 @@ class SweepGeneratorImpl(
         // Return null if the wallet doesn't have enough funds to sweep.
         .recoverIf(
           predicate = { it is BdkError.InsufficientFunds },
-          transform = { null }
+          transform = {
+            // Expected for empty inactive keysets, which are common, so this is info rather than
+            // warn to avoid drowning telemetry -- sweep generation runs on every foreground. Still
+            // logged because a keyset that does hold funds lands here too when the balance cannot
+            // cover the fee, and that case was previously indistinguishable from an empty keyset.
+            logInfo {
+              "No sweep PSBT for keyset ${signableKeyset.keyset.f8eSpendingKeyset.keysetId}: " +
+                "insufficient funds at fee rate $feeRate"
+            }
+            null
+          }
         )
         .mapError { BdkFailedToCreatePsbt(it, signableKeyset.keyset) }
         .bind()

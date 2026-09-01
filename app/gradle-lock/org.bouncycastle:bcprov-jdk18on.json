@@ -2,19 +2,6 @@
     "module-identifier": "org.bouncycastle:bcprov-jdk18on",
     "components": [
         {
-            "version": "1.77",
-            "variants": [
-                {
-                    "artifacts": {
-                        "bcprov-jdk18on-1.77.jar": "dabb98c24d72c9b9f585633d1df9c5cd58d9ad373d0cd681367e6a603a495d58"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
-            ]
-        },
-        {
             "version": "1.79",
             "variants": [
                 {
@@ -24,7 +11,21 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.80.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcprov-jdk18on-1.80.2.jar": "b33227f07dce264daf1aac2e798ef109a4901f31abedac53635746dd93679d3b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
             ]
         }
     ]

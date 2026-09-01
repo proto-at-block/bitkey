@@ -29,7 +29,7 @@ import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiState.*
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -72,7 +72,7 @@ class SpendingLimitPickerUiStateMachineImpl(
     // Helper to build toolbar model
     val toolbarModel = ToolbarModel(
       leadingAccessory = props.retreat.leadingToolbarAccessory,
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Set daily limit")
+      title = ToolbarTitleModel.Inline(title = "Set daily limit")
     )
 
     var uiState: SpendingLimitPickerUiState by remember {
@@ -182,6 +182,8 @@ class SpendingLimitPickerUiStateMachineImpl(
     val locale = remember {
       localeProvider.currentLocale()
     }
+    val currentOnFormatted by rememberUpdatedState(onFormatted)
+    val currentOnFormatError by rememberUpdatedState(onFormatError)
 
     LaunchedEffect("formatting-value", state.selectedFiatLimit) {
       actionProofService.formatDisplayValue(
@@ -192,11 +194,11 @@ class SpendingLimitPickerUiStateMachineImpl(
         )
       )
         .onSuccess { formattedValue ->
-          onFormatted(formattedValue, locale)
+          currentOnFormatted(formattedValue, locale)
         }
         .logFailure { "Failed to format spending limit display value" }
         .onFailure { error ->
-          onFormatError(error)
+          currentOnFormatError(error)
         }
     }
 

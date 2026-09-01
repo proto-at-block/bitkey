@@ -8,7 +8,7 @@ class CardSnapshots : FunSpec({
 
   test("sample card container with text") {
     paparazzi.snapshot {
-      PreviewCard()
+      PreviewCardContainer()
     }
   }
 

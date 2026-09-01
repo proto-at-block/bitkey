@@ -1,7 +1,7 @@
 package build.wallet.ui.components.forms
 
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.*
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
@@ -20,8 +20,7 @@ fun TextFieldNoTextAndNoFocusPreview() {
   PreviewWalletTheme {
     TextField(
       placeholderText = "Email Address",
-      value = TextFieldValue(""),
-      onValueChange = {}
+      state = remember { TextFieldState("") }
     )
   }
 }
@@ -32,8 +31,7 @@ internal fun TextFieldNoTextWithTrailingButtonPreview() {
   PreviewWalletTheme {
     TextField(
       placeholderText = "Email Address",
-      value = TextFieldValue(""),
-      onValueChange = {},
+      state = remember { TextFieldState("") },
       textFieldOverflowCharacteristic = Multiline,
       trailingButtonModel =
         ButtonModel(
@@ -53,8 +51,7 @@ fun TextFieldWithTextAndNoFocusPreview() {
   PreviewWalletTheme {
     TextField(
       placeholderText = "Email Address",
-      value = TextFieldValue("asdf@block.xyz"),
-      onValueChange = {}
+      state = remember { TextFieldState("asdf@block.xyz") }
     )
   }
 }
@@ -65,14 +62,15 @@ internal fun TextFieldWithOverflowFitText() {
   PreviewWalletTheme {
     TextField(
       placeholderText = "Bitcoin Address",
-      value = TextFieldValue("bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297"),
+      state = remember {
+        TextFieldState("bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297")
+      },
       textFieldOverflowCharacteristic =
         Resize(
           maxLines = 1,
           minFontSize = TextUnit(10f, TextUnitType.Sp),
           scaleFactor = 0.9f
-        ),
-      onValueChange = {}
+        )
     )
   }
 }
@@ -83,10 +81,11 @@ internal fun TextFieldWithOverflowMultilineText() {
   PreviewWalletTheme {
     TextField(
       placeholderText = "Bitcoin Address",
-      value = TextFieldValue("bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297"),
+      state = remember {
+        TextFieldState("bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297")
+      },
       textFieldOverflowCharacteristic = Multiline,
-      labelType = LabelType.Body2Mono,
-      onValueChange = {}
+      labelType = LabelType.Body2Mono
     )
   }
 }
@@ -97,9 +96,8 @@ fun TextFieldWithInviteCodeTransformation() {
   PreviewWalletTheme {
     TextField(
       placeholderText = "",
-      value = TextFieldValue("xxxxxxxx"),
-      onValueChange = {},
-      visualTransformation = InviteCodeTransformation
+      state = remember { TextFieldState("xxxxxxxx") },
+      outputTransformation = InviteCodeOutputTransformation
     )
   }
 }

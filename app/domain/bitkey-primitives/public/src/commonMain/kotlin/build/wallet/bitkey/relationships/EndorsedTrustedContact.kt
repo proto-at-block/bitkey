@@ -16,12 +16,21 @@ data class EndorsedTrustedContact(
   val authenticationState: TrustedContactAuthenticationState = AWAITING_VERIFY,
 ) : TrustedContact {
   init {
-    require(authenticationState == VERIFIED || authenticationState == TAMPERED || authenticationState == AWAITING_VERIFY) {
-      "TrustedContact can only be in the AWAITING_VERIFY, VERIFIED, or TAMPERED state. Found: $authenticationState"
+    require(
+      authenticationState == VERIFIED ||
+        authenticationState == TAMPERED ||
+        authenticationState == AWAITING_VERIFY
+    ) {
+      "TrustedContact has an invalid authentication state: $authenticationState"
     }
   }
 
   val identityKey get() = keyCertificate.delegatedDecryptionKey
+
+  /** An authenticated certificate that still needs a real hardware endorsement. */
+  val needsHwVerification: Boolean
+    get() = authenticationState == AWAITING_VERIFY &&
+      keyCertificate.appAuthGlobalKeyHwSignature.isW3OnboardingPlaceholder
 }
 
 /**

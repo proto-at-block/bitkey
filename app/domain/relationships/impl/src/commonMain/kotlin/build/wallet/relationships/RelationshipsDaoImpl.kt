@@ -73,7 +73,8 @@ class RelationshipsDaoImpl(
               ProtectedCustomer(
                 id = RelationshipId(customer.relationshipId),
                 alias = customer.alias,
-                roles = customer.roles
+                roles = customer.roles,
+                relationshipStatus = customer.relationshipStatus
               )
             }
 
@@ -100,23 +101,17 @@ class RelationshipsDaoImpl(
           relationshipsQueries.insertProtectedCustomer(
             relationshipId = customer.id.value,
             alias = customer.alias,
-            roles = customer.roles
+            roles = customer.roles,
+            relationshipStatus = customer.relationshipStatus
           )
         }
 
-        // Maintain the existing authentication states for the trusted contacts
-        val currentAuthStates =
-          relationshipsQueries.getTrustedContacts()
-            .executeAsList()
-            .associate { it.relationshipId to it.authenticationState }
-        // Reset trusted contacts.
         relationshipsQueries.clearTrustedContacts()
         relationships.endorsedTrustedContacts.forEach { tc ->
           relationshipsQueries.insertTrustedContact(
             relationshipId = tc.id.value,
             trustedContactAlias = tc.trustedContactAlias,
-            authenticationState = currentAuthStates[tc.id.value]
-              ?: tc.authenticationState,
+            authenticationState = tc.authenticationState,
             certificate = tc.keyCertificate.encode().getOrThrow().base64,
             roles = tc.roles
           )

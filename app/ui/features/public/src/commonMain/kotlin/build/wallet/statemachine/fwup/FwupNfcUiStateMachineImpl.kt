@@ -93,7 +93,7 @@ class FwupNfcUiStateMachineImpl(
         InAppBrowserModel(
           open = {
             inAppBrowserNavigator.open(
-              url = "https://bitkey.world/en-US/releases",
+              url = "https://bitkey.world/releases",
               onClose = {
                 uiState = ShowingUpdateInstructionsUiState()
               }
@@ -130,6 +130,7 @@ class FwupNfcUiStateMachineImpl(
     onHelpClick: (HardwareType) -> Unit,
     onReleaseNotes: () -> Unit,
   ): ScreenModel {
+    val currentOnLaunchFwup by rememberUpdatedState(onLaunchFwup)
     val activeKeybox by remember {
       keyboxDao.activeKeybox().map { it.get() }
     }.collectAsState(initial = null)
@@ -147,7 +148,7 @@ class FwupNfcUiStateMachineImpl(
       LaunchedEffect("launch-fwup") {
         // Wait to show the error sheet dismissed before re-launching FWUP
         delay(5)
-        onLaunchFwup()
+        currentOnLaunchFwup()
       }
     }
 

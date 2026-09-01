@@ -20,6 +20,8 @@ import build.wallet.bitcoin.utxo.Utxos
 import build.wallet.bitcoin.wallet.CoinSelectionStrategy
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.SpendingWalletV2Impl
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.NotRequired
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
@@ -55,6 +57,7 @@ class BitcoinWalletServiceImpl(
 ) : BitcoinWalletService, BitcoinWalletSyncWorker {
   private val spendingWallet = MutableStateFlow<SpendingWallet?>(null)
   private val transactionsData = MutableStateFlow<TransactionsData?>(null)
+  private val initialSyncStatus = MutableStateFlow<WalletInitialSyncStatus>(NotRequired)
   private val exchangeRates =
     exchangeRateService.exchangeRates
       .mapLatest { exchangeRates ->
@@ -105,12 +108,24 @@ class BitcoinWalletServiceImpl(
           }
         }.collectLatest {}
       }
+
+      launch {
+        spendingWallet
+          .flatMapLatest { wallet ->
+            wallet?.initialSyncStatus() ?: flowOf(NotRequired)
+          }
+          .collectLatest { status ->
+            initialSyncStatus.value = status
+          }
+      }
     }
   }
 
   override fun spendingWallet() = spendingWallet
 
   override fun transactionsData() = transactionsData
+
+  override fun initialSyncStatus() = initialSyncStatus
 
   override suspend fun sync(): Result<Unit, Error> {
     return spendingWallet.value?.sync() ?: Ok(Unit)

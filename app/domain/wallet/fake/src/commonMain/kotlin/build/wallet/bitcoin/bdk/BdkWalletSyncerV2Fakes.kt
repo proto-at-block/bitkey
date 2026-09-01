@@ -30,6 +30,7 @@ class ElectrumClientFake(
 
   val fullScanCalls = mutableListOf<FullScanCall>()
   val syncCalls = mutableListOf<SyncCall>()
+  var onFullScan: () -> Unit = {}
 
   override fun fullScan(
     request: FullScanRequest,
@@ -38,6 +39,7 @@ class ElectrumClientFake(
     fetchPrevTxouts: Boolean,
   ): Update {
     fullScanCalls.add(FullScanCall(request, stopGap, batchSize, fetchPrevTxouts))
+    onFullScan()
     return update
   }
 

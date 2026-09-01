@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.github.ben-manes.caffeine:caffeine",
+    "components": [
+        {
+            "version": "2.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "caffeine-2.9.3.jar": "1e0a7bbef1dd791653143f3f05d0e489934bf5481e58a87c9e619cd46b68729b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

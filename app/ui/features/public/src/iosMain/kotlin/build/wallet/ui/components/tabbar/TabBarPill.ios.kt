@@ -23,6 +23,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.theme.LocalTheme
@@ -97,6 +99,10 @@ actual fun TabBarPill(
           modifier = Modifier
             .offset(x = indicatorOffsetX, y = indicatorInset)
             .size(width = indicatorWidth, height = indicatorHeight)
+            // Purely decorative selection indicator; without this it becomes an
+            // unlabeled accessibility element layered over the tabs that steals
+            // VoiceOver focus/activation (BKW-719).
+            .semantics { hideFromAccessibility() }
             .background(
               color = indicatorColor,
               shape = RoundedCornerShape(30.dp)

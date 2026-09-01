@@ -119,6 +119,7 @@ enum class SecurityActionType {
   SOCIAL_RECOVERY,
   TRANSACTION_VERIFICATION,
   KEYSET_SYNC,
+  DELAY_NOTIFY_PERIOD,
 }
 
 enum class SecurityActionState {

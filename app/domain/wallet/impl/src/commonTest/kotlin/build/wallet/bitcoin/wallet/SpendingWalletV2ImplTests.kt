@@ -14,28 +14,44 @@ import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
+import build.wallet.bitcoin.transactions.BitcoinTransactionFake
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.Failed
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.NotRequired
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.Syncing
 import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.platform.app.AppSessionManagerFake
+import build.wallet.store.KeyValueStoreFactoryFake
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.floats.shouldBeNaN
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import uniffi.bdk.Amount
 import uniffi.bdk.Balance
 import uniffi.bdk.BlockHash
 import uniffi.bdk.BlockId
 import uniffi.bdk.CanonicalTx
+import uniffi.bdk.ChainPosition
 import uniffi.bdk.LocalOutput
 import uniffi.bdk.NoPointer
 import uniffi.bdk.Persister
+import uniffi.bdk.SentAndReceivedValues
+import uniffi.bdk.Transaction
+import uniffi.bdk.TxDetails
+import uniffi.bdk.Txid
+import kotlin.time.Duration.Companion.milliseconds
 import uniffi.bdk.Wallet as BdkV2Wallet
 
 class SpendingWalletV2ImplTests : FunSpec({
@@ -48,19 +64,16 @@ class SpendingWalletV2ImplTests : FunSpec({
   val testAmount = BitcoinTransactionSendAmount.ExactAmount(BitcoinMoney.sats(1000))
   val syncFailure = BdkError.Generic(RuntimeException("sync failed"), "sync failed")
 
-  val mapper = object : BdkTransactionMapperV2 {
-    override suspend fun createTransaction(
-      txDetails: uniffi.bdk.TxDetails,
-      wallet: BdkV2Wallet,
-      networkType: BitcoinNetworkType,
-    ) = error("Not used in these tests")
-
-    override fun createUtxo(localOutput: uniffi.bdk.LocalOutput) = error("Not used in these tests")
-  }
+  val mapper = RecordingBdkTransactionMapperV2()
 
   val walletSyncer = BdkWalletSyncerV2Fake(turbines::create)
+  val keyValueStoreFactory = KeyValueStoreFactoryFake()
+  val bdk2InitialSyncCompletionDao = Bdk2InitialSyncCompletionDaoImpl(keyValueStoreFactory)
 
-  fun buildWallet(bdkWallet: BdkV2Wallet = BdkV2Wallet(NoPointer)) =
+  fun buildWallet(
+    bdkWallet: BdkV2Wallet = BdkV2Wallet(NoPointer),
+    initialSyncCompletionDao: Bdk2InitialSyncCompletionDao = bdk2InitialSyncCompletionDao,
+  ) =
     SpendingWalletV2Impl(
       identifier = "test-wallet",
       networkType = BitcoinNetworkType.SIGNET,
@@ -69,6 +82,7 @@ class SpendingWalletV2ImplTests : FunSpec({
       appSessionManager = appSessionManager,
       bdkTransactionMapperV2 = mapper,
       bdkWalletSyncerV2 = walletSyncer,
+      bdk2InitialSyncCompletionDao = initialSyncCompletionDao,
       bitcoinFeeRateEstimator = bitcoinFeeRateEstimator
     )
 
@@ -76,14 +90,41 @@ class SpendingWalletV2ImplTests : FunSpec({
     appSessionManager.reset()
     bitcoinFeeRateEstimator.reset()
     walletSyncer.reset()
+    mapper.reset()
+    keyValueStoreFactory.clear()
   }
 
-  test("sync publishes after first BDK2 sync") {
+  test("sync publishes after first successful BDK2 sync at checkpoint height zero") {
     val bdkWallet = InitializationTestWallet(checkpointHeight = 0u)
-    walletSyncer.onSync = {
-      bdkWallet.checkpointHeight = 1u
-    }
     val wallet = buildWallet(bdkWallet)
+
+    wallet.balance().test {
+      val balanceTurbine = this
+      wallet.transactions().test {
+        val transactionsTurbine = this
+        wallet.unspentOutputs().test {
+          val unspentOutputsTurbine = this
+
+          wallet.sync().shouldBeOk()
+
+          walletSyncer.syncCalls.awaitItem()
+          balanceTurbine.awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
+          transactionsTurbine.awaitItem().shouldBeEmpty()
+          unspentOutputsTurbine.awaitItem().shouldBeEmpty()
+          bdk2InitialSyncCompletionDao.isComplete("test-wallet").shouldBeOk(true)
+        }
+      }
+    }
+  }
+
+  test("sync publishes after first successful BDK2 sync when completion marker write fails") {
+    val initialSyncCompletionDao = Bdk2InitialSyncCompletionDaoFake(
+      markCompleteResult = Err(RuntimeException("marker write failed"))
+    )
+    val wallet = buildWallet(
+      bdkWallet = InitializationTestWallet(checkpointHeight = 0u),
+      initialSyncCompletionDao = initialSyncCompletionDao
+    )
 
     wallet.balance().test {
       val balanceTurbine = this
@@ -124,28 +165,91 @@ class SpendingWalletV2ImplTests : FunSpec({
     }
   }
 
-  test("Balance and transaction initialization publishes cached data after first BDK2 sync") {
+  test("Balance and transaction initialization skips migration gate after BDK2 initial sync completion") {
+    bdk2InitialSyncCompletionDao.markComplete("test-wallet").shouldBeOk()
+    val wallet = buildWallet(InitializationTestWallet(checkpointHeight = 0u))
+
+    wallet.initialSyncStatus().test {
+      val statusTurbine = this
+      statusTurbine.awaitItem().shouldBe(NotRequired)
+
+      wallet.balance().test {
+        val balanceTurbine = this
+        wallet.transactions().test {
+          val transactionsTurbine = this
+          wallet.unspentOutputs().test {
+            val unspentOutputsTurbine = this
+
+            wallet.initializeBalanceAndTransactions()
+
+            statusTurbine.awaitNoEvents()
+            balanceTurbine.awaitNoEvents()
+            transactionsTurbine.awaitNoEvents()
+            unspentOutputsTurbine.awaitNoEvents()
+            walletSyncer.syncCalls.awaitNoEvents()
+          }
+        }
+      }
+    }
+  }
+
+  test("Balance and transaction initialization waits before BDK2 initial sync completion") {
     val wallet = buildWallet(InitializationTestWallet(checkpointHeight = 1u))
 
-    wallet.balance().test {
-      val balanceTurbine = this
-      wallet.transactions().test {
-        val transactionsTurbine = this
-        wallet.unspentOutputs().test {
-          val unspentOutputsTurbine = this
+    wallet.initialSyncStatus().test {
+      val statusTurbine = this
+      statusTurbine.awaitItem().shouldBe(NotRequired)
 
-          wallet.initializeBalanceAndTransactions()
+      wallet.balance().test {
+        val balanceTurbine = this
+        wallet.transactions().test {
+          val transactionsTurbine = this
+          wallet.unspentOutputs().test {
+            val unspentOutputsTurbine = this
 
-          balanceTurbine.awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
-          transactionsTurbine.awaitItem().shouldBeEmpty()
-          unspentOutputsTurbine.awaitItem().shouldBeEmpty()
-          walletSyncer.syncCalls.awaitNoEvents()
+            wallet.initializeBalanceAndTransactions()
+
+            statusTurbine.awaitItem().shouldBe(Syncing)
+            balanceTurbine.awaitNoEvents()
+            transactionsTurbine.awaitNoEvents()
+            unspentOutputsTurbine.awaitNoEvents()
+            walletSyncer.syncCalls.awaitNoEvents()
+          }
+        }
+      }
+    }
+  }
+
+  test("Balance and transaction initialization publishes cached data after BDK2 initial sync completion") {
+    bdk2InitialSyncCompletionDao.markComplete("test-wallet").shouldBeOk()
+    val wallet = buildWallet(InitializationTestWallet(checkpointHeight = 1u))
+
+    wallet.initialSyncStatus().test {
+      val statusTurbine = this
+      statusTurbine.awaitItem().shouldBe(NotRequired)
+
+      wallet.balance().test {
+        val balanceTurbine = this
+        wallet.transactions().test {
+          val transactionsTurbine = this
+          wallet.unspentOutputs().test {
+            val unspentOutputsTurbine = this
+
+            wallet.initializeBalanceAndTransactions()
+
+            statusTurbine.awaitNoEvents()
+            balanceTurbine.awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
+            transactionsTurbine.awaitItem().shouldBeEmpty()
+            unspentOutputsTurbine.awaitItem().shouldBeEmpty()
+            walletSyncer.syncCalls.awaitNoEvents()
+          }
         }
       }
     }
   }
 
   test("Balance and transaction initialization remains best-effort when transaction loading fails") {
+    bdk2InitialSyncCompletionDao.markComplete("test-wallet").shouldBeOk()
     val wallet = buildWallet(
       InitializationTestWallet(
         checkpointHeight = 1u,
@@ -168,6 +272,152 @@ class SpendingWalletV2ImplTests : FunSpec({
           walletSyncer.syncCalls.awaitNoEvents()
         }
       }
+    }
+  }
+
+  test("sync does not mark BDK2 initial sync complete when wallet data loading fails") {
+    val bdkWallet = InitializationTestWallet(
+      checkpointHeight = 1u,
+      transactionsError = RuntimeException("transactions failed")
+    )
+    val wallet = buildWallet(bdkWallet)
+
+    wallet.sync().shouldBeErrOfType<SpendingWalletV2Error.TransactionsRetrievalFailed>()
+
+    walletSyncer.syncCalls.awaitItem()
+    bdk2InitialSyncCompletionDao.isComplete("test-wallet").shouldBeOk(false)
+  }
+
+  test("sync does not mark BDK2 initial sync complete when funded wallet has no transactions") {
+    val wallet = buildWallet(
+      InitializationTestWallet(
+        checkpointHeight = 1u,
+        balance = testBalance(total = 500uL)
+      )
+    )
+
+    wallet.balance().test {
+      val balanceTurbine = this
+      wallet.transactions().test {
+        val transactionsTurbine = this
+        wallet.unspentOutputs().test {
+          val unspentOutputsTurbine = this
+
+          wallet.sync().shouldBeErrOfType<SpendingWalletV2Error.InitialSyncDataIncomplete>()
+
+          walletSyncer.syncCalls.awaitItem()
+          bdk2InitialSyncCompletionDao.isComplete("test-wallet").shouldBeOk(false)
+          balanceTurbine.awaitNoEvents()
+          transactionsTurbine.awaitNoEvents()
+          unspentOutputsTurbine.awaitNoEvents()
+        }
+      }
+    }
+
+    wallet.initialSyncStatus().test {
+      awaitItem().shouldBeTypeOf<Failed>()
+    }
+  }
+
+  test("sync allows funded wallet with no transactions after BDK2 initial sync completion") {
+    bdk2InitialSyncCompletionDao.markComplete("test-wallet").shouldBeOk()
+    val wallet = buildWallet(
+      InitializationTestWallet(
+        checkpointHeight = 1u,
+        balance = testBalance(total = 500uL)
+      )
+    )
+
+    wallet.balance().test {
+      val balanceTurbine = this
+      wallet.transactions().test {
+        val transactionsTurbine = this
+        wallet.unspentOutputs().test {
+          val unspentOutputsTurbine = this
+
+          wallet.sync().shouldBeOk()
+
+          walletSyncer.syncCalls.awaitItem()
+          balanceTurbine.awaitItem().total.shouldBe(BitcoinMoney.sats(500))
+          transactionsTurbine.awaitItem().shouldBeEmpty()
+          unspentOutputsTurbine.awaitItem().shouldBeEmpty()
+        }
+      }
+    }
+  }
+
+  test("sync publishes BDK2 initial sync status") {
+    walletSyncer.syncDelay = 100.milliseconds
+    val wallet = buildWallet(InitializationTestWallet(checkpointHeight = 1u))
+
+    wallet.initialSyncStatus().test {
+      awaitItem().shouldBe(NotRequired)
+
+      coroutineScope {
+        val syncJob = launch {
+          wallet.sync().shouldBeOk()
+        }
+
+        awaitItem().shouldBe(Syncing)
+        walletSyncer.syncCalls.awaitItem()
+        syncJob.join()
+        awaitItem().shouldBe(NotRequired)
+      }
+    }
+  }
+
+  test("sync marks BDK2 initial sync failed when wallet data loading fails") {
+    walletSyncer.syncDelay = 100.milliseconds
+    val bdkWallet = InitializationTestWallet(
+      checkpointHeight = 1u,
+      transactionsError = RuntimeException("transactions failed")
+    )
+    val wallet = buildWallet(bdkWallet)
+
+    wallet.initialSyncStatus().test {
+      awaitItem().shouldBe(NotRequired)
+
+      coroutineScope {
+        val syncJob = launch {
+          wallet.sync().shouldBeErrOfType<SpendingWalletV2Error.TransactionsRetrievalFailed>()
+        }
+
+        awaitItem().shouldBe(Syncing)
+        walletSyncer.syncCalls.awaitItem()
+        syncJob.join()
+        awaitItem().shouldBeTypeOf<Failed>()
+      }
+    }
+  }
+
+  test("sync maps canonical transactions when txDetails are missing") {
+    val txid = "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
+    val bdkWallet = InitializationTestWallet(
+      checkpointHeight = 1u,
+      canonicalTransactions = listOf(
+        CanonicalTx(
+          transaction = TestTransaction(txid),
+          chainPosition = ChainPosition.Unconfirmed(timestamp = null)
+        )
+      ),
+      sentAndReceivedValues = SentAndReceivedValues(
+        sent = Amount.fromSat(0uL),
+        received = Amount.fromSat(500uL)
+      )
+    )
+    val wallet = buildWallet(bdkWallet)
+
+    wallet.transactions().test {
+      wallet.sync().shouldBeOk()
+
+      walletSyncer.syncCalls.awaitItem()
+      awaitItem().shouldBe(listOf(BitcoinTransactionFake))
+    }
+
+    mapper.txDetails.single().apply {
+      this.txid.toString().shouldBe(txid)
+      sent.toSat().shouldBe(0uL)
+      received.toSat().shouldBe(500uL)
     }
   }
 
@@ -484,6 +734,13 @@ class SpendingWalletV2ImplTests : FunSpec({
 private class InitializationTestWallet(
   var checkpointHeight: UInt,
   val transactionsError: Throwable? = null,
+  private val balance: Balance = testBalance(),
+  private val canonicalTransactions: List<CanonicalTx> = emptyList(),
+  private val txDetailsById: Map<String, TxDetails> = emptyMap(),
+  private val unspentOutputs: List<LocalOutput> = emptyList(),
+  private val sentAndReceivedValues: SentAndReceivedValues =
+    SentAndReceivedValues(sent = Amount.fromSat(0uL), received = Amount.fromSat(0uL)),
+  private val fee: Amount? = null,
 ) : BdkV2Wallet(NoPointer) {
   override fun latestCheckpoint(): BlockId =
     BlockId(
@@ -491,20 +748,63 @@ private class InitializationTestWallet(
       hash = BlockHash(NoPointer)
     )
 
-  override fun balance(): Balance =
-    Balance(
-      immature = Amount.fromSat(0uL),
-      trustedPending = Amount.fromSat(0uL),
-      untrustedPending = Amount.fromSat(0uL),
-      confirmed = Amount.fromSat(0uL),
-      trustedSpendable = Amount.fromSat(0uL),
-      total = Amount.fromSat(0uL)
-    )
+  override fun balance(): Balance = balance
 
   override fun transactions(): List<CanonicalTx> {
     transactionsError?.let { throw it }
-    return emptyList()
+    return canonicalTransactions
   }
 
-  override fun listUnspent(): List<LocalOutput> = emptyList()
+  override fun txDetails(txid: Txid): TxDetails? = txDetailsById[txid.toString()]
+
+  override fun sentAndReceived(tx: Transaction): SentAndReceivedValues = sentAndReceivedValues
+
+  override fun calculateFee(tx: Transaction): Amount = fee ?: error("No fee available")
+
+  override fun listUnspent(): List<LocalOutput> = unspentOutputs
+}
+
+private fun testBalance(total: ULong = 0uL): Balance =
+  Balance(
+    immature = Amount.fromSat(0uL),
+    trustedPending = Amount.fromSat(0uL),
+    untrustedPending = Amount.fromSat(0uL),
+    confirmed = Amount.fromSat(total),
+    trustedSpendable = Amount.fromSat(total),
+    total = Amount.fromSat(total)
+  )
+
+private class TestTransaction(
+  private val txid: String,
+) : Transaction(NoPointer) {
+  override fun computeTxid(): Txid = Txid.fromString(txid)
+}
+
+private class RecordingBdkTransactionMapperV2 : BdkTransactionMapperV2 {
+  val txDetails = mutableListOf<TxDetails>()
+
+  override suspend fun createTransaction(
+    txDetails: TxDetails,
+    wallet: BdkV2Wallet,
+    networkType: BitcoinNetworkType,
+  ) = BitcoinTransactionFake.also {
+    this.txDetails.add(txDetails)
+  }
+
+  override fun createUtxo(localOutput: LocalOutput) = BdkUtxoMock
+
+  fun reset() {
+    txDetails.clear()
+  }
+}
+
+private class Bdk2InitialSyncCompletionDaoFake(
+  private val isCompleteResult: Result<Boolean, Throwable> = Ok(false),
+  private val markCompleteResult: Result<Unit, Throwable> = Ok(Unit),
+) : Bdk2InitialSyncCompletionDao {
+  override suspend fun isComplete(walletIdentifier: String): Result<Boolean, Throwable> =
+    isCompleteResult
+
+  override suspend fun markComplete(walletIdentifier: String): Result<Unit, Throwable> =
+    markCompleteResult
 }

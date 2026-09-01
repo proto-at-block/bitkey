@@ -6,7 +6,7 @@ import build.wallet.support.SupportTicketData
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 
@@ -23,7 +23,7 @@ data class FillingFormBodyModel(
       ToolbarModel(
         leadingAccessory =
           ToolbarAccessoryModel.IconAccessory.BackAccessory(onClick = confirmLeaveIfNeeded),
-        middleAccessory = ToolbarMiddleAccessoryModel(title = "Send feedback")
+        title = ToolbarTitleModel.Inline(title = "Send feedback")
       ),
     header = null,
     mainContentList = mainContentList,

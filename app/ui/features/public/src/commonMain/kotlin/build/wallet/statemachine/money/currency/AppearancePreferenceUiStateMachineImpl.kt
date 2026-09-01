@@ -8,8 +8,6 @@ import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.inappsecurity.HideBalancePreference
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -50,7 +48,6 @@ class AppearancePreferenceUiStateMachineImpl(
   private val themePreferenceService: ThemePreferenceService,
   private val chartRangePreference: ChartRangePreference,
   private val stringResourceProvider: StringResourceProvider,
-  private val bip177FeatureFlag: Bip177FeatureFlag,
 ) : AppearancePreferenceUiStateMachine {
   @Composable
   override fun model(props: AppearancePreferenceProps): ScreenModel {
@@ -141,9 +138,6 @@ class AppearancePreferenceUiStateMachineImpl(
       is ShowingBitcoinDisplayUnitSelectionUiState -> {
         val scope = rememberStableCoroutineScope()
         var selectedUnit by remember { mutableStateOf(uiState.selectedUnit) }
-        val isBip177Enabled by remember {
-          bip177FeatureFlag.flagValue().map { it.isEnabled() }
-        }.collectAsState(initial = bip177FeatureFlag.isEnabled())
 
         // Get the current balance
         val transactionsData by remember {
@@ -163,7 +157,6 @@ class AppearancePreferenceUiStateMachineImpl(
           bottomSheetModel = bitcoinDisplayUnitSelectionSheetModel(
             selectedUnit = selectedUnit,
             balance = balance,
-            isBip177Enabled = isBip177Enabled,
             moneyDisplayFormatter = moneyDisplayFormatter,
             onSelectUnit = { unit ->
               selectedUnit = unit
@@ -284,9 +277,6 @@ class AppearancePreferenceUiStateMachineImpl(
     val selectedBitcoinUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
     val chartTimeScalePreference by chartRangePreference.selectedRange.collectAsState()
     val scope = rememberStableCoroutineScope()
-    val isBip177Enabled by remember {
-      bip177FeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = bip177FeatureFlag.isEnabled())
 
     // Primary amount: fiat
     val convertedFiatAmount by remember(btcDisplayAmount) {
@@ -303,7 +293,7 @@ class AppearancePreferenceUiStateMachineImpl(
 
     // Secondary amount: bitcoin
     val moneyHomeHeroSecondaryAmountString =
-      remember(btcDisplayAmount, selectedBitcoinUnit, isBip177Enabled) {
+      remember(btcDisplayAmount, selectedBitcoinUnit) {
         moneyDisplayFormatter
           .format(btcDisplayAmount)
       }
@@ -336,7 +326,7 @@ class AppearancePreferenceUiStateMachineImpl(
         onThemePreferenceClick = onThemePreferenceClick,
         fiatCurrencyPreferenceString = selectedFiatCurrency.textCode.code,
         onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
-        bitcoinDisplayPreferenceString = selectedBitcoinUnit.appearanceLabel(isBip177Enabled),
+        bitcoinDisplayPreferenceString = selectedBitcoinUnit.appearanceLabel(),
         defaultTimeScalePreferenceString = stringResourceProvider.getString(chartTimeScalePreference.label),
         onDefaultTimeScalePreferenceClick = onDefaultTimeScalePreferenceClick,
         isHideBalanceEnabled = isHideBalanceEnabled,

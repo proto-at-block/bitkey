@@ -9,6 +9,7 @@ import bitkey.recovery.fundslost.AtRiskCause
 import bitkey.recovery.fundslost.FundsLostRiskLevel
 import bitkey.recovery.fundslost.FundsLostRiskServiceImpl
 import build.wallet.account.AccountServiceFake
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.cloud.backup.health.AppKeyBackupStatus
@@ -132,6 +133,63 @@ class FundsLostRiskServiceImplTests : FunSpec({
     }
   }
 
+  test("at risk when keybox holds a placeholder hw signature") {
+    cloudBackupHealthRepository.appKeyBackupStatus.value =
+      Healthy(ClockFake().now)
+    cloudBackupHealthRepository.eekBackupStatus.value =
+      EekBackupStatus.Healthy(ClockFake().now)
+    firmwareDataService.firmwareData.value = FirmwareDataUpToDateMock
+    notificationsService.criticalNotificationsStatus.value = Enabled
+    accountService.setActiveAccount(
+      FullAccountMock.copy(
+        keybox = FullAccountMock.keybox.copy(
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+            AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+          )
+        )
+      )
+    )
+
+    val service = service()
+
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    service.riskLevel().test {
+      awaitUntil(FundsLostRiskLevel.AtRisk(AtRiskCause.UnverifiedHardwareSignature))
+    }
+  }
+
+  test("orphaned key recovery sentinel does not trigger hardware signature risk") {
+    cloudBackupHealthRepository.appKeyBackupStatus.value =
+      Healthy(ClockFake().now)
+    cloudBackupHealthRepository.eekBackupStatus.value =
+      EekBackupStatus.Healthy(ClockFake().now)
+    firmwareDataService.firmwareData.value = FirmwareDataUpToDateMock
+    notificationsService.criticalNotificationsStatus.value = Enabled
+    // The W3 repair flow cannot repair this sentinel.
+    accountService.setActiveAccount(
+      FullAccountMock.copy(
+        keybox = FullAccountMock.keybox.copy(
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+            AppGlobalAuthKeyHwSignature.ORPHANED_KEY_RECOVERY_SENTINEL
+          )
+        )
+      )
+    )
+
+    val service = service()
+
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    service.riskLevel().test {
+      awaitItem().shouldBe(FundsLostRiskLevel.Protected)
+    }
+  }
+
   test("at risk when keyset mismatch is detected") {
     cloudBackupHealthRepository.appKeyBackupStatus.value =
       Healthy(ClockFake().now)
@@ -203,6 +261,33 @@ class FundsLostRiskServiceImplTests : FunSpec({
 
     service.riskLevel().test {
       awaitUntil(FundsLostRiskLevel.AtRisk(AtRiskCause.ActiveSpendingKeysetMismatch))
+    }
+  }
+
+  test("not at risk when incomplete keyset list is unrecoverable") {
+    // Deliberate: AtRisk drives a banner whose only remediation is the repair flow, which cannot
+    // resolve these keysets. Showing it would produce a warning the customer can never clear.
+    cloudBackupHealthRepository.appKeyBackupStatus.value =
+      Healthy(ClockFake().now)
+    cloudBackupHealthRepository.eekBackupStatus.value =
+      EekBackupStatus.Healthy(ClockFake().now)
+    firmwareDataService.firmwareData.value = FirmwareDataUpToDateMock
+    notificationsService.criticalNotificationsStatus.value = Enabled
+    keysetRepairService.setStatus(
+      SpendingKeysetSyncStatus.IncompleteKeysetListUnrecoverable(
+        activeKeysetId = "active-keyset-id",
+        missingKeysetIds = setOf("unrecoverable-keyset-id")
+      )
+    )
+
+    val service = service()
+
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    service.riskLevel().test {
+      awaitUntil(FundsLostRiskLevel.Protected)
     }
   }
 

@@ -10,7 +10,7 @@ import kotlinx.collections.immutable.ImmutableList
  * State machine for displaying a list of pending Recovery Contacts.
  */
 interface RecoveryContactCardsUiStateMachine :
-  StateMachine<RecoveryContactCardsUiProps, LoadableValue<ImmutableList<CardModel>>>
+  StateMachine<RecoveryContactCardsUiProps, LoadableValue<ImmutableList<CardModel.Status>>>
 
 data class RecoveryContactCardsUiProps(
   val onClick: (TrustedContact) -> Unit,

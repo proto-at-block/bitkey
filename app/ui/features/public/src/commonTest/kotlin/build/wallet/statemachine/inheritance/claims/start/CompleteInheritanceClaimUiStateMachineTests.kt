@@ -75,7 +75,7 @@ class CompleteInheritanceClaimUiStateMachineTests : FunSpec({
         amount.shouldBeEqual("$3.00")
         fees.shouldBeEqual("$1.00")
         netReceivePrimary.shouldBeEqual("$2.00")
-        netReceiveSecondary.shouldBeEqual("20,000 sats")
+        netReceiveSecondary.shouldBeEqual("₿20,000")
         header.shouldNotBeNull().sublineModel
           .shouldNotBeNull()
           .shouldBeTypeOf<ChunkedAddressModel>()
@@ -88,7 +88,7 @@ class CompleteInheritanceClaimUiStateMachineTests : FunSpec({
         amount.shouldBeEqual("$3.00")
         fees.shouldBeEqual("$1.00")
         netReceivePrimary.shouldBeEqual("$2.00")
-        netReceiveSecondary.shouldBeEqual("20,000 sats")
+        netReceiveSecondary.shouldBeEqual("₿20,000")
         header.shouldNotBeNull().sublineModel
           .shouldNotBeNull()
           .shouldBeTypeOf<ChunkedAddressModel>()

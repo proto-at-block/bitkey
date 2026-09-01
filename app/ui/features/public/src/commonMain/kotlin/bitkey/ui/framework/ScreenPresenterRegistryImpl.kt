@@ -11,6 +11,8 @@ import bitkey.ui.screens.recovery.KeysetRepairScreen
 import bitkey.ui.screens.recovery.SpendingKeysetRepairScreenPresenter
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreenPresenter
+import bitkey.ui.screens.securityhub.DelayNotifyPeriodPresenter
+import bitkey.ui.screens.securityhub.DelayNotifyPeriodScreen
 import bitkey.ui.screens.securityhub.SecurityHubPresenter
 import bitkey.ui.screens.securityhub.SecurityHubScreen
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
@@ -66,6 +68,7 @@ class ScreenPresenterRegistryImpl(
   private val appFunctionalityStatusScreenPresenter: AppFunctionalityStatusScreenPresenter,
   private val securityHubEducationScreenPresenter: SecurityHubEducationScreenPresenter,
   private val spendingKeysetRepairScreenPresenter: SpendingKeysetRepairScreenPresenter,
+  private val delayNotifyPeriodPresenter: DelayNotifyPeriodPresenter,
 ) : ScreenPresenterRegistry {
   override fun <ScreenT : Screen> get(screen: ScreenT): ScreenPresenter<ScreenT> {
     @Suppress("UNCHECKED_CAST")
@@ -91,6 +94,7 @@ class ScreenPresenterRegistryImpl(
       is AppFunctionalityStatusScreen -> appFunctionalityStatusScreenPresenter
       is SecurityHubEducationScreen -> securityHubEducationScreenPresenter
       is KeysetRepairScreen -> spendingKeysetRepairScreenPresenter
+      is DelayNotifyPeriodScreen -> delayNotifyPeriodPresenter
       else -> error("Did not find presenter for $screen")
     } as ScreenPresenter<ScreenT>
   }

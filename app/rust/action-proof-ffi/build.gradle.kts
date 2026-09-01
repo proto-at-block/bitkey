@@ -6,7 +6,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 plugins {
   id("build.wallet.kmp")
   id("build.wallet.android.lib")
-  id("org.jetbrains.kotlin.plugin.atomicfu") version "2.1.20"
+  alias(libs.plugins.kotlin.atomicfu)
 }
 
 val generatedUniffiSourcesDir = layout.projectDirectory.dir("src")

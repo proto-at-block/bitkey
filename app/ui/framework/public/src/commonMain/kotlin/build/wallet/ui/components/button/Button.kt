@@ -107,12 +107,12 @@ fun Button(
 @Composable
 fun Button(
   text: String,
+  style: ButtonStyle,
+  onClick: () -> Unit,
   modifier: Modifier = Modifier,
   leadingIcon: Icon? = null,
   isLoading: Boolean = false,
   enabled: Boolean = true,
-  style: ButtonStyle,
-  onClick: () -> Unit,
 ) {
   val disabledContentAlpha = 0.3f
   val textToRender = if (style.isAllCaps) text.uppercase() else text

@@ -13,14 +13,51 @@ import build.wallet.ui.model.icon.IconSize.Regular
 
 data class ToolbarModel(
   val leadingAccessory: ToolbarAccessoryModel? = null,
-  val middleAccessory: ToolbarMiddleAccessoryModel? = null,
   val trailingAccessory: ToolbarAccessoryModel? = null,
+  /**
+   * Optional title rendered by the toolbar.
+   *
+   * Use [ToolbarTitleModel.Inline] to render a centered title between the leading and trailing
+   * accessories. Use [ToolbarTitleModel.Large] to render the title as a large block below the
+   * toolbar row (with an optional eyebrow), as drawn by the form screen large-title layout.
+   */
+  val title: ToolbarTitleModel? = null,
 )
 
-data class ToolbarMiddleAccessoryModel(
-  val title: String,
-  val subtitle: String? = null,
-)
+/**
+ * Convenience accessor for the [ToolbarTitleModel.Large] variant of [ToolbarModel.title], or
+ * `null` if the title is missing or is an [ToolbarTitleModel.Inline].
+ */
+val ToolbarModel.largeTitle: ToolbarTitleModel.Large?
+  get() = title as? ToolbarTitleModel.Large
+
+/**
+ * Convenience accessor for the [ToolbarTitleModel.Inline] variant of [ToolbarModel.title], or
+ * `null` if the title is missing or is a [ToolbarTitleModel.Large].
+ */
+val ToolbarModel.inlineTitle: ToolbarTitleModel.Inline?
+  get() = title as? ToolbarTitleModel.Inline
+
+/**
+ * Title rendered by the toolbar.
+ */
+sealed interface ToolbarTitleModel {
+  /**
+   * Centered between the leading/trailing accessories.
+   */
+  data class Inline(
+    val title: String,
+    val subtitle: String? = null,
+  ) : ToolbarTitleModel
+
+  /**
+   * Renders as a large title block below the toolbar row, with an optional eyebrow.
+   */
+  data class Large(
+    val title: String? = null,
+    val eyebrow: String? = null,
+  ) : ToolbarTitleModel
+}
 
 sealed interface ToolbarAccessoryModel {
   data class ButtonAccessory(

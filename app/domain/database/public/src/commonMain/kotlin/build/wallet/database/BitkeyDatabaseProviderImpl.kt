@@ -3,6 +3,8 @@ package build.wallet.database
 import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.EnumColumnAdapter
 import app.cash.sqldelight.db.SqlDriver
+import build.wallet.bitcoin.metadata.WalletMetadataAccountId
+import build.wallet.bitcoin.transactions.BitcoinTransactionId
 import build.wallet.analytics.v1.Event
 import build.wallet.bitkey.inheritance.InheritanceMaterialHash
 import build.wallet.bitkey.relationships.TrustedContactRole
@@ -28,6 +30,12 @@ import kotlinx.datetime.Instant
 private val legacyInstantAsEpochMillisecondsColumnAdapter: ColumnAdapter<Instant, Long> =
   build.wallet.sqldelight.adapter.InstantAsEpochMillisecondsColumnAdapter
 
+private val walletMetadataAccountIdColumnAdapter =
+  DelegatedColumnAdapter(::WalletMetadataAccountId, WalletMetadataAccountId::value)
+
+private val bitcoinTransactionIdColumnAdapter =
+  DelegatedColumnAdapter(::BitcoinTransactionId, BitcoinTransactionId::value)
+
 @BitkeyInject(AppScope::class)
 class BitkeyDatabaseProviderImpl(
   sqlDriverFactory: SqlDriverFactory,
@@ -47,23 +55,8 @@ class BitkeyDatabaseProviderImpl(
       createDatabase(driver)
     }
 
-  private val debugDatabase: Deferred<BitkeyDebugDatabase> =
-    appScope.async(Dispatchers.IO, CoroutineStart.LAZY) {
-      val driver = sqlDriverFactory
-        .createDriver(
-          dataBaseName = "bitkeyDebug.db",
-          dataBaseSchema = BitkeyDebugDatabase.Schema
-        )
-        .withLogging(tag = "BitkeyDebugDb")
-      BitkeyDebugDatabase(driver = driver)
-    }
-
   override suspend fun database(): BitkeyDatabase {
     return database.await()
-  }
-
-  override suspend fun debugDatabase(): BitkeyDebugDatabase {
-    return debugDatabase.await()
   }
 
   private fun createDatabase(driver: SqlDriver): BitkeyDatabase {
@@ -125,6 +118,18 @@ class BitkeyDatabaseProviderImpl(
         broadcastTimeAdapter = InstantAsIso8601ColumnAdapter,
         estimatedConfirmationTimeAdapter = InstantAsIso8601ColumnAdapter
       ),
+      walletMetadataTransactionNoteEntityAdapter = WalletMetadataTransactionNoteEntity.Adapter(
+        accountIdAdapter = walletMetadataAccountIdColumnAdapter,
+        transactionIdAdapter = bitcoinTransactionIdColumnAdapter,
+        createdAtAdapter = InstantAsIso8601ColumnAdapter,
+        updatedAtAdapter = InstantAsIso8601ColumnAdapter
+      ),
+      walletMetadataTransactionNoteTombstoneEntityAdapter =
+        WalletMetadataTransactionNoteTombstoneEntity.Adapter(
+          accountIdAdapter = walletMetadataAccountIdColumnAdapter,
+          transactionIdAdapter = bitcoinTransactionIdColumnAdapter,
+          deletedAtAdapter = InstantAsIso8601ColumnAdapter
+        ),
       eventEntityAdapter =
         EventEntity.Adapter(
           eventAdapter = WireColumnAdapter(Event.ADAPTER),
@@ -260,7 +265,8 @@ class BitkeyDatabaseProviderImpl(
               ::TrustedContactRole,
               TrustedContactRole::key
             )
-          )
+          ),
+          relationshipStatusAdapter = EnumColumnAdapter()
         ),
       trustedContactInvitationEntityAdapter =
         TrustedContactInvitationEntity.Adapter(
@@ -362,6 +368,9 @@ class BitkeyDatabaseProviderImpl(
           lastRecommendationTriggeredAtAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
           recordUpdatedAtAdapter = legacyInstantAsEpochMillisecondsColumnAdapter
         ),
+      delayNotifyConfigurationEntityAdapter = DelayNotifyConfigurationEntity.Adapter(
+        accountIdAdapter = FullAccountIdColumnAdapter
+      ),
       inheritanceDataEntityAdapter = InheritanceDataEntity.Adapter(
         lastSyncHashAdapter = DelegatedColumnAdapter(
           ::InheritanceMaterialHash,

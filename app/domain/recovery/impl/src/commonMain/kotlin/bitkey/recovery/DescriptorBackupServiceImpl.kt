@@ -35,8 +35,6 @@ import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
 import build.wallet.f8e.recovery.RemoteKeyset
 import build.wallet.f8e.recovery.toSpendingKeysets
-import build.wallet.feature.flags.DescriptorBackupFailsafeFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
@@ -59,7 +57,6 @@ class DescriptorBackupServiceImpl(
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val updateDescriptorBackupsF8eClient: UpdateDescriptorBackupsF8eClient,
   private val accountService: AccountService,
-  private val descriptorBackupFailsafeFeatureFlag: DescriptorBackupFailsafeFeatureFlag,
   private val descriptorBackupVerificationDao: DescriptorBackupVerificationDao,
   bitcoinWalletService: BitcoinWalletService,
 ) : DescriptorBackupService, DescriptorBackupHealthSyncWorker {
@@ -84,23 +81,25 @@ class DescriptorBackupServiceImpl(
   private val descriptorBackupAad = "Bitkey Descriptor Backup Encryption Version 1.0".encodeUtf8()
 
   override suspend fun executeWork() {
-    ensureActiveKeysetHasDescriptorBackup()
+    ensureActiveKeysetHasDescriptorBackup().getOrThrow()
   }
 
   override suspend fun checkBackupForPrivateKeyset(keysetId: String): Result<Unit, Throwable> {
     return coroutineBinding {
-      // Check feature flag
-      if (!descriptorBackupFailsafeFeatureFlag.isEnabled()) {
-        return@coroutineBinding
-      }
-
-      // Check cache for the specific keyset
-      val status = descriptorBackupVerificationDao
+      val cachedVerification = descriptorBackupVerificationDao
         .getVerifiedBackup(keysetId)
         .bind()
 
-      if (status == null) {
-        Err(IllegalStateException("No descriptor backup exists for private keyset $keysetId.")).bind()
+      if (cachedVerification == null) {
+        val account = accountService.getAccount<FullAccount>().bind()
+        refreshDescriptorBackupVerificationCache(account).bind()
+
+        val refreshedVerification = descriptorBackupVerificationDao
+          .getVerifiedBackup(keysetId)
+          .bind()
+        if (refreshedVerification == null) {
+          Err(IllegalStateException("No descriptor backup exists for private keyset $keysetId.")).bind()
+        }
       }
     }
   }
@@ -777,31 +776,28 @@ class DescriptorBackupServiceImpl(
         return@coroutineBinding
       }
 
-      // Cache miss - query F8e for the latest descriptor backups
-      listKeysetsF8eClient.listKeysets(
-        f8eEnvironment = account.config.f8eEnvironment,
-        fullAccountId = account.accountId
-      )
-        .logFailure { "Failed to list keysets from F8e during descriptor backup verification" }
-        .fold(
-          success = { listKeysetsResponse ->
-            val descriptorBackups = listKeysetsResponse.descriptorBackups
-
-            // Update cache with all keysets that have backups on F8e
-            descriptorBackupVerificationDao.replaceAllVerifiedBackups(
-              descriptorBackups.map { backup ->
-                VerifiedBackup(keysetId = backup.keysetId)
-              }
-            )
-              .logFailure { "Failed to update cache with verified backups" }
-              .bind()
-          },
-          failure = {
-            logInfo { "Network failure during F8e query, no cached verification available" }
-          }
-        )
+      refreshDescriptorBackupVerificationCache(account).bind()
     }.logFailure { "Failed to verify descriptor backup for active keyset" }
   }
+
+  private suspend fun refreshDescriptorBackupVerificationCache(
+    account: FullAccount,
+  ): Result<Unit, Error> =
+    coroutineBinding {
+      val response = listKeysetsF8eClient.listKeysets(
+        f8eEnvironment = account.config.f8eEnvironment,
+        fullAccountId = account.accountId
+      ).logFailure {
+        "Failed to list keysets from F8e during descriptor backup verification"
+      }.bind()
+
+      descriptorBackupVerificationDao.replaceAllVerifiedBackups(
+        response.descriptorBackups.map { backup ->
+          VerifiedBackup(keysetId = backup.keysetId)
+        }
+      ).logFailure { "Failed to update cache with verified backups" }
+        .bind()
+    }
 }
 
 /**

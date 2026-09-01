@@ -26,16 +26,14 @@ data class W3UpgradeOldHardwareAuthRotationInstructionsBodyModel(
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_OLD_HARDWARE_AUTH_ROTATION_INSTRUCTIONS,
     onBack = onBack,
-    toolbar = onBack?.let {
-      ToolbarModel(
-        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(
-          onClick = onBack
-        )
+    toolbar = ToolbarModel(
+      leadingAccessory = onBack?.let {
+        ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClick = onBack)
+      },
+      title = w3UpgradeInstructionScreenTitle(
+        eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
+        title = "Tap your old Bitkey to finish the upgrade"
       )
-    },
-    formScreenTitle = w3UpgradeInstructionScreenTitle(
-      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
-      title = "Tap your old Bitkey to finish the upgrade"
     ),
     formScreenLayout = w3UpgradeInstructionLayout(),
     headerToMainContentSpacing = W3_UPGRADE_INSTRUCTION_HEADER_TO_MAIN_CONTENT_SPACING,

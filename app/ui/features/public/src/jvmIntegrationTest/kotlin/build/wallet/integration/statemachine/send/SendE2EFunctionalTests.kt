@@ -73,7 +73,7 @@ class SendE2EFunctionalTests : FunSpec({
         clickContinue()
       }
 
-      // Enter amount
+      // Enter amount in the account's configured Bitcoin display unit.
       awaitUntilBody<TransferAmountBodyModel> {
         enterBitcoinAmount(sendAmount)
       }
@@ -159,7 +159,7 @@ class SendE2EFunctionalTests : FunSpec({
         clickContinue()
       }
 
-      // Enter amount
+      // Enter amount in the account's configured Bitcoin display unit.
       awaitUntilBody<TransferAmountBodyModel> {
         enterBitcoinAmount(sendAmount)
       }

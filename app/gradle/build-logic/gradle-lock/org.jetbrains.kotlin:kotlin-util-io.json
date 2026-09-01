@@ -2,19 +2,6 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-util-io",
     "components": [
         {
-            "version": "2.1.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-util-io-2.1.20.jar": "82a3b29a611d47ce634ae2e6c509cde2a86f94b23b86be30864eb3d4b8fe8e7e"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
-            ]
-        },
-        {
             "version": "2.2.20",
             "variants": [
                 {
@@ -24,6 +11,7 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[build-logic]"
             ]
         }

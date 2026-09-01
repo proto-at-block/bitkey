@@ -13,6 +13,7 @@ import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADING_APP
+import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME_RELOADING_WALLET_HISTORY
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
 import build.wallet.bitkey.keybox.AppKeyBundleMock2
 import build.wallet.bitkey.keybox.FullAccountConfigMock
@@ -365,6 +366,64 @@ class AppUiStateMachineImplTests : FunSpec({
           .shouldBe("https://fake.app.store/test")
       }
       eventTracker.awaitSplashScreenEvent()
+
+      appWorkerExecutor.executeAllCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("BDK2 wallet history reload screen is shown after splash") {
+    loadAppService.appState.value = AppState.HasActiveFullAccount(
+      account = FullAccountMock,
+      pendingAuthKeyRotation = null
+    )
+    stateMachine =
+      AppUiStateMachineImpl(
+        appVariant = AppVariant.Development,
+        navigatorPresenter = navigatorPresenter,
+        eventTracker = eventTracker,
+        homeUiStateMachine = object : HomeUiStateMachine,
+          ScreenStateMachineMock<HomeUiProps>(id = "home") {},
+        liteHomeUiStateMachine = object : LiteHomeUiStateMachine,
+          ScreenStateMachineMock<LiteHomeUiProps>(id = "lite-home") {},
+        fullAccountUiStateMachine = object : FullAccountUiStateMachine {
+          @Composable
+          override fun model(props: FullAccountUiProps): ScreenModel {
+            return LoadingSuccessBodyModel(
+              id = MONEY_HOME_RELOADING_WALLET_HISTORY,
+              state = LoadingSuccessBodyModel.State.Loading,
+              message = "Updating your wallet"
+            ).asRootScreen()
+          }
+        },
+        createAccountUiStateMachine = createAccountUiStateMachine,
+        noActiveAccountUiStateMachine = noActiveAccountUiStateMachine,
+        loadAppService = loadAppService,
+        createLiteAccountUiStateMachine = createLiteAccountUiStateMachine,
+        liteAccountCloudBackupRestorationUiStateMachine =
+        liteAccountCloudBackupRestorationUiStateMachine,
+        appWorkerExecutor = appWorkerExecutor,
+        accountService = AccountServiceFake(),
+        accountConfigService = AccountConfigServiceFake(),
+        datadogRumMonitor = datadogRumMonitor,
+        splashScreenDelay = SplashScreenDelay(10.milliseconds),
+        welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
+        deviceInfoProvider = DeviceInfoProviderMock(),
+        appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
+        appStoreUrlProvider = appStoreUrlProvider,
+        deepLinkHandler = deepLinkHandler
+      )
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      awaitBody<LoadingSuccessBodyModel> {
+        id.shouldBe(MONEY_HOME_RELOADING_WALLET_HISTORY)
+        message.shouldBe("Updating your wallet")
+      }
+      eventTracker.eventCalls.awaitItem()
+        .shouldBe(TrackedAction(ACTION_APP_SCREEN_IMPRESSION, MONEY_HOME_RELOADING_WALLET_HISTORY))
 
       appWorkerExecutor.executeAllCalls.awaitItem()
       cancelAndIgnoreRemainingEvents()

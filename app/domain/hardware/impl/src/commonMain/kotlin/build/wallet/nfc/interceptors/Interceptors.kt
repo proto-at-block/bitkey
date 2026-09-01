@@ -141,53 +141,75 @@ private suspend fun maybeLockDevice(
 /**
  * An interceptor that validates the tapped hardware is paired with the current account.
  *
- * The verification strategy differs by hardware type:
- * - **W1**: Signs a random challenge with the hardware auth key and delegates signature
- *   verification to the callback in [RequirePairedHardware.Required].
- * - **W3**: Compares the serial number reported by [getDeviceInfo] against the serial
- *   stored in [FirmwareDeviceInfoDao]. The Delay+Notify guard is handled separately by
- *   [rejectDuringHardwareDelayNotify].
+ * The verification strategy depends on the requested [RequirePairedHardware] mode and, for
+ * [RequirePairedHardware.Required], on hardware type:
+ * - **[RequirePairedHardware.Required] on W1**: Signs a random challenge with the hardware
+ *   auth key and delegates signature verification to the callback.
+ * - **[RequirePairedHardware.Required] on W3**: Compares the serial number reported by
+ *   [getDeviceInfo] against the serial stored in [FirmwareDeviceInfoDao]. The Delay+Notify
+ *   guard is handled separately by [rejectDuringHardwareDelayNotify].
+ * - **[RequirePairedHardware.RequiredSerialOnly]**: Serial comparison on both W1 and W3, for
+ *   flows that cannot sign a challenge (fingerprint reset). See that variant's docs.
  *
- * @param firmwareDeviceInfoDao DAO used for the W3 serial comparison path.
+ * @param firmwareDeviceInfoDao DAO used for the serial comparison paths.
  */
 internal fun validateHardwareIsPaired(
   firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
 ) = NfcTransactionInterceptor { next ->
   { session, commands ->
-    val requiresPairedHardware = session.parameters.requirePairedHardware
-    if (requiresPairedHardware is RequirePairedHardware.Required) {
-      when (commands.actualHardwareType(session)) {
-        HardwareType.W3 -> {
-          // Compare serial from the tapped device against the stored paired serial.
-          // This runs before collectFirmwareTelemetry, so the DAO still holds the
-          // previously-paired device's serial (not the just-tapped device's).
-          // Use getDeviceInfo (live hardware read) rather than detectedDeviceInfo
-          // (which returns the cached/overridden identity from a prior tap).
-          val expectedSerial = firmwareDeviceInfoDao.getDeviceInfo().get()?.serial
-          val actualSerial = commands.getDeviceInfo(session).serial
-          if (expectedSerial == null || actualSerial != expectedSerial) {
-            throw NfcException.UnpairedHardwareError()
-          }
-        }
-        HardwareType.W1 -> {
-          // W1 / unknown: sign a random challenge and verify the signature.
-          val challenge = requiresPairedHardware.challenge
-          val signature = try {
-            commands.signChallenge(session, challenge)
-          } catch (e: FeatureNotSupported) {
-            throw NfcException.UnpairedHardwareError(cause = e)
-          }
+    when (val requiresPairedHardware = session.parameters.requirePairedHardware) {
+      is RequirePairedHardware.NotRequired -> Unit
+      is RequirePairedHardware.RequiredSerialOnly -> {
+        // Serial comparison regardless of hardware type: getDeviceInfo is an
+        // unauthenticated read on both W1 and W3.
+        validateSerialIsPaired(session, commands, firmwareDeviceInfoDao)
+      }
+      is RequirePairedHardware.Required -> {
+        when (commands.actualHardwareType(session)) {
+          HardwareType.W3 -> validateSerialIsPaired(session, commands, firmwareDeviceInfoDao)
+          HardwareType.W1 -> {
+            // W1 / unknown: sign a random challenge and verify the signature.
+            val challenge = requiresPairedHardware.challenge
+            val signature = try {
+              commands.signChallenge(session, challenge)
+            } catch (e: FeatureNotSupported) {
+              throw NfcException.UnpairedHardwareError(cause = e)
+            }
 
-          val challengeSuccessful =
-            requiresPairedHardware.checkHardwareIsPaired(signature, challenge)
-          if (!challengeSuccessful) {
-            throw NfcException.UnpairedHardwareError()
+            val challengeSuccessful =
+              requiresPairedHardware.checkHardwareIsPaired(signature, challenge)
+            if (!challengeSuccessful) {
+              throw NfcException.UnpairedHardwareError()
+            }
           }
         }
       }
     }
 
     next(session, commands)
+  }
+}
+
+/**
+ * Compares the serial from the tapped device against the stored paired serial, throwing
+ * [NfcException.UnpairedHardwareError] on mismatch or when no serial is stored (fail closed).
+ *
+ * This runs before collectFirmwareTelemetry, so the DAO still holds the previously-paired
+ * device's serial (not the just-tapped device's), and throwing here also prevents the foreign
+ * device's identity from overwriting the cache.
+ *
+ * Uses [NfcCommands.getDeviceInfo] (live hardware read) rather than `detectedDeviceInfo`
+ * (which returns the cached/overridden identity from a prior tap).
+ */
+private suspend fun validateSerialIsPaired(
+  session: NfcSession,
+  commands: NfcCommands,
+  firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
+) {
+  val expectedSerial = firmwareDeviceInfoDao.getDeviceInfo().get()?.serial
+  val actualSerial = commands.getDeviceInfo(session).serial
+  if (expectedSerial == null || actualSerial != expectedSerial) {
+    throw NfcException.UnpairedHardwareError()
   }
 }
 

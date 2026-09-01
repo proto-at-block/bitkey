@@ -4,6 +4,7 @@ import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.relationships.PakeCode
+import build.wallet.bitkey.relationships.TcIdentityKeyAppSignature
 import build.wallet.encrypt.MessageSignerImpl
 import build.wallet.encrypt.SignatureVerifierImpl
 import build.wallet.encrypt.toSecp256k1PrivateKey
@@ -152,6 +153,20 @@ class RelationshipsCryptoFakeTests : FunSpec({
         modifiedCertificate,
         HwAuthPublicKey(hwEndorsementKeyPair.publicKey.toSecp256k1PublicKey()),
         invalidAppEndorsementKeyPair.publicKey
+      ).getOrThrow()
+    }
+
+    val forgedPlaceholder = keyCertificate.copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+      ),
+      trustedContactIdentityKeyAppSignature = TcIdentityKeyAppSignature(hwSignature.value)
+    )
+    shouldThrow<RelationshipsCryptoError.KeyCertificateVerificationFailed> {
+      cryptoFake.verifyKeyCertificate(
+        keyCertificate = forgedPlaceholder,
+        hwAuthKey = HwAuthPublicKey(hwEndorsementKeyPair.publicKey.toSecp256k1PublicKey()),
+        appGlobalAuthKey = appEndorsementKeyPair.publicKey
       ).getOrThrow()
     }
 

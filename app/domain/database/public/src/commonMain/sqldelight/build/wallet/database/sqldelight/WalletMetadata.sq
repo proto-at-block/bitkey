@@ -1,0 +1,76 @@
+import build.wallet.bitcoin.metadata.WalletMetadataAccountId;
+import build.wallet.bitcoin.transactions.BitcoinTransactionId;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE walletMetadataTransactionNoteEntity(
+  accountId     TEXT AS WalletMetadataAccountId NOT NULL,
+  transactionId TEXT AS BitcoinTransactionId NOT NULL,
+  note          TEXT NOT NULL,
+  createdAt     TEXT AS Instant NOT NULL,
+  updatedAt     TEXT AS Instant NOT NULL,
+  PRIMARY KEY(accountId, transactionId)
+);
+
+CREATE TABLE walletMetadataTransactionNoteTombstoneEntity(
+  accountId     TEXT AS WalletMetadataAccountId NOT NULL,
+  transactionId TEXT AS BitcoinTransactionId NOT NULL,
+  deletedAt     TEXT AS Instant NOT NULL,
+  PRIMARY KEY(accountId, transactionId)
+);
+
+upsertTransactionNote:
+INSERT OR REPLACE INTO walletMetadataTransactionNoteEntity(
+  accountId,
+  transactionId,
+  note,
+  createdAt,
+  updatedAt
+)
+VALUES (?, ?, ?, ?, ?);
+
+deleteTransactionNote:
+DELETE FROM walletMetadataTransactionNoteEntity
+WHERE accountId = ?
+  AND transactionId = ?;
+
+selectTransactionNotesForAccount:
+SELECT *
+FROM walletMetadataTransactionNoteEntity
+WHERE accountId = ?;
+
+selectTransactionNote:
+SELECT *
+FROM walletMetadataTransactionNoteEntity
+WHERE accountId = ?
+  AND transactionId = ?;
+
+upsertDeletedTransactionNote:
+INSERT OR REPLACE INTO walletMetadataTransactionNoteTombstoneEntity(
+  accountId,
+  transactionId,
+  deletedAt
+)
+VALUES (?, ?, ?);
+
+selectDeletedTransactionNotesForAccount:
+SELECT *
+FROM walletMetadataTransactionNoteTombstoneEntity
+WHERE accountId = ?;
+
+deleteTransactionNoteTombstone:
+DELETE FROM walletMetadataTransactionNoteTombstoneEntity
+WHERE accountId = ?
+  AND transactionId = ?;
+
+clearTransactionNotesForAccount:
+DELETE FROM walletMetadataTransactionNoteEntity
+WHERE accountId = ?;
+
+clearTransactionNoteTombstonesForAccount:
+DELETE FROM walletMetadataTransactionNoteTombstoneEntity
+WHERE accountId = ?;
+
+clear {
+  DELETE FROM walletMetadataTransactionNoteEntity;
+  DELETE FROM walletMetadataTransactionNoteTombstoneEntity;
+}

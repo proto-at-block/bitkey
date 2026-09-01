@@ -5,6 +5,8 @@ package build.wallet.ui.components.toolbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -29,6 +31,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import org.jetbrains.compose.resources.DrawableResource
@@ -53,13 +56,19 @@ fun Toolbar(
       }
     },
     middleContent = {
-      model.middleAccessory?.let { middleAccessory ->
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-          Label(text = middleAccessory.title, type = LabelType.Title2)
-          middleAccessory.subtitle?.let {
-            Label(text = it, type = LabelType.Title3, treatment = Secondary)
+      when (val title = model.title) {
+        is ToolbarTitleModel.Inline -> {
+          Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Label(text = title.title, type = LabelType.Title2)
+            title.subtitle?.let {
+              Label(text = it, type = LabelType.Title3, treatment = Secondary)
+            }
           }
         }
+        // Large titles are rendered by the host screen (e.g. FormScreen's large-title layout),
+        // not inline by the toolbar row itself.
+        is ToolbarTitleModel.Large -> Unit
+        null -> Unit
       }
     },
     trailingContent = {
@@ -109,6 +118,8 @@ fun ToolbarAccessory(model: ToolbarAccessoryModel) {
  * ```
  *
  */
+// Modifier intentionally targets the toolbar content row inside the chrome.
+@Suppress("ModifierNotUsedAtRoot")
 @Composable
 fun Toolbar(
   modifier: Modifier = Modifier,
@@ -121,6 +132,9 @@ fun Toolbar(
   backgroundDrawable: DrawableResource? = null,
 ) {
   val screenSize = getScreenSize()
+  val movableLeading = leadingContent?.let { remember(it) { movableContentOf(it) } }
+  val movableMiddle = middleContent?.let { remember(it) { movableContentOf(it) } }
+  val movableTrailing = trailingContent?.let { remember(it) { movableContentOf(it) } }
 
   Box(
     modifier = Modifier
@@ -173,13 +187,13 @@ fun Toolbar(
                 modifier = modifier.fillMaxWidth()
               ) {
                 ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterStart)) {
-                  leadingContent?.invoke()
+                  movableLeading?.invoke()
                 }
                 ToolbarSlotBox(modifier = Modifier.align(Alignment.Center)) {
-                  middleContent?.invoke()
+                  movableMiddle?.invoke()
                 }
                 ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterEnd)) {
-                  trailingContent?.invoke()
+                  movableTrailing?.invoke()
                 }
               }
             }
@@ -210,13 +224,13 @@ fun Toolbar(
           modifier = modifier.fillMaxWidth()
         ) {
           ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterStart)) {
-            leadingContent?.invoke()
+            movableLeading?.invoke()
           }
           ToolbarSlotBox(modifier = Modifier.align(Alignment.Center)) {
-            middleContent?.invoke()
+            movableMiddle?.invoke()
           }
           ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterEnd)) {
-            trailingContent?.invoke()
+            movableTrailing?.invoke()
           }
         }
       }

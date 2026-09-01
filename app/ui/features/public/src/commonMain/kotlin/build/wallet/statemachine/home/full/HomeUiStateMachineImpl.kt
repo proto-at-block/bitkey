@@ -34,6 +34,8 @@ import build.wallet.statemachine.inheritance.ManagingInheritanceTab
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps.Origin
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps.Origin.PartnershipTransferLink
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps.Origin.PartnershipsSell
@@ -76,6 +78,7 @@ class HomeUiStateMachineImpl(
   private val appCoroutineScope: CoroutineScope,
   private val navigatorPresenter: NavigatorPresenter,
   private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
+  private val descriptorRepairUiStateMachine: DescriptorRepairUiStateMachine,
 ) : HomeUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -236,6 +239,10 @@ class HomeUiStateMachineImpl(
                 uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub())
                 true
               }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_DELAY_NOTIFY_PERIOD -> {
+                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub())
+                true
+              }
               NavigationScreenId.NAVIGATION_SCREEN_ID_CLOUD_REPAIR -> {
                 uiState = uiState.copy(
                   presentedScreen = CloudBackupRepair(
@@ -344,6 +351,7 @@ class HomeUiStateMachineImpl(
                   )
                 )
                 BannerType.SpendingKeysetMismatch -> uiState.copy(presentedScreen = KeysetRepair)
+                BannerType.UnverifiedHardwareSignature -> uiState.copy(presentedScreen = HwSignatureRepair)
               }
             }
           )
@@ -558,6 +566,18 @@ class HomeUiStateMachineImpl(
           uiState = uiState.copy(presentedScreen = null)
         }
       )
+      HwSignatureRepair -> descriptorRepairUiStateMachine.model(
+        props = DescriptorRepairUiProps(
+          fullAccount = props.account as FullAccount,
+          presentationStyle = ScreenPresentationStyle.Modal,
+          onRepairComplete = {
+            uiState = uiState.copy(presentedScreen = null)
+          },
+          onBack = {
+            uiState = uiState.copy(presentedScreen = null)
+          }
+        )
+      )
     }
   }
 }
@@ -645,6 +665,9 @@ private sealed interface PresentedScreen {
 
   /** Indicates that the keyset repair flow is being displayed */
   data object KeysetRepair : PresentedScreen
+
+  /** Indicates that hardware signature repair is being displayed. */
+  data object HwSignatureRepair : PresentedScreen
 }
 
 /**

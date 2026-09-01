@@ -4,9 +4,6 @@ import build.wallet.amount.Amount.DecimalNumber
 import build.wallet.amount.Amount.WholeNumber
 import build.wallet.amount.DoubleFormatterImpl
 import build.wallet.amount.decimalSeparator
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.money.currency.BTC
 import build.wallet.money.currency.USD
 import build.wallet.money.input.MoneyInputFormatter
@@ -21,7 +18,6 @@ import io.kotest.matchers.shouldBe
 class MoneyInputFormatterImplTests : FunSpec({
 
   val localeProvider = LocaleProviderFake()
-  val bip177FeatureFlag = Bip177FeatureFlag(FeatureFlagDaoFake())
 
   lateinit var inputFormatter: MoneyInputFormatter
 
@@ -36,15 +32,13 @@ class MoneyInputFormatterImplTests : FunSpec({
 
   beforeTest {
     localeProvider.reset()
-    bip177FeatureFlag.reset()
     val doubleFormatter = DoubleFormatterImpl(localeProvider = localeProvider)
     inputFormatter = MoneyInputFormatterImpl(
       localeProvider = localeProvider,
       doubleFormatter = doubleFormatter,
       moneyFormatterDefinitions = MoneyFormatterDefinitionsImpl(
         doubleFormatter = doubleFormatter
-      ),
-      bip177FeatureFlag = bip177FeatureFlag
+      )
     )
   }
 
@@ -55,23 +49,11 @@ class MoneyInputFormatterImplTests : FunSpec({
         inputAmountCurrency = BTC
       )
 
-    displayText.displayText.shouldBe("0 sats")
+    displayText.displayText.shouldBe("₿0")
     displayText.displayTextGhostedSubstring.shouldBeNull()
   }
 
-  test("Non-zero whole number amount formatting, no ghosted substring") {
-    val displayText =
-      inputFormatter.displayText(
-        inputAmount = WholeNumber(number = 2500),
-        inputAmountCurrency = BTC
-      )
-
-    displayText.displayText.shouldBe("2,500 sats")
-    displayText.displayTextGhostedSubstring.shouldBeNull()
-  }
-
-  test("Whole number formatting uses ₿ prefix when BIP 177 enabled") {
-    bip177FeatureFlag.setFlagValue(true)
+  test("Whole number formatting uses ₿ prefix") {
     val displayText =
       inputFormatter.displayText(
         inputAmount = WholeNumber(number = 2500),

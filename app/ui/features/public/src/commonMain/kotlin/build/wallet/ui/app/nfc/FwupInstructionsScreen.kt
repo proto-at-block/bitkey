@@ -457,24 +457,26 @@ private fun FwupUpdateBackgroundMediaWithPlaceholder(
   videoResourcePath: String?,
   placeholderAlpha: Float,
 ) {
-  if (videoResourcePath != null) {
-    VideoPlayer(
+  Box {
+    if (videoResourcePath != null) {
+      VideoPlayer(
+        modifier = Modifier.fillMaxSize(),
+        resourcePath = videoResourcePath,
+        isLooping = false,
+        backgroundColor = WalletTheme.colors.background,
+        scalingMode = VideoScalingMode.CROP,
+        allowSurfaceOnTopWorkaround = false
+      )
+    }
+
+    FwupUpdateHeroPlatformImage(
       modifier = Modifier.fillMaxSize(),
-      resourcePath = videoResourcePath,
-      isLooping = false,
-      backgroundColor = WalletTheme.colors.background,
-      scalingMode = VideoScalingMode.CROP,
-      allowSurfaceOnTopWorkaround = false
+      theme = theme,
+      hardwareType = HardwareType.W3,
+      alpha = placeholderAlpha,
+      contentScale = ContentScale.Crop
     )
   }
-
-  FwupUpdateHeroPlatformImage(
-    modifier = Modifier.fillMaxSize(),
-    theme = theme,
-    hardwareType = HardwareType.W3,
-    alpha = placeholderAlpha,
-    contentScale = ContentScale.Crop
-  )
 }
 
 @Composable

@@ -8,7 +8,6 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.currency.BTC
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
@@ -16,8 +15,6 @@ import build.wallet.pricechart.*
 import build.wallet.statemachine.money.amount.toAnimatedAmountAnimationKey
 import build.wallet.statemachine.money.amount.toAnimatedAmountValue
 import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.time.DateTimeFormatter
-import build.wallet.time.TimeZoneProvider
 import com.github.michaelbull.result.onSuccess
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.DecimalMode
@@ -25,7 +22,6 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
 
 private const val SPARKLINE_MAX_POINTS = 50
@@ -33,9 +29,7 @@ private const val SPARKLINE_MAX_POINTS = 50
 @BitkeyInject(ActivityScope::class)
 class BitcoinPriceCardUiStateMachineImpl(
   private val appScope: CoroutineScope,
-  private val timeZoneProvider: TimeZoneProvider,
   private val bitcoinPriceCardPreference: BitcoinPriceCardPreference,
-  private val dateTimeFormatter: DateTimeFormatter,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val chartDataFetcherService: ChartDataFetcherService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
@@ -44,17 +38,6 @@ class BitcoinPriceCardUiStateMachineImpl(
 ) : BitcoinPriceCardUiStateMachine {
   private val dataFlow = MutableStateFlow<ImmutableList<DataPoint>>(emptyImmutableList())
   private val fiatCurrencyFlow = fiatCurrencyPreferenceRepository.fiatCurrencyPreference
-  private val lastUpdatedFlow =
-    fiatCurrencyFlow
-      .flatMapLatest { fiatCurrency ->
-        currencyConverter.latestRateTimestamp(BTC, fiatCurrency)
-      }
-      .filterNotNull()
-      .map { updateTime ->
-        val localTime = updateTime.toLocalDateTime(timeZoneProvider.current())
-        "Updated ${dateTimeFormatter.localTime(localTime)}"
-      }
-      .stateIn(appScope, SharingStarted.WhileSubscribed(), "")
   private val priceMoneyFlow =
     fiatCurrencyFlow
       .flatMapLatest { fiatCurrency ->
@@ -83,7 +66,6 @@ class BitcoinPriceCardUiStateMachineImpl(
     }
     val data by dataFlow.collectAsState()
     val fiatCurrency by fiatCurrencyFlow.collectAsState()
-    val lastUpdated by lastUpdatedFlow.collectAsState()
     val priceMoney by priceMoneyFlow.collectAsState()
     val priceChangeModel by priceChangeFlow.collectAsState()
     val price by remember {
@@ -113,20 +95,15 @@ class BitcoinPriceCardUiStateMachineImpl(
       }
     }
 
-    return CardModel(
-      title = null,
-      content = CardModel.CardContent.BitcoinPrice(
-        data = data,
-        price = price,
-        priceValue = priceMoney?.toAnimatedAmountValue(),
-        priceAnimationKey = priceMoney?.toAnimatedAmountAnimationKey() ?: 0L,
-        priceChange = priceChangeModel?.text ?: "0% today",
-        priceDirection = priceChangeModel?.direction ?: PriceDirection.STABLE,
-        lastUpdated = lastUpdated,
-        isLoading = isLoading
-      ),
-      onClick = props.onOpenPriceChart,
-      style = CardModel.CardStyle.Outline()
+    return CardModel.BitcoinPrice(
+      data = data,
+      price = price,
+      priceValue = priceMoney?.toAnimatedAmountValue(),
+      priceAnimationKey = priceMoney?.toAnimatedAmountAnimationKey() ?: 0L,
+      priceChange = priceChangeModel?.text ?: "0% today",
+      priceDirection = priceChangeModel?.direction ?: PriceDirection.STABLE,
+      isLoading = isLoading,
+      onClick = props.onOpenPriceChart
     )
   }
 

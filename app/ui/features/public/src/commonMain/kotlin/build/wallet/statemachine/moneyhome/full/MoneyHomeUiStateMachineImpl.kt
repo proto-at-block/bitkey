@@ -66,6 +66,8 @@ import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.send.SendUiProps
 import build.wallet.statemachine.send.SendUiStateMachine
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.transactions.*
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.All
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
@@ -117,6 +119,7 @@ class MoneyHomeUiStateMachineImpl(
   private val clock: Clock,
   private val partnershipsPurchaseQuotesUiStateMachine: PartnershipsPurchaseQuotesUiStateMachine,
   private val deepLinkHandler: DeepLinkHandler,
+  private val feedbackUiStateMachine: FeedbackUiStateMachine,
 ) : MoneyHomeUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -233,6 +236,9 @@ class MoneyHomeUiStateMachineImpl(
           onGoToSecurityHub = props.onGoToSecurityHub,
           onGoToPrivateWalletMigration = {
             uiState = PrivateWalletMigrationUiState()
+          },
+          onContactSupport = {
+            uiState = ShowingSupportUiState
           },
           onPurchaseAmountConfirmed = { amount ->
             uiState = ViewingPartnerPurchaseQuotesUiState(amount)
@@ -440,6 +446,13 @@ class MoneyHomeUiStateMachineImpl(
             uiState = w3UpgradeCompleteViewingBalanceUiState()
           },
           onExit = { uiState = ViewingBalanceUiState() }
+        )
+      )
+
+      is ShowingSupportUiState -> feedbackUiStateMachine.model(
+        FeedbackUiProps(
+          account = props.account,
+          onBack = { uiState = ViewingBalanceUiState() }
         )
       )
 
@@ -731,6 +744,8 @@ sealed interface MoneyHomeUiState {
   data object ReceiveFlowUiState : MoneyHomeUiState
 
   data object PerformingSweep : MoneyHomeUiState
+
+  data object ShowingSupportUiState : MoneyHomeUiState
 
   /**
    * Indicates that we are viewing the status of an active HW recovery

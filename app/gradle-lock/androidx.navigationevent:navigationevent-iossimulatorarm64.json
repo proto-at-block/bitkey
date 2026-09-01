@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.navigationevent:navigationevent-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "navigationevent-iosSimulatorArm64Main-1.0.1.klib": "33e6fc6319246c6e404b0a2dcf40bb5013251ad1123bc518aa0b623b0ba36cd2"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "navigationevent-iossimulatorarm64-1.0.1-metadata.jar": "9ec7dc8f5a063c606a6be1633768e1e2b1270da9471917084a5f47c15a9de480"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -26,9 +26,6 @@ import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.db.DbError
 import build.wallet.db.DbQueryError
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.WipeOldW1DeviceFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.firmware.FirmwareDeviceInfoDaoFake
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.money.BitcoinMoney
@@ -60,15 +57,13 @@ class DeviceWipeEligibilityServiceImplTests : FunSpec({
   val bitcoinBlockchain = BitcoinBlockchainMock(turbine = { name -> Turbine(name = name) })
   val sweepService = SweepServiceMock()
   val w3UpgradeDeviceHistoryRepository = W3UpgradeDeviceHistoryRepositoryFake()
-  val wipeOldW1DeviceFeatureFlag = WipeOldW1DeviceFeatureFlag(FeatureFlagDaoFake())
 
   val service = DeviceWipeEligibilityServiceImpl(
     firmwareDeviceInfoDao = firmwareDeviceInfoDao,
     bitcoinWalletService = bitcoinWalletService,
     bitcoinBlockchain = bitcoinBlockchain,
     sweepService = sweepService,
-    w3UpgradeDeviceHistoryRepository = w3UpgradeDeviceHistoryRepository,
-    wipeOldW1DeviceFeatureFlag = wipeOldW1DeviceFeatureFlag
+    w3UpgradeDeviceHistoryRepository = w3UpgradeDeviceHistoryRepository
   )
 
   val spendingWallet = SpendingWalletMock(turbine = { name -> Turbine(name = name) })
@@ -84,7 +79,6 @@ class DeviceWipeEligibilityServiceImplTests : FunSpec({
     bitcoinBlockchain.reset()
     sweepService.reset()
     w3UpgradeDeviceHistoryRepository.reset()
-    wipeOldW1DeviceFeatureFlag.setFlagValue(true)
     bitcoinWalletService.spendingWallet.value = spendingWallet
     bitcoinWalletService.transactionsData.value = noPendingTransactionsData
   }
@@ -149,27 +143,6 @@ class DeviceWipeEligibilityServiceImplTests : FunSpec({
       account = FullAccountMock,
       tappedDevice = tappedW1Device(serial = "unknown-serial")
     ).shouldBe(Err(DeviceWipeEligibilityError.UnknownDevice))
-  }
-
-  test("old W1 feature flag disabled returns unknown device") {
-    wipeOldW1DeviceFeatureFlag.setFlagValue(false)
-
-    service.evaluateLoggedInDevice(
-      account = w3AccountWithInactiveFingerprint(),
-      tappedDevice = tappedW1Device(serial = "old-serial")
-    ).shouldBe(Err(DeviceWipeEligibilityError.UnknownDevice))
-  }
-
-  test("old W1 feature flag disabled blocks final validation") {
-    wipeOldW1DeviceFeatureFlag.setFlagValue(false)
-
-    service.validateInactiveDeviceForWipe(
-      account = FullAccountW3Mock,
-      session = NfcSessionFake(),
-      commands = nfcCommands(),
-      expectedDevice = oldW1Device(),
-      bitcoinNetworkType = null
-    ).shouldBe(Err(InactiveDeviceWipeValidationError.FeatureDisabled))
   }
 
   test("final inactive validation allows fingerprint match") {

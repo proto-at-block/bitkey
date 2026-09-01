@@ -23,6 +23,7 @@ import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.statemachine.settings.full.device.wipedevice.WipeContext
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.ConfirmationScreen
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.WipingDevice
@@ -221,6 +222,8 @@ class WipingDeviceConfirmationUiStateMachineImpl(
         hardwareVerification = hardwareVerification,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
         shouldLock = false,
+        segment = SettingsAppSegment.Device,
+        actionDescription = "Wiping Bitkey device",
         eventTrackerContext = NfcEventTrackerScreenIdContext.WIPE_DEVICE,
         confirmationContent = HardwareConfirmationContent.WipeDevice,
         confirmationResultContent = ConfirmationResultContent(
@@ -268,8 +271,6 @@ private fun InactiveDeviceWipeValidationError.toNfcException(): NfcException =
   when (this) {
     InactiveDeviceWipeValidationError.DeviceLocked ->
       NfcException.CommandErrorUnauthenticated()
-    InactiveDeviceWipeValidationError.FeatureDisabled ->
-      NfcException.CommandError("Inactive device wipe is disabled")
     InactiveDeviceWipeValidationError.WrongDevice ->
       NfcException.CommandError("Wrong inactive device tapped")
     InactiveDeviceWipeValidationError.MissingBitcoinNetworkType ->

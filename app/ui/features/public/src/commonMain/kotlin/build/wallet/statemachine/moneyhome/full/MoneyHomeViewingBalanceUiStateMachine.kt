@@ -29,6 +29,7 @@ data class MoneyHomeViewingBalanceUiProps(
   val onStartSweepFlow: () -> Unit,
   val onGoToSecurityHub: () -> Unit,
   val onGoToPrivateWalletMigration: () -> Unit,
+  val onContactSupport: () -> Unit,
   /**
    * Called when the user has confirmed a purchase amount and is ready to see partner quotes.
    */

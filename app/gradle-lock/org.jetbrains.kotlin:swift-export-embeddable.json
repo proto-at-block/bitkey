@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:swift-export-embeddable",
+    "components": [
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "swift-export-embeddable-2.2.20.jar": "c4080acb4502a26a1a29d8f171b2e304824aa220c2aed4af4043877f2f2d4448"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

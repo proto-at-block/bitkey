@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.opentelemetry:opentelemetry-api",
+    "components": [
+        {
+            "version": "1.41.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "opentelemetry-api-1.41.0.jar": "9336668f388de68a0a2c3e114154febd29db19a7644f27c4eba548f5de852258"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

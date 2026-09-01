@@ -2,16 +2,16 @@
     "module-identifier": "androidx.compose.runtime:runtime-iossimulatorarm64",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-iosSimulatorArm64Main-1.9.3.klib": "9b71311063b2c40fca6121dcb57869ce4581c8da0855c4bace5db9e7226c5c72"
+                        "runtime-iosSimulatorArm64Main-1.10.0.klib": "8cfffd55305cf13058efefc3992fcf4e93f41043bbed85a795014a5d6ddc6ab5"
                     }
                 },
                 {
                     "artifacts": {
-                        "runtime-iossimulatorarm64-1.9.3-metadata.jar": "6df4a0733d3cb4486d4172e858b25a4300a321c0dd87f089eb530addd641229e"
+                        "runtime-iossimulatorarm64-1.10.0-metadata.jar": "37d03be9347aaa808f36b6109e5e87c7632720955ec0a61417934def878cb0f1"
                     }
                 }
             ],

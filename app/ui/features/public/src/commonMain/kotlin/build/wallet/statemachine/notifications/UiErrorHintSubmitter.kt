@@ -6,6 +6,4 @@ package build.wallet.statemachine.notifications
  */
 interface UiErrorHintSubmitter {
   fun phoneNone()
-
-  fun phoneNotAvailable()
 }

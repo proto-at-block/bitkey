@@ -10,7 +10,6 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import bitkey.ui.framework_public.generated.resources.Res
-import bitkey.ui.framework_public.generated.resources.loader_static
 import bitkey.ui.framework_public.generated.resources.loading_badge_static
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tooling.LocalIsPreviewTheme
@@ -18,66 +17,6 @@ import io.github.alexzhirkevich.compottie.*
 import io.github.alexzhirkevich.compottie.dynamic.rememberLottieDynamicProperties
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
-
-@Composable
-fun LoadingIndicator(
-  modifier: Modifier = Modifier,
-  color: Color = WalletTheme.colors.foreground,
-) {
-  if (LocalIsPreviewTheme.current) {
-    // NOTE: Display static loader image for preview/snapshot tests
-    Image(
-      modifier = modifier,
-      painter = painterResource(Res.drawable.loader_static),
-      contentDescription = null,
-      colorFilter = if (color != Color.Unspecified) ColorFilter.tint(color) else null
-    )
-  } else {
-    val painter = LoadingIndicatorPainter(
-      color = color
-    )
-    Image(
-      painter = painter,
-      modifier = modifier,
-      contentScale = ContentScale.FillBounds,
-      contentDescription = null
-    )
-  }
-}
-
-@OptIn(ExperimentalResourceApi::class, ExperimentalCompottieApi::class)
-@Composable
-fun LoadingIndicatorPainter(color: Color = WalletTheme.colors.foreground): Painter {
-  if (LocalIsPreviewTheme.current) {
-    // NOTE: Display static loader image for preview/snapshot tests
-    return painterResource(Res.drawable.loader_static)
-  }
-
-  val loadingAnimationComposition by rememberLottieComposition(color) {
-    LottieCompositionSpec.JsonString(
-      Res.readBytes("files/loading.json").decodeToString()
-    )
-  }
-
-  // Apply the given color to the lottie animation
-  val dynamicProperties =
-    rememberLottieDynamicProperties {
-      // Some callers default to a transparent color which previously had
-      // no effect on the animation, here we preserve that expectation.
-      if (color.alpha != 0f) {
-        shapeLayer("Shape Layer 1") {
-          stroke("Polystar 4", "Gradient Stroke 1") {
-            colorFilter { ColorFilter.tint(color) }
-          }
-        }
-      }
-    }
-  return rememberLottiePainter(
-    composition = loadingAnimationComposition,
-    iterations = Compottie.IterateForever,
-    dynamicProperties = dynamicProperties
-  )
-}
 
 @Composable
 fun LoadingBadge(

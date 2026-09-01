@@ -12,5 +12,9 @@ getFlag:
 SELECT value FROM stringFeatureFlagEntity
 WHERE featureFlagId = ?;
 
+deleteFlag:
+DELETE FROM stringFeatureFlagEntity
+WHERE featureFlagId = ?;
+
 clear:
 DELETE FROM stringFeatureFlagEntity;

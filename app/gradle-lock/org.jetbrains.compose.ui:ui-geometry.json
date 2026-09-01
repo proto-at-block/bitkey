@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-geometry",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-geometry-1.9.1.jar": "048ffb7e9951901fb0bf39345001287487e85a195b294d7d47d3113fb1945d33"
+                        "ui-geometry-1.10.0-rc02.jar": "16ee911b8b3e51d69cc08981d95723a1682d578fefaf7f8e8a54d5555bf85925"
                     }
                 }
             ],

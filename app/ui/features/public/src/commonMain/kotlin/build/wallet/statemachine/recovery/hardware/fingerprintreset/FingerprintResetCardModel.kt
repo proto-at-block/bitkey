@@ -1,28 +1,21 @@
 package build.wallet.statemachine.recovery.hardware.fingerprintreset
 
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 
 fun FingerprintResetCardModel(
   title: String,
   subtitle: String? = null,
-  backgroundColor: CardModel.CardStyle.Gradient.BackgroundColor =
-    CardModel.CardStyle.Gradient.BackgroundColor.Default,
+  inverse: Boolean = false,
   onClick: () -> Unit,
-) = CardModel(
-  title = LabelModel.StringWithStyledSubstringModel.from(
-    string = title,
-    substringToColor = emptyMap()
-  ),
+) = CardModel.Status(
+  id = "FingerprintReset",
+  title = title,
   subtitle = subtitle,
   leadingImage =
-    CardModel.CardImage.StaticImage(
+    CardModel.Status.Image.StaticImage(
       icon = Icon.Fingerprint
     ),
-  content = null,
-  style = CardModel.CardStyle.Gradient(
-    backgroundColor = backgroundColor
-  ),
+  inverse = inverse,
   onClick = onClick
 )

@@ -68,8 +68,12 @@ fun BitcoinRecipientAddressScreenModel.clickContinue() {
  * Enters a bitcoin amount via the keypad.
  */
 fun TransferAmountBodyModel.enterBitcoinAmount(amount: BitcoinMoney) {
-  val satsValue = amount.fractionalUnitValue.longValue().toString()
-  satsValue.forEach { char ->
+  val input = if (keypadModel.showDecimal) {
+    amount.value.toPlainString()
+  } else {
+    amount.fractionalUnitValue.longValue().toString()
+  }
+  input.forEach { char ->
     val button = when (char) {
       '0' -> KeypadButton.Digit.Zero
       '1' -> KeypadButton.Digit.One
@@ -81,6 +85,7 @@ fun TransferAmountBodyModel.enterBitcoinAmount(amount: BitcoinMoney) {
       '7' -> KeypadButton.Digit.Seven
       '8' -> KeypadButton.Digit.Eight
       '9' -> KeypadButton.Digit.Nine
+      '.' -> KeypadButton.Decimal
       else -> error("Unexpected character: $char")
     }
     keypadModel.onButtonPress(button)

@@ -11,6 +11,8 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SealedSsek
+import build.wallet.cloud.backup.csek.Sek
 import build.wallet.encrypt.SealedData
 import build.wallet.encrypt.XCiphertext
 import dev.zacsweers.redacted.annotations.Redacted
@@ -55,6 +57,15 @@ data class FullAccountFields(
    * Defaults to W1 for backward compatibility with existing backups.
    */
   val hardwareType: HardwareType = HardwareType.W1,
+  /**
+   * Hex-encoded sealed forms of the SSEKs included in [FullAccountKeys.sealedSseks].
+   *
+   * Kept outside the encrypted blob so the set of backed-up SSEKs can be inspected without
+   * decrypting it. Sealed SSEKs are hardware-wrapped ciphertext, so no key material is exposed.
+   *
+   * Empty for backups created before SSEK backup was supported.
+   */
+  val sealedSsekIds: Set<String> = emptySet(),
 ) : SocRecV1AccountFeatures
 
 /**
@@ -94,4 +105,13 @@ data class FullAccountKeys(
    */
   @Serializable(with = AppKeyKeyPairSerializer::class)
   val rotationAppGlobalAuthKeypair: AppKey<AppGlobalAuthKey>?,
+  /**
+   * All known SSEK (Server Storage Encryption Key) pairs at backup creation time, keyed by
+   * their hardware-sealed form and mapping to the unsealed key material. Restoring these
+   * keeps server-side encrypted data (e.g. the wallet metadata backup) accessible after
+   * recovery, without requiring hardware to unseal them.
+   *
+   * Empty for backups created before SSEK backup was supported.
+   */
+  val sealedSseks: Map<SealedSsek, @Serializable(with = SekSerializer::class) Sek> = emptyMap(),
 )

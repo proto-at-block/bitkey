@@ -2,7 +2,6 @@ package build.wallet.statemachine.recovery.socrec
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import build.wallet.LoadableValue
 import build.wallet.LoadableValue.InitialLoading
@@ -16,7 +15,6 @@ import build.wallet.di.BitkeyInject
 import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.trustedcontact.model.TrustedContactCardModel
-import build.wallet.ui.model.button.ButtonModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.datetime.Clock
@@ -27,7 +25,9 @@ class RecoveryContactCardsUiStateMachineImpl(
   private val relationshipsService: RelationshipsService,
 ) : RecoveryContactCardsUiStateMachine {
   @Composable
-  override fun model(props: RecoveryContactCardsUiProps): LoadableValue<ImmutableList<CardModel>> {
+  override fun model(
+    props: RecoveryContactCardsUiProps,
+  ): LoadableValue<ImmutableList<CardModel.Status>> {
     val relationships = remember { relationshipsService.relationships }
       .collectAsState().value
 
@@ -48,11 +48,7 @@ class RecoveryContactCardsUiStateMachineImpl(
               } else {
                 "Pending"
               },
-              backgroundColor = if (isExpired) {
-                CardModel.CardStyle.Gradient.BackgroundColor.Default
-              } else {
-                CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground
-              },
+              inverse = !isExpired,
               onClick = { props.onClick(it) }
             )
           },
@@ -65,9 +61,8 @@ class RecoveryContactCardsUiStateMachineImpl(
             TrustedContactCardModel(
               contact = it,
               buttonText = "Review",
-              buttonTreatment = ButtonModel.Treatment.Warning,
               subtitleText = "Failed Recovery Contact",
-              backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
+              inverse = true,
               onClick = { props.onClick(it) }
             )
           },
@@ -80,9 +75,26 @@ class RecoveryContactCardsUiStateMachineImpl(
             TrustedContactCardModel(
               contact = it,
               buttonText = "Review",
-              buttonTreatment = ButtonModel.Treatment.Warning,
               subtitleText = "Invalid Recovery Contact",
-              backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
+              inverse = true,
+              onClick = { props.onClick(it) }
+            )
+          },
+        relationships.endorsedTrustedContacts
+          .filter {
+            it.roles.contains(TrustedContactRole.SocialRecoveryContact) &&
+              (it.needsHwVerification || it.authenticationState == TAMPERED)
+          }
+          .map {
+            TrustedContactCardModel(
+              contact = it,
+              buttonText = "Review",
+              subtitleText = if (it.needsHwVerification) {
+                "Needs verification"
+              } else {
+                "Invalid Recovery Contact"
+              },
+              inverse = true,
               onClick = { props.onClick(it) }
             )
           }

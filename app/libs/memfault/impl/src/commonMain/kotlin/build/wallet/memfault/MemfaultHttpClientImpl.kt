@@ -22,7 +22,7 @@ import kotlin.time.Duration.Companion.seconds
 class MemfaultHttpClientImpl(
   private val networkReachabilityProvider: NetworkReachabilityProvider,
 ) : MemfaultHttpClient {
-  override fun client(): HttpClient =
+  private val httpClient by lazy {
     HttpClient {
       installLogging(
         tag = "Memfault",
@@ -55,4 +55,7 @@ class MemfaultHttpClientImpl(
         )
       }
     }
+  }
+
+  override fun client(): HttpClient = httpClient
 }

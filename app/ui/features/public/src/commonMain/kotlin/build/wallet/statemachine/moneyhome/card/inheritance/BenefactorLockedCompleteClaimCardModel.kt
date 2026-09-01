@@ -8,22 +8,20 @@ import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.callout.CalloutModel.Treatment
 
 internal fun BenefactorLockedCompleteClaimCardModel(
+  id: String,
   title: String,
   subtitle: String,
   onClick: Click,
-) = CardModel(
-  title = null,
-  content = null,
-  style = CardModel.CardStyle.Callout(
-    CalloutModel(
-      title = title,
-      subtitle = LabelModel.StringModel(subtitle),
-      treatment = Treatment.Danger,
-      useMonochromeStyle = true,
-      leadingIconOverride = Icon.ShieldPerson,
-      leadingIcon = Icon.Information,
-      trailingIcon = Icon.ArrowRight,
-      onClick = onClick
-    )
+) = CardModel.Callout(
+  id = "BenefactorLockedCompleteClaim:$id",
+  callout = CalloutModel(
+    title = title,
+    subtitle = LabelModel.StringModel(subtitle),
+    treatment = Treatment.Danger,
+    useMonochromeStyle = true,
+    leadingIconOverride = Icon.ShieldPerson,
+    leadingIcon = Icon.Information,
+    trailingIcon = Icon.ArrowRight,
+    onClick = onClick
   )
 )

@@ -14,6 +14,7 @@ import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.recoverIf
 import okio.ByteString
 
 // TODO: remove suppress and V1 variants when V2 replaces V1
@@ -64,6 +65,7 @@ interface RelationshipsCrypto {
     hwAuthKey: HwAuthPublicKey,
     appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    allowW3OnboardingPlaceholder: Boolean = false,
   ): Result<TrustedContactKeyCertificate, RelationshipsCryptoError>
 
   /**
@@ -88,19 +90,25 @@ interface RelationshipsCrypto {
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     newHwAuthKey: HwAuthPublicKey = oldHwAuthKey,
+    allowW3OnboardingPlaceholder: Boolean = false,
   ): Result<TrustedContactKeyCertificate, RelationshipsCryptoError> =
     coroutineBinding {
       verifyKeyCertificate(
         keyCertificate = oldCertificate,
         hwAuthKey = oldHwAuthKey,
         appGlobalAuthKey = oldAppGlobalAuthKey
+      ).recoverIf(
+        // Regenerate only authenticated placeholder certificates.
+        predicate = { it is RelationshipsCryptoError.KeyCertificateContainsPlaceholder },
+        transform = { oldCertificate.delegatedDecryptionKey }
       ).bind()
 
       generateKeyCertificate(
         delegatedDecryptionKey = oldCertificate.delegatedDecryptionKey,
         hwAuthKey = newHwAuthKey,
         appGlobalAuthKey = newAppGlobalAuthKey,
-        appGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature
+        appGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature,
+        allowW3OnboardingPlaceholder = allowW3OnboardingPlaceholder
       ).bind()
     }
 
@@ -207,6 +215,12 @@ sealed class RelationshipsCryptoError : Error() {
   data class KeyCertificateGenerationFailed(override val cause: Throwable) : RelationshipsCryptoError()
 
   data class KeyCertificateVerificationFailed(override val cause: Throwable) : RelationshipsCryptoError()
+
+  /** The certificate contains a placeholder hardware signature. */
+  data object KeyCertificateContainsPlaceholder : RelationshipsCryptoError()
+
+  /** Certificate generation requires a real hardware signature. */
+  data object PlaceholderHwSignature : RelationshipsCryptoError()
 
   data class ErrorGettingPrivateKey(val error: Throwable) : RelationshipsCryptoError()
 

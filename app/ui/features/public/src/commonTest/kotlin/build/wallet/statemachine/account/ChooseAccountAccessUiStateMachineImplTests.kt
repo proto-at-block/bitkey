@@ -9,9 +9,7 @@ import build.wallet.emergencyexitkit.EmergencyExitKitAssociation
 import build.wallet.emergencyexitkit.EmergencyExitKitDataProviderFake
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
-import build.wallet.feature.flags.PublicCustomerSupportFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
-import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.keybox.KeyboxDaoMock
@@ -51,9 +49,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val orphanedKeyRecoveryFeatureFlag = OrphanedKeyRecoveryFeatureFlag(featureFlagDao)
   val orphanedKeyDetectionService = OrphanedKeyDetectionServiceMock(turbines::create)
   val orphanedKeyRecoveryService = OrphanedKeyRecoveryServiceMock(turbines::create)
-  val publicCustomerSupportFeatureFlag = PublicCustomerSupportFeatureFlag(featureFlagDao)
   val wipeHardwareLoggedOutFeatureFlag = WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
-  val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
   val wipingDeviceUiStateMachine = object : WipingDeviceUiStateMachine,
     ScreenStateMachineMock<WipingDeviceProps>(id = "wiping-device") {}
   val keyboxDao = KeyboxDaoMock(turbines::create)
@@ -82,9 +78,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       inAppBrowserNavigator = inAppBrowserNavigator,
       moneyDisplayFormatter = MoneyDisplayFormatterFake,
       feedbackUiStateMachine = feedbackUiStateMachine,
-      publicCustomerSupportFeatureFlag = publicCustomerSupportFeatureFlag,
       wipeHardwareLoggedOutFeatureFlag = wipeHardwareLoggedOutFeatureFlag,
-      w3OnboardingFeatureFlag = w3OnboardingFeatureFlag,
       wipingDeviceUiStateMachine = wipingDeviceUiStateMachine,
       dateTimeFormatter = DateTimeFormatterMock(),
       timeZoneProvider = TimeZoneProviderMock(),
@@ -308,25 +302,21 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     }
   }
 
-  context("public customer support flag is on") {
-    publicCustomerSupportFeatureFlag.setFlagValue(true)
-
-    test("contact us option is shown") {
-      stateMachine.test(props) {
-        awaitBody<ChooseAccountAccessModel> {
-          buttons[1].shouldNotBeNull().onClick()
-        }
-
-        awaitBody<AccountAccessMoreOptionsFormBodyModel> {
-          onCustomerSupportClick()
-        }
-
-        awaitBodyMock<FeedbackUiProps> {
-          onBack()
-        }
-
-        awaitBody<AccountAccessMoreOptionsFormBodyModel>()
+  test("contact us option is shown") {
+    stateMachine.test(props) {
+      awaitBody<ChooseAccountAccessModel> {
+        buttons[1].shouldNotBeNull().onClick()
       }
+
+      awaitBody<AccountAccessMoreOptionsFormBodyModel> {
+        onCustomerSupportClick()
+      }
+
+      awaitBodyMock<FeedbackUiProps> {
+        onBack()
+      }
+
+      awaitBody<AccountAccessMoreOptionsFormBodyModel>()
     }
   }
 }

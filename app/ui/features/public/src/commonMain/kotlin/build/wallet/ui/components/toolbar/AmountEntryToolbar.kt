@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.model.toolbar.inlineTitle
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -24,6 +25,8 @@ import build.wallet.ui.tokens.LabelType
 internal fun amountEntryBackgroundColor(): Color =
   WalletTheme.colors.subtleBackground
 
+// Modifier intentionally targets the toolbar content row inside the chrome.
+@Suppress("ModifierNotUsedAtRoot")
 @Composable
 internal fun AmountEntryToolbar(
   model: ToolbarModel,
@@ -108,13 +111,13 @@ private fun AmountEntryToolbarContent(
 private fun AmountEntryToolbarMiddleContent(
   model: ToolbarModel,
 ) {
-  model.middleAccessory?.let { middleAccessory ->
+  model.inlineTitle?.let { inline ->
     Column(horizontalAlignment = CenterHorizontally) {
       Label(
-        text = middleAccessory.title,
+        text = inline.title,
         type = LabelType.Body2Regular
       )
-      middleAccessory.subtitle?.let {
+      inline.subtitle?.let {
         Label(
           text = it,
           type = LabelType.Body3Regular,

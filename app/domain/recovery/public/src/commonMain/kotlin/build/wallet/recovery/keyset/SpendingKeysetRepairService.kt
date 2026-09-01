@@ -130,9 +130,27 @@ sealed interface SpendingKeysetSyncStatus {
   ) : SpendingKeysetSyncStatus
 
   /**
-   * Local keybox is missing keysets that are known to the server.
+   * Local keybox is missing keysets that are known to the server, and at least one of them can
+   * be recovered by the repair flow.
+   *
+   * Recoverable means either a legacy keyset (full descriptors are present in the listKeysets
+   * response) or a private keyset that has a descriptor backup we can unseal.
    */
   data class IncompleteKeysetList(
+    val activeKeysetId: String,
+    val missingKeysetIds: Set<String>,
+  ) : SpendingKeysetSyncStatus
+
+  /**
+   * Local keybox is missing keysets that are known to the server, but none of them can be
+   * recovered: they are private keysets with no descriptor backup, and the chaincode required to
+   * rebuild them never leaves the customer's device.
+   *
+   * This is deliberately distinct from [IncompleteKeysetList] and must not be surfaced as an
+   * actionable at-risk state. The repair flow cannot resolve these keysets, so prompting the
+   * customer produces a banner they can never clear. Reported for telemetry only.
+   */
+  data class IncompleteKeysetListUnrecoverable(
     val activeKeysetId: String,
     val missingKeysetIds: Set<String>,
   ) : SpendingKeysetSyncStatus
@@ -274,5 +292,21 @@ sealed interface KeysetRepairError {
     override val cause: Throwable,
     /** The updated keybox that was being built when the error occurred. */
     val updatedKeybox: Keybox,
+  ) : KeysetRepairError
+
+  /**
+   * The repair ran but could not reconstruct every keyset the server knows about.
+   *
+   * This is terminal, not retryable: these keysets are private keysets with no descriptor backup,
+   * and their chaincodes never leave the customer's device, so no amount of retrying will recover
+   * them from server state. Callers must not present this as a transient failure or invite the
+   * customer to try again.
+   */
+  data class UnresolvableKeysets(
+    val unresolvedKeysetIds: Set<String>,
+    override val message: String = "Repair could not resolve all server keysets",
+    override val cause: Throwable = IllegalStateException(
+      "Unresolvable keysets: ${unresolvedKeysetIds.joinToString()}"
+    ),
   ) : KeysetRepairError
 }

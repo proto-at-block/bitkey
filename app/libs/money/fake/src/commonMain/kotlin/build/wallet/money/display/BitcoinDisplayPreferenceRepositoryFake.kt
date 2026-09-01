@@ -4,8 +4,10 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.MutableStateFlow
 
-class BitcoinDisplayPreferenceRepositoryFake : BitcoinDisplayPreferenceRepository {
-  override val bitcoinDisplayUnit = MutableStateFlow(BitcoinDisplayUnit.Satoshi)
+class BitcoinDisplayPreferenceRepositoryFake(
+  private val defaultUnit: BitcoinDisplayUnit = BitcoinDisplayUnit.Bitcoin,
+) : BitcoinDisplayPreferenceRepository {
+  override val bitcoinDisplayUnit = MutableStateFlow(defaultUnit)
 
   override suspend fun setBitcoinDisplayUnit(
     bitcoinDisplayUnit: BitcoinDisplayUnit,
@@ -15,7 +17,7 @@ class BitcoinDisplayPreferenceRepositoryFake : BitcoinDisplayPreferenceRepositor
   }
 
   override suspend fun clear(): Result<Unit, Error> {
-    bitcoinDisplayUnit.value = BitcoinDisplayUnit.Satoshi
+    bitcoinDisplayUnit.value = defaultUnit
     return Ok(Unit)
   }
 }

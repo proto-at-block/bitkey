@@ -7,8 +7,6 @@ import build.wallet.amount.DoubleFormatter
 import build.wallet.amount.decimalSeparator
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -27,7 +25,6 @@ class MoneyInputFormatterImpl(
   private val localeProvider: LocaleProvider,
   private val doubleFormatter: DoubleFormatter,
   private val moneyFormatterDefinitions: MoneyFormatterDefinitions,
-  private val bip177FeatureFlag: Bip177FeatureFlag,
 ) : MoneyInputFormatter {
   override fun displayText(
     inputAmount: Amount,
@@ -38,15 +35,9 @@ class MoneyInputFormatterImpl(
         // Only Bitcoin amounts can be entered in whole number amounts (satoshis) currently.
         require(inputAmountCurrency == BTC)
         val moneyAmount = BitcoinMoney.sats(inputAmount.number)
-        val formatter =
-          if (bip177FeatureFlag.isEnabled()) {
-            moneyFormatterDefinitions.bitcoinFractionalBip177
-          } else {
-            moneyFormatterDefinitions.bitcoinFractionalNameOnly
-          }
         return MoneyInputDisplayText(
           displayText =
-            formatter.stringValue(moneyAmount)
+            moneyFormatterDefinitions.bitcoinFractionalBip177.stringValue(moneyAmount)
         )
       }
 

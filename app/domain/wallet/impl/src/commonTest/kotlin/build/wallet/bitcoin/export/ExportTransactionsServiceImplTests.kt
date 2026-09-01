@@ -11,6 +11,10 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
+import build.wallet.bitcoin.export.ExportTransactionRow.ExportTransactionType.Sweep
+import build.wallet.bitcoin.metadata.TransactionNoteServiceError
+import build.wallet.bitcoin.metadata.TransactionNoteServiceFake
+import build.wallet.bitcoin.transactions.BitcoinTransactionId
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
@@ -31,6 +35,7 @@ import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.ints.shouldBeExactly
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.flow.first
 
 class ExportTransactionsServiceImplTests : FunSpec({
@@ -41,6 +46,7 @@ class ExportTransactionsServiceImplTests : FunSpec({
   val bdk2FeatureFlag = Bdk2FeatureFlag(FeatureFlagDaoFake())
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val uuidGenerator = UuidGeneratorFake()
+  val transactionNoteService = TransactionNoteServiceFake()
   val service = ExportTransactionsServiceImpl(
     accountService = accountService,
     watchingWalletProvider = watchingWalletProvider,
@@ -49,7 +55,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
     bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
     exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
     listKeysetsF8eClient = listKeysetsF8eClient,
-    uuidGenerator = uuidGenerator
+    uuidGenerator = uuidGenerator,
+    transactionNoteService = transactionNoteService
   )
 
   beforeEach {
@@ -57,6 +64,7 @@ class ExportTransactionsServiceImplTests : FunSpec({
     watchingWallet.reset()
     watchingWalletProvider.reset()
     spendingWalletV2Provider.reset()
+    transactionNoteService.reset()
     bdk2FeatureFlag.setBdk2Enabled(false)
     accountService.setActiveAccount(FullAccountMock)
 
@@ -140,6 +148,54 @@ class ExportTransactionsServiceImplTests : FunSpec({
     headerCount.shouldBeExactly(rowCount)
   }
 
+  test("export includes transaction note") {
+    onboardAndSendMoney(value = BigDecimal.ONE)
+    watchingWallet.sync().shouldBeOk()
+    val transactionId = watchingWallet.transactions().first().single().id
+    transactionNoteService.setNote(
+      transactionId = BitcoinTransactionId(transactionId),
+      note = "Coffee, bagels, and receipts"
+    )
+
+    val dataString = service.export().shouldBeOk().data.utf8()
+
+    dataString.shouldContain("Coffee, bagels, and receipts")
+  }
+
+  test("export succeeds without notes when loading notes fails") {
+    onboardAndSendMoney(value = BigDecimal.ONE)
+    transactionNoteService.notesError =
+      TransactionNoteServiceError.PersistenceFailed(Error("db read failed"))
+
+    // Notes are optional metadata; export must not fail when they can't be read.
+    val dataString = service.export().shouldBeOk().data.utf8()
+    dataString.split("\n").count().shouldBe(2)
+  }
+
+  test("export preserves sweep note from incoming side when flattening recovery sweep") {
+    val sweepTxid = "recovery-sweep-txid"
+    watchingWallet.nextTransactionId = sweepTxid
+    onboardAndReceiveMoney(value = BigDecimal.ONE)
+    watchingWallet.nextTransactionId = sweepTxid
+    onboardAndSendMoney(value = BigDecimal.ONE)
+    watchingWallet.sync().shouldBeOk()
+    transactionNoteService.setNote(
+      transactionId = BitcoinTransactionId(sweepTxid),
+      note = "Post-recovery consolidation"
+    )
+
+    val dataString = service.export().shouldBeOk().data.utf8()
+    val exportedRows = ExportTransactionsAsCsvSerializerImpl()
+      .fromCsvString(dataString)
+      .shouldBeOk()
+
+    exportedRows.shouldHaveSize(1)
+    exportedRows.single().transactionType.shouldBe(Sweep)
+    // Sweep notes are prefixed so the exported CSV makes clear the note belongs
+    // to a recovery sweep rather than a regular send/receive.
+    exportedRows.single().note.shouldBe("SWEEP: Post-recovery consolidation")
+  }
+
   // This should never happen, but we make sure we handle things gracefully.
   test("ensure we return the correct error message when trying to do this without an active account") {
     accountService.reset()
@@ -174,7 +230,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
       listKeysetsF8eClient = ListKeysetsF8eClientMock(),
-      uuidGenerator = UuidGeneratorFake()
+      uuidGenerator = UuidGeneratorFake(),
+      transactionNoteService = transactionNoteService
     )
 
     testService.export().shouldBeOk()
@@ -213,7 +270,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
       listKeysetsF8eClient = f8eClientWithDifferentKeysets,
-      uuidGenerator = UuidGeneratorFake()
+      uuidGenerator = UuidGeneratorFake(),
+      transactionNoteService = transactionNoteService
     )
 
     testService.export().shouldBeOk()
@@ -275,7 +333,8 @@ class ExportTransactionsServiceImplTests : FunSpec({
       bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
       exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
       listKeysetsF8eClient = f8eClient,
-      uuidGenerator = UuidGeneratorFake()
+      uuidGenerator = UuidGeneratorFake(),
+      transactionNoteService = transactionNoteService
     )
 
     // Should succeed without crashing — the private keyset is filtered out

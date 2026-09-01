@@ -15,7 +15,7 @@ import androidx.compose.ui.window.DialogProperties
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.button.ButtonContentsList
 import build.wallet.ui.components.button.RowOfButtons
-import build.wallet.ui.components.card.Card
+import build.wallet.ui.components.card.CardContainer
 import build.wallet.ui.components.forms.TextField
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
@@ -64,7 +64,7 @@ private fun ButtonAlertDialogContent(
   model: ButtonAlertModel,
   modifier: Modifier = Modifier,
 ) {
-  Card(modifier) {
+  CardContainer(modifier) {
     Spacer(modifier = Modifier.height(16.dp))
     Label(text = model.title, type = Title2)
     model.subline?.let {

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.foundation:foundation-layout",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-layout-1.9.1.jar": "7a4654cdd423bbdefea913d1ad379f9aae6f7201332b837aa7443126b42b1f5a"
+                        "foundation-layout-1.10.0-rc02.jar": "2392e6e030bf59d0316169f017dbdc37c4ec4f8a7ef7bd4ce551c27a07c20912"
                     }
                 }
             ],

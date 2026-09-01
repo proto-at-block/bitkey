@@ -15,6 +15,7 @@ import com.github.michaelbull.result.Result
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlin.time.Duration
 
 /**
@@ -115,6 +116,12 @@ interface WatchingWallet {
    * every successful [sync].
    */
   fun unspentOutputs(): Flow<List<BdkUtxo>>
+
+  /**
+   * Emits the status of any first wallet data sync required before showing wallet data.
+   */
+  fun initialSyncStatus(): Flow<WalletInitialSyncStatus> =
+    flowOf(WalletInitialSyncStatus.NotRequired)
 
   /**
    * Creates a PSBT using utxos from this wallet.

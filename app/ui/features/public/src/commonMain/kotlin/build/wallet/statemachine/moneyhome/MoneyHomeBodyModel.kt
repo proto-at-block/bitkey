@@ -9,6 +9,7 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.card.CardListModel
+import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedSectionModel
 import build.wallet.ui.app.moneyhome.MoneyHomeScreen
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
@@ -34,6 +35,7 @@ data class MoneyHomeBodyModel(
   val balanceModel: MoneyAmountModel,
   override val buttonsModel: MoneyHomeButtonsModel,
   override val cardsModel: CardListModel,
+  val gettingStartedSection: GettingStartedSectionModel? = null,
   @Redacted
   val transactionsModel: ListModel?,
   val seeAllButtonModel: ButtonModel?,

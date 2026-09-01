@@ -2,6 +2,8 @@ package build.wallet.statemachine.platform.permissions
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.permissions.PermissionStatus.Authorized
@@ -23,18 +25,20 @@ class NotificationPermissionRequesterImpl(
 ) : NotificationPermissionRequester {
   @Composable
   override fun requestNotificationPermission(
-    onGranted: () -> Unit,
-    onDeclined: () -> Unit,
+    onGrant: () -> Unit,
+    onDecline: () -> Unit,
   ) {
+    val currentOnGrant by rememberUpdatedState(onGrant)
+    val currentOnDecline by rememberUpdatedState(onDecline)
     LaunchedEffect("showing-system-permission") {
       val granted = requestIOSNotificationPermission()
       if (granted) {
         registerForPushNotifications()
         pushNotificationPermissionStatusProvider.updatePushNotificationStatus(Authorized)
-        onGranted()
+        currentOnGrant()
       } else {
         pushNotificationPermissionStatusProvider.updatePushNotificationStatus(Denied)
-        onDeclined()
+        currentOnDecline()
       }
     }
   }

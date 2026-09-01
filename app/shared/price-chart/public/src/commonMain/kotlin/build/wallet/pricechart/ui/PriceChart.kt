@@ -107,6 +107,7 @@ fun PriceChart(
   val updatedFormatYLabel by rememberUpdatedState(formatYLabel)
   val updatedDataPoints by rememberUpdatedState(dataPoints)
   val updatedOnDisplayedPointSelected by rememberUpdatedState(onDisplayedPointSelected)
+  val currentOnPointSelected by rememberUpdatedState(onPointSelected)
 
   LaunchedEffect(dataPoints, shouldAnimateDataTransition, sparklineValuePaddingFraction) {
     if (!shouldAnimateDataTransition || dataPoints.isEmpty()) {
@@ -263,7 +264,7 @@ fun PriceChart(
       // if actively hovering, find the closest datapoint
       value = chartDataState.pointFrom(inputHoverOffset, adjustedCanvasWidth)
       // emit the selection change
-      onPointSelected(value)
+      currentOnPointSelected(value)
     }
     val animatedSelectedStateAlpha by animateFloatAsState(
       targetValue = if (selectedPoint == null) 0f else 1f,

@@ -32,6 +32,7 @@ pub enum Action {
     SendRecoveryVerificationCode,
     VerifyRecoveryVerificationCode,
     RotateAppAuthKeys,
+    SetDelayNotifyPeriod,
 }
 
 impl From<Action> for action_proof::Action {
@@ -74,6 +75,7 @@ impl From<Action> for action_proof::Action {
                 action_proof::Action::VerifyRecoveryVerificationCode
             }
             Action::RotateAppAuthKeys => action_proof::Action::RotateAppAuthKeys,
+            Action::SetDelayNotifyPeriod => action_proof::Action::SetDelayNotifyPeriod,
         }
     }
 }
@@ -245,6 +247,7 @@ mod tests {
             Action::SendRecoveryVerificationCode,
             Action::VerifyRecoveryVerificationCode,
             Action::RotateAppAuthKeys,
+            Action::SetDelayNotifyPeriod,
         ] {
             let _: action_proof::Action = action.into();
         }

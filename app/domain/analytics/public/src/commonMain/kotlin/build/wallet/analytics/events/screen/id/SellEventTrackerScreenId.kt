@@ -10,6 +10,9 @@ enum class SellEventTrackerScreenId : EventTrackerScreenId {
   /** Error screen shown when exchange rates are unavailable */
   SELL_EXCHANGE_RATES_UNAVAILABLE,
 
+  /** Loading screen shown when we are loading sell amount limits */
+  LOADING_SELL_LIMITS,
+
   /** Loading screen shown when we are loading sell partners */
   LOADING_SELL_PARTNERS,
 

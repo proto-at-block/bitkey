@@ -1,0 +1,8 @@
+# Workspace defaults for trailblaze AUTHORING sessions (recording trails with AI assistance).
+# CI replay never reads LLM config — recordings run with trailblaze.aiEnabled=false.
+#
+# Set the matching API key env var locally before authoring (e.g. OPENAI_API_KEY).
+# See docs/docs/mobile/testing/trailblaze.md for the full authoring workflow.
+llm:
+  defaults:
+    model: openai/gpt-4.1

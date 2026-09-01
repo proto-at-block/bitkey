@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.androidx.savedstate:savedstate-compose-desktop",
+    "components": [
+        {
+            "version": "1.3.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "savedstate-compose-desktop-1.3.6.jar": "0f3d045c5fd7e1301ab6c38cd0778067b0484cf39acac1233be71a723a6a8075"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

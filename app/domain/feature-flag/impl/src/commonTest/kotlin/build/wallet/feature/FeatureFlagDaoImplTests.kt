@@ -28,6 +28,46 @@ class FeatureFlagDaoImplTests : FunSpec({
       .shouldBe(Ok(BooleanFlag(value = true)))
   }
 
+  test("getFlags returns all persisted flag types") {
+    dao.setFlag(BooleanFlag(value = true), "boolean-flag")
+    dao.setFlag(FeatureFlagValue.DoubleFlag(value = 2.1), "double-flag")
+    dao.setFlag(FeatureFlagValue.StringFlag(value = "value"), "string-flag")
+
+    dao.getFlags().shouldBe(
+      Ok(
+        mapOf(
+          "boolean-flag" to BooleanFlag(value = true),
+          "double-flag" to FeatureFlagValue.DoubleFlag(value = 2.1),
+          "string-flag" to FeatureFlagValue.StringFlag(value = "value")
+        )
+      )
+    )
+  }
+
+  test("setFlag replaces a persisted value when the flag type changes") {
+    dao.setFlag(BooleanFlag(value = true), flagId)
+    dao.setFlag(FeatureFlagValue.DoubleFlag(value = 2.1), flagId)
+
+    dao.getFlag(flagId, BooleanFlag::class).shouldBe(Ok(null))
+    dao.getFlags().shouldBe(
+      Ok(mapOf(flagId to FeatureFlagValue.DoubleFlag(value = 2.1)))
+    )
+
+    dao.setFlag(FeatureFlagValue.StringFlag(value = "value"), flagId)
+
+    dao.getFlag(flagId, FeatureFlagValue.DoubleFlag::class).shouldBe(Ok(null))
+    dao.getFlags().shouldBe(
+      Ok(mapOf(flagId to FeatureFlagValue.StringFlag(value = "value")))
+    )
+
+    dao.setFlag(BooleanFlag(value = false), flagId)
+
+    dao.getFlag(flagId, FeatureFlagValue.StringFlag::class).shouldBe(Ok(null))
+    dao.getFlags().shouldBe(
+      Ok(mapOf(flagId to BooleanFlag(value = false)))
+    )
+  }
+
   test("getFlagOverridden and setFlagOverridden") {
     // Should be false when flag is not in the database.
     dao.getFlagOverridden(flagId)

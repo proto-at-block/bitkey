@@ -343,8 +343,8 @@ internal class BitkeyInjectSymbolProcessor(
     @Suppress("UNCHECKED_CAST")
     return (
       arguments
-        .first { it.name?.asString() == "boundTypes" }
-        .value as? Collection<KSType>
+        .firstOrNull { it.name?.asString() == "boundTypes" }
+        ?.value as? Collection<KSType>
     )?.toSet().orEmpty()
   }
 }

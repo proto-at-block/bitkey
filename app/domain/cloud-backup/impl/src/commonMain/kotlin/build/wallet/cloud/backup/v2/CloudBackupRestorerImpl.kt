@@ -14,6 +14,7 @@ import build.wallet.cloud.backup.JsonSerializer
 import build.wallet.cloud.backup.SocRecV1BackupFeatures
 import build.wallet.cloud.backup.bitcoinNetworkType
 import build.wallet.cloud.backup.csek.CsekDao
+import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.cloud.backup.f8eEnvironment
 import build.wallet.cloud.backup.isTestAccount
 import build.wallet.di.AppScope
@@ -32,6 +33,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 @BitkeyInject(AppScope::class)
 class CloudBackupRestorerImpl(
   private val csekDao: CsekDao,
+  private val ssekDao: SsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val uuidGenerator: UuidGenerator,
@@ -102,6 +104,15 @@ class CloudBackupRestorerImpl(
       relationshipsKeysDao.saveKey(cloudBackup.delegatedDecryptionKeypair)
         .mapError(CloudBackupRestorerError::SocRecTrustedContactIdentityKeyStorageError)
         .bind()
+
+      // Store SSEKs (Server Storage Encryption Keys) from the backup. A write failure fails
+      // the restoration attempt: reporting success would leave server-side encrypted data
+      // undecryptable with no later path to re-copy the keys. The flow can be retried.
+      keysInfo.sealedSseks.forEach { (sealedSsek, ssek) ->
+        ssekDao.set(sealedSsek, ssek)
+          .mapError(CloudBackupRestorerError::SsekStorageError)
+          .bind()
+      }
 
       AccountRestoration(
         activeSpendingKeyset = keysInfo.activeSpendingKeyset,

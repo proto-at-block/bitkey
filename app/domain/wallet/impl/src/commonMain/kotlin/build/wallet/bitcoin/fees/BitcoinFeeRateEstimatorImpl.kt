@@ -8,8 +8,6 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.targetBlocks
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.AugurFeesEstimationFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logWarn
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -21,46 +19,31 @@ class BitcoinFeeRateEstimatorImpl(
   private val mempoolHttpClient: MempoolHttpClient,
   private val augurFeesHttpClient: AugurFeesHttpClient,
   private val bdkBlockchainProvider: BdkBlockchainProvider,
-  private val augurFeesEstimationFeatureFlag: AugurFeesEstimationFeatureFlag,
 ) : BitcoinFeeRateEstimator {
   override suspend fun estimatedFeeRateForTransaction(
     networkType: BitcoinNetworkType,
     estimatedTransactionPriority: EstimatedTransactionPriority,
   ): FeeRate {
-    return if (augurFeesEstimationFeatureFlag.isEnabled()) {
-      augurFeesHttpClient.getAugurFeesFeeRate(networkType, estimatedTransactionPriority)
-        .getOrElse {
-          mempoolHttpClient.getMempoolFeeRate(networkType, estimatedTransactionPriority)
-            .getOrElse {
-              getBdkFeeRate(estimatedTransactionPriority)
-            }
-        }
-    } else {
-      mempoolHttpClient.getMempoolFeeRate(networkType, estimatedTransactionPriority)
-        .getOrElse {
-          getBdkFeeRate(estimatedTransactionPriority)
-        }
-    }
+    return augurFeesHttpClient.getAugurFeesFeeRate(networkType, estimatedTransactionPriority)
+      .getOrElse {
+        mempoolHttpClient.getMempoolFeeRate(networkType, estimatedTransactionPriority)
+          .getOrElse {
+            getBdkFeeRate(estimatedTransactionPriority)
+          }
+      }
   }
 
   override suspend fun getEstimatedFeeRates(
     networkType: BitcoinNetworkType,
   ): Result<FeeRatesByPriority, Error> =
     coroutineBinding {
-      if (augurFeesEstimationFeatureFlag.isEnabled()) {
-        augurFeesHttpClient.getAugurFeesFeeRates(networkType)
-          .getOrElse {
-            mempoolHttpClient.getMempoolFeeRates(networkType)
-              .getOrElse {
-                getBdkFeeRates().bind()
-              }
-          }
-      } else {
-        mempoolHttpClient.getMempoolFeeRates(networkType)
-          .getOrElse {
-            getBdkFeeRates().bind()
-          }
-      }
+      augurFeesHttpClient.getAugurFeesFeeRates(networkType)
+        .getOrElse {
+          mempoolHttpClient.getMempoolFeeRates(networkType)
+            .getOrElse {
+              getBdkFeeRates().bind()
+            }
+        }
     }
 
   private suspend fun getBdkFeeRate(

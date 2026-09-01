@@ -1,4 +1,0 @@
--- Debug onboarding config has been moved to DebugOptions.sq
-DROP TABLE onboardingStepSkipConfigEntity;
-
-PRAGMA foreign_key_check;

@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.runtime:runtime-uikitarm64",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-uikitArm64Main-1.9.1.klib": "ac27c81f623d786bd9cc45c8390e6759c27972d54ddf912e82fbb9f4bfd6162c"
+                        "runtime-uikitArm64Main-1.10.0-rc02.klib": "d7b4cbf3e21bdd30c17821ac0621b993df9cad5caa96aeb494bb7f1f468635e3"
                     }
                 },
                 {
                     "artifacts": {
-                        "runtime-uikitarm64-1.9.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "runtime-uikitarm64-1.10.0-rc02-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 }
             ],

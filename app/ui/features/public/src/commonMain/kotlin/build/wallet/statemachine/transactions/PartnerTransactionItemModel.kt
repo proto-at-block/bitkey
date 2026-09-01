@@ -12,6 +12,7 @@ fun PartnerTransactionItemModel(
   logoUrl: String?,
   amount: String?,
   amountEquivalent: String?,
+  note: String? = null,
   isPending: Boolean,
   isError: Boolean,
   pendingBadgeType: BadgeType = BadgeType.Loading,
@@ -19,7 +20,9 @@ fun PartnerTransactionItemModel(
   isLoading: Boolean = false,
   onClick: () -> Unit,
 ) = ListItemModel(
-  title = title,
+  // Customer-authored notes replace the generic transaction type title,
+  // matching Bitcoin transaction rows.
+  title = note ?: title,
   secondaryText = date,
   sideText = amount,
   secondarySideText = amountEquivalent,

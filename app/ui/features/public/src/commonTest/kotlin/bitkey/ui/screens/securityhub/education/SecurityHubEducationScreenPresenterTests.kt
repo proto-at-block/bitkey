@@ -6,6 +6,7 @@ import bitkey.securitycenter.SecurityActionRecommendation
 import bitkey.securitycenter.SocialRecoveryAction
 import bitkey.ui.framework.test
 import bitkey.ui.screens.securityhub.SecurityHubScreen
+import bitkey.ui.screens.securityhub.SecurityHubUiState
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.feature.FeatureFlagDaoFake
@@ -86,6 +87,44 @@ class SecurityHubEducationScreenPresenterTests : FunSpec({
       }
 
       navigator.goToCalls.awaitItem().shouldBeTypeOf<SecurityHubScreen>()
+    }
+  }
+
+  test("provision app key education continues into the NFC provisioning state") {
+    presenter.test(
+      screen = SecurityHubEducationScreen.ProvisionAppKeyEducation(
+        originScreen = SecurityHubScreen(
+          account = FullAccountMock
+        ),
+        firmwareData = FirmwareDataPendingUpdateMock.firmwareUpdateState
+      )
+    ) { navigator ->
+      awaitBody<ProvisionAppKeyEducationBodyModel> {
+        onContinue()
+      }
+
+      navigator.goToCalls.awaitItem()
+        .shouldBeTypeOf<SecurityHubScreen>()
+        .initialState.shouldBe(SecurityHubUiState.ProvisioningAppKeyState)
+    }
+  }
+
+  test("provision app key education onBack returns to a viewing-state security hub") {
+    presenter.test(
+      screen = SecurityHubEducationScreen.ProvisionAppKeyEducation(
+        originScreen = SecurityHubScreen(
+          account = FullAccountMock
+        ),
+        firmwareData = FirmwareDataPendingUpdateMock.firmwareUpdateState
+      )
+    ) { navigator ->
+      awaitBody<ProvisionAppKeyEducationBodyModel> {
+        onBack()
+      }
+
+      navigator.goToCalls.awaitItem()
+        .shouldBeTypeOf<SecurityHubScreen>()
+        .initialState.shouldBe(SecurityHubUiState.ViewingSecurityHub)
     }
   }
 

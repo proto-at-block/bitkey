@@ -85,6 +85,8 @@ fun Timer(
         style = WalletTheme.labelStyle(
           type = LabelType.Display2,
           alignment = TextAlign.Center
+        ).copy(
+          fontFeatureSettings = "tnum"
         ).trimLineHeight()
       )
       Spacer(Modifier.height(4.dp))

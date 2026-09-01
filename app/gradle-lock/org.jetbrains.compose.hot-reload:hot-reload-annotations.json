@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.hot-reload:hot-reload-annotations",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "hot-reload-annotations-metadata-1.0.0.jar": "dc3831830947e306cfec3b7f10a4b97cdf95acc8e7b4a30b9d050e6a2388ea95"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

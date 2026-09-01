@@ -41,7 +41,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.components.card.Card
+import build.wallet.ui.components.card.CardContainer
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.layout.Divider
@@ -189,12 +189,15 @@ class AppearancePreferenceBodyModel(
     }
   }
 
+  // Emits the card and optional explainer label as siblings on purpose: the caller's
+  // Column applies Arrangement.spacedBy(8.dp) between them.
+  @Suppress("MultipleEmitters")
   @Composable
   private fun AppearancePreferenceDesignSystemListGroup(
     model: ListGroupModel,
     modifier: Modifier = Modifier,
   ) {
-    Card(
+    CardContainer(
       modifier = modifier,
       backgroundColor = WalletTheme.colors.secondary,
       cornerRadius = 8.dp,
@@ -267,7 +270,7 @@ class AppearancePreferenceBodyModel(
           Toolbar(
             model = ToolbarModel(
               leadingAccessory = toolbar.leadingAccessory,
-              middleAccessory = null,
+              title = null,
               trailingAccessory = toolbar.trailingAccessory
             ),
             showDesignSystemChrome = false

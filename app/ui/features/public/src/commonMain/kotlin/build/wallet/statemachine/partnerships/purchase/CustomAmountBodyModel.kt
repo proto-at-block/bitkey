@@ -13,7 +13,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 data class CustomAmountBodyModel(
@@ -41,8 +41,8 @@ data class CustomAmountBodyModel(
     toolbar =
       ToolbarModel(
         leadingAccessory = CloseAccessory(onClick = onBack),
-        middleAccessory =
-          ToolbarMiddleAccessoryModel(
+        title =
+          ToolbarTitleModel.Inline(
             title = "Choose an amount",
             subtitle = limits
           )

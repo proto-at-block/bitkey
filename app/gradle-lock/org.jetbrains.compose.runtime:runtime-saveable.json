@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.runtime:runtime-saveable",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-saveable-1.9.1.jar": "c65747ccac0255a3d9aa67d14c1292f6cf04c0603ec1839f6a82ddf431277784"
+                        "runtime-saveable-1.10.0-rc02.jar": "dd1f459519c3d3440eb578ec412ad06919c9d36b9c17e5cdb398d6bfb08c22fb"
                     }
                 }
             ],

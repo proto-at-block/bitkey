@@ -40,68 +40,28 @@ fun ChooseAccountAccessScreen(
   val subtitleTint = contentTint.copy(alpha = 0.72f)
   val legalNoticeText = model.legalNotice.buildAnnotatedString()
 
-  if (model.showW3Video) {
-    Box(
-      modifier = modifier
-        .fillMaxSize()
-        .background(backgroundColor)
-    ) {
-      VideoPlayer(
-        modifier = Modifier.matchParentSize(),
-        resourcePath = chooseAccountAccessHeroVideoResource(),
-        isLooping = true,
-        backgroundColor = backgroundColor,
-        scalingMode = VideoScalingMode.CROP
-      )
+  Box(
+    modifier = modifier
+      .fillMaxSize()
+      .background(backgroundColor)
+  ) {
+    VideoPlayer(
+      modifier = Modifier.matchParentSize(),
+      resourcePath = chooseAccountAccessHeroVideoResource(),
+      isLooping = true,
+      backgroundColor = backgroundColor,
+      scalingMode = VideoScalingMode.CROP
+    )
 
-      Column(
-        modifier = Modifier
-          .fillMaxSize()
-          .zIndex(1f)
-      ) {
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .systemBarsPadding()
-        ) {
-          Image(
-            modifier = Modifier
-              .resId("logo")
-              .align(Alignment.TopCenter)
-              .padding(top = 40.dp)
-              .size(48.dp)
-              .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = model.onLogoClick
-              ),
-            painter = painterResource(Res.drawable.bitkey_icon_mark),
-            contentDescription = "Bitkey Icon Mark",
-            colorFilter = ColorFilter.tint(contentTint)
-          )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        ChooseAccountAccessFooter(
-          model = model,
-          legalNoticeText = legalNoticeText,
-          backgroundColor = backgroundColor,
-          contentTint = contentTint,
-          subtitleTint = subtitleTint
-        )
-      }
-    }
-  } else {
     Column(
-      modifier = modifier
+      modifier = Modifier
         .fillMaxSize()
-        .background(backgroundColor)
+        .zIndex(1f)
     ) {
       Box(
         modifier = Modifier
           .fillMaxWidth()
-          .statusBarsPadding()
+          .systemBarsPadding()
       ) {
         Image(
           modifier = Modifier
@@ -120,21 +80,7 @@ fun ChooseAccountAccessScreen(
         )
       }
 
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .weight(1f)
-          .padding(vertical = 24.dp),
-        contentAlignment = Alignment.Center
-      ) {
-        Image(
-          modifier = Modifier
-            .widthIn(max = 250.dp)
-            .aspectRatio(1f),
-          painter = painterResource(Res.drawable.bitkey_rotate_dark_poster),
-          contentDescription = null
-        )
-      }
+      Spacer(modifier = Modifier.weight(1f))
 
       ChooseAccountAccessFooter(
         model = model,

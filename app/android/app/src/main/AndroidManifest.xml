@@ -59,9 +59,15 @@
     <!-- Setting the launchMode to singleTask ensures that deeplinking to the app opens the existing Activity of the Bitkey App or creates a new one -->
     <activity
         android:name="build.wallet.MainActivity"
-        android:configChanges="uiMode"
         android:exported="true"
-        android:launchMode="singleTask">
+        android:launchMode="singleTask"
+        android:screenOrientation="portrait"
+        tools:ignore="DiscouragedOrientationApi,LockedOrientationActivity">
+      <!-- Temporarily preserve portrait compatibility mode on Android 16 large screens. -->
+      <property
+          android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+          android:value="true" />
+
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
 

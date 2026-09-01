@@ -38,8 +38,8 @@ data class RecoverYourAppKeyBodyModel(
         immutableListOf(
           Statement(
             leadingIcon = Clock,
-            title = "7-day security waiting period",
-            body = "During this time, you’ll get regular alerts about the recovery.  No action is needed; these are to keep you informed and aware."
+            title = "Security waiting period",
+            body = "Your recovery will be protected by your security period. During this time, you’ll get regular alerts about the recovery. No action is needed; these are to keep you informed and aware."
           ),
           Statement(
             leadingIcon = MinusStroked,

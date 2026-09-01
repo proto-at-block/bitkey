@@ -34,14 +34,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.ui.components.button.Button
-import build.wallet.ui.components.card.Card
+import build.wallet.ui.components.card.CardContainer
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.AutoResizedLabel
 import build.wallet.ui.components.label.Label
@@ -73,17 +72,17 @@ fun ListGroup(
   modifier: Modifier = Modifier,
   collapseContent: Boolean = false,
 ) {
-  Column {
+  Column(modifier) {
     when (model.style) {
       CARD_ITEM -> CardListGroup(model)
-      DIVIDER -> RegularListGroup(model, modifier, showsDivider = true) {
+      DIVIDER -> RegularListGroup(model, showsDivider = true) {
         ListItem(model = it, collapseContent = collapseContent)
       }
-      NONE -> RegularListGroup(model, modifier, showsDivider = false) {
+      NONE -> RegularListGroup(model, showsDivider = false) {
         ListItem(model = it, collapseContent = collapseContent)
       }
       CARD_GROUP, CARD_GROUP_DIVIDER ->
-        Card {
+        CardContainer {
           RegularListGroup(
             model = model,
             showsDivider = model.style == CARD_GROUP_DIVIDER,
@@ -246,7 +245,7 @@ private fun FixedColumnCardListGroup(
         contentAlignment = Alignment.Center,
         modifier = Modifier.padding(8.dp)
       ) {
-        Card(
+        CardContainer(
           modifier =
             Modifier
               .height(cardHeight.dp)
@@ -280,7 +279,7 @@ private fun CardListGroup(model: ListGroupModel) {
       ListSectionHeader(title = header, treatment = model.headerTreatment)
     }
     model.items.forEachIndexed { index, item ->
-      Card(backgroundColor = WalletTheme.colors.secondary) {
+      CardContainer(backgroundColor = WalletTheme.colors.secondary) {
         ListItem(model = item)
       }
 

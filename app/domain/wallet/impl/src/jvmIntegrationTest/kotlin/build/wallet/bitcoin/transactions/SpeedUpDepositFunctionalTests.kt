@@ -14,7 +14,6 @@ import build.wallet.testing.shouldBeOk
 import build.wallet.testing.tags.TestTag.IsolatedTest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
 import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
@@ -128,10 +127,14 @@ class SpeedUpDepositFunctionalTests : FunSpec({
           val secondSpeedUp = service.prepareSpeedUpDepositTransaction(pendingDeposit).shouldBeOk()
 
           secondSpeedUp.parentTxid.shouldBe(pendingDeposit.id)
-          // Second child should not pay less than the first child. In practice this can be equal
-          // when both rounds are clamped by the same min-relay floor.
-          secondSpeedUp.childFee.amount.fractionalUnitValue.longValue()
-            .shouldBeGreaterThanOrEqualTo(firstSpeedUp.childFee.amount.fractionalUnitValue.longValue())
+          // The second child fee may be lower than the first: CPFP targets the effective fee
+          // rate of the full parent + child package, and the first child fee is counted as an
+          // ancestor fee for the re-bump. Assert the re-bump constructs a valid positive-fee child
+          // that spends the first child tip, then rely on broadcast + mined confirmation below to
+          // validate the package.
+          secondSpeedUp.childFee.amount.isPositive.shouldBeTrue()
+          secondSpeedUp.psbt.numOfInputs.shouldBe(1)
+          secondSpeedUp.psbt.inputs.single().outpoint.txid.shouldBe(hwSignedChild1.id)
 
           val hwSignedChild2 = app.signPsbtWithHardware(secondSpeedUp.psbt)
           app.bitcoinBlockchain.broadcast(hwSignedChild2).shouldBeOk()

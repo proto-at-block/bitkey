@@ -1,0 +1,112 @@
+# Hand-authored recording for new-wallet onboarding with fake hardware (debug build default).
+# Mirrors the retired maestro new_wallet.yaml. The debug-menu steps replace cloud backup and
+# notifications with skips so the flow needs no Google account or notification permissions.
+# launchApp defaults to REINSTALL, so every run starts from fresh app state (a new throwaway
+# account is created on Staging F8e each run).
+- config:
+    id: bitkey/smoke/new-wallet-onboarding
+    target: world.bitkey.debug
+    platform: android
+    driver: ANDROID_ONDEVICE_ACCESSIBILITY
+- tools:
+  - launchApp:
+      appId: world.bitkey.debug
+- prompts:
+  - step: Open the debug menu from the welcome screen and enable "Skip Cloud Backup" and "Skip Notifications" under Onboarding, then go back to the welcome screen
+    recording:
+      tools:
+      - assertVisibleBySelector:
+          reason: Wait for the welcome screen after a cold launch.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: set-up-a-new-wallet-button
+          timeoutMs: 30000
+      - tapOnElementBySelector:
+          reason: The Bitkey logo opens the hidden debug menu in debug builds.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: logo
+      - tapOnElementBySelector:
+          reason: Expand the Onboarding section of the debug menu.
+          nodeSelector:
+            androidAccessibility:
+              textRegex: (?i)^onboarding$
+      - tapOnElementBySelector:
+          reason: Skip cloud backup so onboarding needs no Google account.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: skip-cloud-backup
+      - tapOnElementBySelector:
+          reason: Skip notification setup so onboarding needs no notification permissions.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: skip-notifications
+      - tapOnElementBySelector:
+          reason: Return from the debug menu to the welcome screen.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: toolbar-back
+  - step: Tap "Set up a new wallet"
+    recording:
+      tools:
+      - tapOnElementBySelector:
+          reason: Start new-wallet onboarding.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: set-up-a-new-wallet-button
+  - step: Dismiss the "How to tap your Bitkey" instructions sheet
+    recording:
+      tools:
+      - assertVisibleBySelector:
+          reason: Wait for the NFC instructions sheet.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: got-it-button
+          timeoutMs: 15000
+      - tapOnElementBySelector:
+          reason: Acknowledge the instructions.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: got-it-button
+  - step: Start pairing the (fake) Bitkey device
+    recording:
+      tools:
+      - assertVisibleBySelector:
+          reason: Wait for the pairing screen.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: lets-go-button
+          timeoutMs: 15000
+      - tapOnElementBySelector:
+          reason: Begin pairing; fake hardware completes immediately.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: lets-go-button
+  - step: Save the first fingerprint
+    recording:
+      tools:
+      - assertVisibleBySelector:
+          reason: Wait for the fingerprint enrollment screen.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: save-fingerprint-button
+          timeoutMs: 15000
+      - tapOnElementBySelector:
+          reason: Fake hardware reports the fingerprint as already enrolled.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: save-fingerprint-button
+  - verify: The Money Home screen is shown with a $0.00 balance and Send/Receive actions
+    recording:
+      tools:
+      - assertVisibleBySelector:
+          reason: Account creation and onboarding completion take ~30s; wait for Money Home.
+          nodeSelector:
+            androidAccessibility:
+              resourceIdRegex: money-home-action-Send
+          timeoutMs: 120000
+      - assertVisibleBySelector:
+          reason: A new wallet starts with a zero balance.
+          nodeSelector:
+            androidAccessibility:
+              textRegex: \$0\.00

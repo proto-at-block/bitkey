@@ -3,8 +3,11 @@ package build.wallet.statemachine.nfc
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackupHealthRepository
+import build.wallet.cloud.backup.health.isHealthy
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.keybox.KeyboxDao
@@ -68,11 +71,7 @@ class DescriptorRepairUiStateMachineImpl(
                   signature = AppGlobalAuthKeyHwSignature(signature)
                 )
                 .onSuccess { updatedKeybox ->
-                  cloudBackupHealthRepository.performSync(
-                    accountId = props.fullAccount.accountId,
-                    keybox = updatedKeybox
-                  )
-                  props.onRepairComplete()
+                  state = State.RepairingBackup(updatedKeybox)
                 }
                 .onFailure { error ->
                   state = State.Failed(Error("Failed to persist wallet repair", error))
@@ -82,9 +81,57 @@ class DescriptorRepairUiStateMachineImpl(
               props.onBack()
             },
             screenPresentationStyle = props.presentationStyle,
+            segment = SettingsAppSegment.Device,
+            actionDescription = "Delivering hardware descriptor to repair wallet",
             eventTrackerContext = NfcEventTrackerScreenIdContext.DELIVER_HARDWARE_DESCRIPTOR,
           )
         )
+      }
+
+      is State.RepairingBackup -> {
+        LaunchedEffect("repair-cloud-backup") {
+          val status = cloudBackupHealthRepository.performSync(
+            accountId = props.fullAccount.accountId,
+            keybox = currentState.updatedKeybox
+          )
+          if (status.appKeyBackupStatus.isHealthy()) {
+            props.onRepairComplete()
+          } else {
+            state = State.BackupRepairFailed(currentState.updatedKeybox)
+          }
+        }
+
+        LoadingBodyModel(
+          id = LOADING_ONBOARDING_STEP,
+          title = "Updating your cloud backup…"
+        ).let { body ->
+          ScreenModel(body = body, presentationStyle = props.presentationStyle)
+        }
+      }
+
+      is State.BackupRepairFailed -> {
+        ErrorFormBodyModel(
+          title = "Couldn't update your cloud backup",
+          subline = "Your device was verified, but your cloud backup could not be updated. " +
+            "Make sure you have internet connectivity and try again.",
+          primaryButton = ButtonDataModel(
+            text = "Retry",
+            onClick = { state = State.RepairingBackup(currentState.updatedKeybox) }
+          ),
+          onBack = props.onBack,
+          secondaryButton = ButtonDataModel(
+            text = "Not now",
+            onClick = props.onBack
+          ),
+          errorData = ErrorData(
+            segment = RecoverySegment.KeysetRepair.Repair,
+            actionDescription = "Repairing cloud backup after descriptor repair",
+            cause = Error("Cloud backup remained unhealthy after descriptor repair")
+          ),
+          eventTrackerScreenId = LOADING_ONBOARDING_STEP
+        ).let { body ->
+          ScreenModel(body = body, presentationStyle = props.presentationStyle)
+        }
       }
 
       is State.Failed -> {
@@ -124,6 +171,12 @@ class DescriptorRepairUiStateMachineImpl(
     data class ReadyToTap(
       val nfcSession: suspend (NfcSession, NfcCommands) -> String,
     ) : State
+
+    /** Re-syncing the backup after persisting the real hardware signature. */
+    data class RepairingBackup(val updatedKeybox: Keybox) : State
+
+    /** Backup repair failed after the real hardware signature was persisted. */
+    data class BackupRepairFailed(val updatedKeybox: Keybox) : State
 
     /** Server call or key extraction failed. */
     data class Failed(val error: Error) : State

@@ -8,5 +8,6 @@ interface PartnerTransactionItemUiStateMachine : StateMachine<PartnerTransaction
 
 data class PartnerTransactionItemUiProps(
   val transaction: Transaction.PartnershipTransaction,
+  val transactionNote: String? = null,
   val onClick: (transaction: Transaction.PartnershipTransaction) -> Unit,
 )

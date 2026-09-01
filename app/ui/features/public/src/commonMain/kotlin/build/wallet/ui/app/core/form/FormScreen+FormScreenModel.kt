@@ -6,7 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -15,7 +14,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -40,18 +38,22 @@ import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.bitkey_tilt_dark
 import bitkey.ui.framework_public.generated.resources.bitkey_tilt_light
 import bitkey.ui.framework_public.generated.resources.upgrade_w3
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
 import build.wallet.statemachine.core.form.FORM_WAITING_REVEAL_DURATION_MILLIS
+import build.wallet.statemachine.core.form.FooterRevealAware
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
+import build.wallet.statemachine.core.form.FormPreFooterContentModel
 import build.wallet.statemachine.core.form.FormWaitingRevealEasing
+import build.wallet.statemachine.core.form.KeepsScreenOn
 import build.wallet.statemachine.core.form.RenderContext.Screen
-import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
+import build.wallet.ui.app.moneyhome.card.Card
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.button.OrderedButtonPair
 import build.wallet.ui.components.callout.Callout
@@ -72,7 +74,6 @@ import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.list.SettingsListComponent
 import build.wallet.ui.components.loading.FormLoader
-import build.wallet.ui.components.loading.FormLoaderStyle
 import build.wallet.ui.components.progress.StepperIndicator
 import build.wallet.ui.components.tab.CircularTabRow
 import build.wallet.ui.components.timer.Timer
@@ -92,7 +93,6 @@ import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.statemachine.core.Icon
 import build.wallet.ui.tokens.painter
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.delay
@@ -105,11 +105,9 @@ fun FormScreen(
   model: FormBodyModel,
   modifier: Modifier = Modifier,
 ) {
-  val footerRevealDelayMillis = model.footerRevealDelayMillis
-  val footerVisible = rememberFooterVisible(model.key, footerRevealDelayMillis)
   val headerModel = model.header
 
-  if (model.keepScreenOn) {
+  if (model is KeepsScreenOn) {
     KeepScreenOn()
   }
 
@@ -121,7 +119,6 @@ fun FormScreen(
     renderContext = model.renderContext,
     background = WalletTheme.colors.background,
     toolbarModel = model.toolbar,
-    screenTitle = model.formScreenTitle,
     layout = model.formScreenLayout,
     toolbarContent = {
       model.toolbar?.let {
@@ -145,12 +142,16 @@ fun FormScreen(
         model.preFooterContentList.isNotEmpty() -> {
         {
           PreFooterContent(
-            preFooterMainContentList = model.preFooterContentList
+            preFooterContentList = model.preFooterContentList
           )
           AnimatedFooterContent(
-            visible = footerVisible,
-            animateVisibility = model.footerRevealDelayMillis > 0,
-            reserveSpace = model.preFooterContentList.isEmpty()
+            // Models opt into the reveal animation by implementing [FooterRevealAware];
+            // everything else renders its footer directly.
+            visible = (model as? FooterRevealAware)?.footerRevealed ?: true,
+            reserveSpace = model.preFooterContentList.isEmpty(),
+            // Key the reveal decision to the current screen so behavior resets when the
+            // hosting state machine swaps in a different FormBodyModel.
+            modelKey = model.key
           ) {
             FooterContent(
               primaryButton = model.primaryButton,
@@ -176,28 +177,6 @@ internal fun resolveHeaderToMainContentSpacing(
   }
 
 @Composable
-private fun rememberFooterVisible(
-  modelKey: String,
-  footerRevealDelayMillis: Int,
-): Boolean {
-  var footerVisible by remember(modelKey, footerRevealDelayMillis) {
-    mutableStateOf(footerRevealDelayMillis == 0)
-  }
-
-  LaunchedEffect(modelKey, footerRevealDelayMillis) {
-    if (footerRevealDelayMillis == 0) {
-      footerVisible = true
-    } else {
-      footerVisible = false
-      delay(footerRevealDelayMillis.toLong())
-      footerVisible = true
-    }
-  }
-
-  return footerVisible
-}
-
-@Composable
 internal fun ColumnScope.FormBodyMainContent(model: FormBodyModel) {
   model.mainContentList.forEachIndexed { index, mainContent ->
     when (mainContent) {
@@ -219,14 +198,10 @@ internal fun ColumnScope.FormBodyMainContent(model: FormBodyModel) {
       is AnnotatedText -> AnnotatedText(mainContent)
       is ListGroup -> ListGroup(model = mainContent.listGroupModel)
       is Loader -> FormLoader()
-      is DotLoader ->
-        FormLoader(
-          style = FormLoaderStyle.DotLoading
-        )
       is Picker -> Picker(model = mainContent)
       is StepperIndicator -> StepperIndicator(model = mainContent)
       is Callout -> Callout(model = mainContent.item)
-      is CalloutCard -> MoneyHomeCard(model = mainContent.item)
+      is CalloutCard -> Card(model = mainContent.item)
       is HeaderBlock ->
         Header(
           model = mainContent.header,
@@ -252,7 +227,7 @@ internal fun ColumnScope.FormBodyMainContent(model: FormBodyModel) {
 internal fun FooterContent(
   primaryButton: ButtonModel?,
   secondaryButton: ButtonModel?,
-  tertiaryButton: ButtonModel?,
+  tertiaryButton: ButtonModel? = null,
 ) {
   OrderedButtonPair(
     primary = primaryButton,
@@ -268,24 +243,97 @@ internal fun FooterContent(
   }
 }
 
+/**
+ * Renders the footer, animating it in the first time [visible] flips from `false` to `true`.
+ *
+ * Screens that are revealed immediately (initial [visible] == `true`) skip the animation
+ * wrapper entirely so they don't pay for [SubcomposeLayout] on every recomposition. The
+ * [content] lambda is always invoked from the first composition (even when [visible] is
+ * `false`) so the footer slot can reserve its final measured height — alpha and translation
+ * are the only things animated.
+ */
 @Composable
-private fun PreFooterContent(preFooterMainContentList: ImmutableList<FormMainContentModel>) {
-  preFooterMainContentList.forEach { mainContent ->
-    when (mainContent) {
+private fun AnimatedFooterContent(
+  visible: Boolean,
+  reserveSpace: Boolean,
+  modelKey: String,
+  content: @Composable ColumnScope.() -> Unit,
+) {
+  // Capture whether this screen ever needed to animate the footer in. If the footer was revealed
+  // on first composition, no animation is required for the lifetime of this composable. Keyed to
+  // [modelKey] so the decision resets when the hosting screen swaps in a new FormBodyModel — the
+  // remembered slot may otherwise be reused across model instances during navigation.
+  val animateReveal = remember(modelKey) { !visible }
+
+  if (!animateReveal) {
+    Column(content = content)
+    return
+  }
+
+  val animationFraction by animateFloatAsState(
+    targetValue = if (visible) 1f else 0f,
+    animationSpec = tween(
+      durationMillis = FORM_WAITING_REVEAL_DURATION_MILLIS,
+      easing = FormWaitingRevealEasing
+    ),
+    label = "footer-reveal-animation"
+  )
+
+  SubcomposeLayout { constraints ->
+    val placeables = subcompose("footer-content") {
+      Column(content = content)
+    }.map { measurable ->
+      measurable.measure(constraints)
+    }
+
+    val width = (placeables.maxOfOrNull { it.width } ?: 0)
+      .coerceIn(constraints.minWidth, constraints.maxWidth)
+    val measuredHeight = (placeables.maxOfOrNull { it.height } ?: 0)
+      .coerceIn(constraints.minHeight, constraints.maxHeight)
+
+    // When reserveSpace is true, reserve the footer's final measured size throughout the
+    // reveal so centered content above it doesn't reflow when the buttons fade and slide in.
+    // When reserveSpace is false, the height grows with the animation so content below
+    // (e.g. a destination address) gets pushed down as buttons appear.
+    val height = if (reserveSpace) {
+      measuredHeight
+    } else {
+      (measuredHeight * animationFraction).toInt()
+    }
+
+    layout(width, height) {
+      if (animationFraction > 0f) {
+        placeables.forEach { placeable ->
+          placeable.placeRelativeWithLayer(0, 0) {
+            alpha = animationFraction
+            translationY = if (reserveSpace) {
+              (measuredHeight / 3f) * (1f - animationFraction)
+            } else {
+              0f
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun PreFooterContent(preFooterContentList: ImmutableList<FormPreFooterContentModel>) {
+  preFooterContentList.forEach { content ->
+    // Exhaustive over the sealed FormPreFooterContentModel — adding a new pre-footer content
+    // type is a compile error here until the renderer supports it.
+    when (content) {
       is FormMainContentModel.CollapsibleAddress -> CollapsibleAddressSection(
-        model = mainContent
+        model = content
       )
       is FormMainContentModel.HeaderBlock -> {
         Header(
-          model = mainContent.header,
-          headlineLabelType = mainContent.header.headlineLabelType
+          model = content.header,
+          headlineLabelType = content.header.headlineLabelType
         )
         Spacer(Modifier.height(24.dp))
       }
-      else -> error(
-        "Unsupported pre-footer content type: ${mainContent::class.simpleName}. " +
-          "PreFooterContent only supports CollapsibleAddress and HeaderBlock."
-      )
     }
   }
 }
@@ -343,68 +391,6 @@ private fun CollapsibleAddressSection(model: FormMainContentModel.CollapsibleAdd
         alignment = TextAlign.Start,
         treatment = LabelTreatment.Primary
       )
-    }
-  }
-}
-
-@Composable
-private fun AnimatedFooterContent(
-  visible: Boolean,
-  animateVisibility: Boolean,
-  reserveSpace: Boolean = true,
-  content: @Composable ColumnScope.() -> Unit,
-) {
-  if (!animateVisibility) {
-    if (visible) {
-      Column(content = content)
-    }
-    return
-  }
-
-  val animationFraction by animateFloatAsState(
-    targetValue = if (visible) 1f else 0f,
-    animationSpec = tween(
-      durationMillis = FORM_WAITING_REVEAL_DURATION_MILLIS,
-      easing = FormWaitingRevealEasing
-    ),
-    label = "footer-reveal-animation"
-  )
-
-  SubcomposeLayout { constraints ->
-    val placeables = subcompose("footer-content") {
-      Column(content = content)
-    }.map { measurable ->
-      measurable.measure(constraints)
-    }
-
-    val width = (placeables.maxOfOrNull { it.width } ?: 0)
-      .coerceIn(constraints.minWidth, constraints.maxWidth)
-    val measuredHeight = (placeables.maxOfOrNull { it.height } ?: 0)
-      .coerceIn(constraints.minHeight, constraints.maxHeight)
-
-    // When reserveSpace is true, reserve the footer's final measured size throughout the
-    // reveal so centered content above it doesn't reflow when the buttons fade and slide in.
-    // When reserveSpace is false, the height grows with the animation so content below
-    // (e.g. a destination address) gets pushed down as buttons appear.
-    val height = if (reserveSpace) {
-      measuredHeight
-    } else {
-      (measuredHeight * animationFraction).toInt()
-    }
-
-    layout(width, height) {
-      if (animationFraction > 0f) {
-        placeables.forEach { placeable ->
-          placeable.placeRelativeWithLayer(0, 0) {
-            alpha = animationFraction
-            translationY = if (reserveSpace) {
-              (measuredHeight / 3f) * (1f - animationFraction)
-            } else {
-              0f
-            }
-          }
-        }
-      }
     }
   }
 }
@@ -708,7 +694,12 @@ private fun TextArea(model: TextArea) {
     }
 
     TextField(
-      modifier = Modifier.fillMaxWidth(),
+      // Cap the height so long content scrolls within the field instead of growing
+      // unbounded and pushing footer buttons off-screen (especially in sheets and
+      // with large font scales).
+      modifier = Modifier
+        .fillMaxWidth()
+        .heightIn(max = 200.dp),
       model = model.fieldModel,
       textFieldOverflowCharacteristic = Multiline
     )

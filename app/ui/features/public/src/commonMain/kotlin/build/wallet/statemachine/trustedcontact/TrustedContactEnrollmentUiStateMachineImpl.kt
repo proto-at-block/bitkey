@@ -29,6 +29,7 @@ import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.trustedcontact.model.*
 import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant.Direct
 import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant.Feature.Inheritance
@@ -230,6 +231,8 @@ class TrustedContactEnrollmentUiStateMachineImpl(
                 )
               },
               screenPresentationStyle = Modal,
+              segment = RecoverySegment.SocRec.TrustedContact.Setup,
+              actionDescription = "Sealing delegated decryption key during Recovery Contact enrollment",
               eventTrackerContext = NfcEventTrackerScreenIdContext.SEAL_DELEGATED_DECRYPTION_KEY,
               showDeviceConfirmation = true
             )

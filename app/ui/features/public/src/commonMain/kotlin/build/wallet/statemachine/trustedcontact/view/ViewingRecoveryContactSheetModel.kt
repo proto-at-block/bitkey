@@ -41,12 +41,31 @@ fun ViewingTrustedContactSheetModel(
  * @param onClosed Invoked when the user closes the sheet.
  */
 fun ViewingTamperedContactSheetModel(
-  contact: UnendorsedTrustedContact,
+  contact: TrustedContact,
   onRemove: () -> Unit,
   onClosed: () -> Unit,
 ) = ViewingRecoveryContactSheetModel(
   headline = "${contact.trustedContactAlias.alias} is no longer listed as a valid ${contact.label}",
   subline = "We are unable to validate your ${contact.label}. This often happens when a ${contact.label} has deleted the Bitkey app.",
+  removeButtonText = when {
+    TrustedContactRole.Beneficiary == contact.roles.singleOrNull() -> "Remove beneficiary"
+    else -> "Remove contact"
+  },
+  onRemove = onRemove,
+  onClosed = onClosed,
+  useRecoveryContactHeader = !contact.isBeneficiary
+)
+
+/** Builds a sheet for a contact that needs re-verification. */
+fun ViewingUnverifiedContactSheetModel(
+  contact: TrustedContact,
+  onRemove: () -> Unit,
+  onClosed: () -> Unit,
+) = ViewingRecoveryContactSheetModel(
+  headline = "${contact.trustedContactAlias.alias} needs to be re-verified",
+  subline = "Your ${contact.label} needs to be re-verified with your Bitkey device. " +
+    "Tap the “Your wallet is at risk” alert on the Home screen to verify with your " +
+    "device, and this will be resolved automatically.",
   removeButtonText = when {
     TrustedContactRole.Beneficiary == contact.roles.singleOrNull() -> "Remove beneficiary"
     else -> "Remove contact"
@@ -82,7 +101,7 @@ fun ViewingFailedContactSheetModel(
 /**
  * Inline label used in copy to refer to the contact.
  */
-private val UnendorsedTrustedContact.label: String get() = when {
+private val TrustedContact.label: String get() = when {
   TrustedContactRole.Beneficiary == roles.singleOrNull() -> "beneficiary"
   else -> "Recovery Contact"
 }

@@ -119,6 +119,8 @@ fun Label(
   alignment: TextAlign = TextAlign.Start,
   treatment: LabelTreatment = LabelTreatment.Primary,
   color: Color = Color.Unspecified,
+  maxLines: Int = Int.MAX_VALUE,
+  overflow: TextOverflow = TextOverflow.Clip,
   allowFontScaling: Boolean = true,
   onClick: ((TextClickPosition) -> Unit)? = null,
 ) {
@@ -135,6 +137,8 @@ fun Label(
     text = textToRender,
     modifier = modifier,
     style = WalletTheme.labelStyle(type, treatment, alignment, color),
+    maxLines = maxLines,
+    overflow = overflow,
     allowFontScaling = allowFontScaling,
     onClick = onClick
   )

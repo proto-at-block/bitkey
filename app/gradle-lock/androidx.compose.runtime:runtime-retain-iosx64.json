@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-retain-iosx64",
+    "components": [
+        {
+            "version": "1.10.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-retain-iosX64Main-1.10.0.klib": "9d2940a80d751794556903c01fdd88a4f3c52ae3491b991caa0b502fef7ef83e"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime-retain-iosx64-1.10.0-metadata.jar": "729a46194fb6deda4c1d430581d04008df55e5be25e715129523cb5e19e93cd0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-geometry",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-geometry-metadata-1.9.3.jar": "a5fbbb522462bb0ece5ce163c26c513ece96bf757506899a79c001a12f1bb112"
+                        "ui-geometry-metadata-1.10.0.jar": "e29f3c194db2dd9fffa0b6dd304f7f7df7ba17b341b08e8f1655a889f624e58e"
                     }
                 }
             ],

@@ -16,6 +16,7 @@ fun TransactionItemModel(
   date: String,
   amount: String,
   amountEquivalent: String,
+  note: String? = null,
   transactionType: TransactionType,
   isPending: Boolean,
   isLate: Boolean,
@@ -23,8 +24,8 @@ fun TransactionItemModel(
   isLoading: Boolean = false,
   onClick: () -> Unit,
 ) = ListItemModel(
-  title = transactionType.title(),
-  titleLabel = transactionType.titleLabel(truncatedRecipientAddress),
+  title = note ?: transactionType.title(),
+  titleLabel = if (note == null) transactionType.titleLabel(truncatedRecipientAddress) else null,
   secondaryText = date,
   sideText = amount,
   secondarySideText = amountEquivalent,
@@ -33,7 +34,8 @@ fun TransactionItemModel(
   ),
   sideTextTint = transactionType.sideTextTint(),
   onClick = onClick,
-  isLoading = isLoading
+  isLoading = isLoading,
+  titleSingleLine = true
 )
 
 private fun TransactionType.title(): String =

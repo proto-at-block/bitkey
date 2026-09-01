@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.material:material-ripple-android",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "material-ripple.aar": "8161fe3ebef7ecf3f40a53b7b69308507bb10b023b3fdc7b58efb31713688479"
+                        "material-ripple.aar": "ad7c12b3256ada337533ebb422c03a203e6e0d4226f83315d2abad16616d80be"
                     }
                 }
             ],

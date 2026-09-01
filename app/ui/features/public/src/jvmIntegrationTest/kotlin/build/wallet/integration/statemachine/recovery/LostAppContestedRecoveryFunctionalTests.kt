@@ -10,7 +10,6 @@ import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.feature.setFlagValue
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.CompleteTwoTapBodyModel
@@ -461,7 +460,6 @@ private suspend fun TestScope.testWithTwoApps(
     isUsingSocRecFakes = isUsingSocRecFakes,
     executeWorkers = executeWorkers
   )
-  lostHwApp.w3OnboardingFeatureFlag.setFlagValue(false)
   lostHwApp.onboardFullAccountWithFakeHardware(true, delayNotifyDuration = 2.seconds)
   val fakeHardwareSeed = lostHwApp.fakeNfcCommands.fakeHardwareKeyStore.getSeed()
   lostHwApp.deleteBackupsFromFakeCloud(FullAccountIdMock)
@@ -473,7 +471,6 @@ private suspend fun TestScope.testWithTwoApps(
     hardwareSeed = fakeHardwareSeed,
     executeWorkers = executeWorkers
   )
-  lostAppApp.w3OnboardingFeatureFlag.setFlagValue(false)
 
   turbineScope(timeout = 30.seconds) {
     val lostAppAppTester =

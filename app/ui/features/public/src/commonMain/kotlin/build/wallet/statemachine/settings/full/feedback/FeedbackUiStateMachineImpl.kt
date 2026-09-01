@@ -66,13 +66,15 @@ class FeedbackUiStateMachineImpl(
     onStructureLoaded: (form: SupportTicketForm, initialData: SupportTicketData) -> Unit,
     onLoadFailed: (Error) -> Unit,
   ): ScreenModel {
+    val currentOnStructureLoaded by rememberUpdatedState(onStructureLoaded)
+    val currentOnLoadFailed by rememberUpdatedState(onLoadFailed)
     LaunchedEffect("load-form-structure") {
       supportTicketRepository.loadFormStructure()
         .onSuccess { value ->
           val initialData = supportTicketRepository.prefillKnownFields(value)
-          onStructureLoaded(value, initialData)
+          currentOnStructureLoaded(value, initialData)
         }
-        .onFailure { onLoadFailed(it) }
+        .onFailure { currentOnLoadFailed(it) }
     }
 
     return LoadingBodyModel(

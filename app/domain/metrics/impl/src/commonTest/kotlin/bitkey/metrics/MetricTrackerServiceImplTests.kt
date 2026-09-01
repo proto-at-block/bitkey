@@ -207,6 +207,34 @@ class MetricTrackerServiceImplTests : FunSpec({
     }
   }
 
+  test("immediate start then complete never leaves an orphaned metric") {
+    val metricTrackerService = service()
+
+    // Back-to-back start→complete with no intermediate await: persistence operations are
+    // serialized, so complete must observe the stored metric and remove it, never leaving
+    // an orphaned row that would later emit a spurious Timeout.
+    metricTrackerService.startMetric(MetricDefinitionFake, Variant1)
+    metricTrackerService.completeMetric(MetricDefinitionFake, MetricOutcome.Succeeded)
+
+    // Exactly one completed metric is emitted, with the correct outcome.
+    datadogRumMonitor.addUserActionCalls.awaitItem().shouldBe(
+      Triple(
+        ActionType.Custom,
+        MetricDefinitionFake.name.name,
+        mapOf(
+          "outcome" to "succeeded",
+          "variant" to Variant1.name
+        )
+      )
+    )
+    datadogRumMonitor.addUserActionCalls.awaitNoEvents(jobInterval)
+
+    // No orphaned row remains in the dao.
+    dao.metrics.test {
+      awaitUntil(emptyList())
+    }
+  }
+
   test("metrics are not processed when feature flag is disabled") {
     mobileRealTimeMetricsFeatureFlag.setFlagValue(false)
     val metricTrackerService = service()

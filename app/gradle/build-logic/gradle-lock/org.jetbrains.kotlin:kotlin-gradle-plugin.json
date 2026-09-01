@@ -2,19 +2,6 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin",
     "components": [
         {
-            "version": "2.1.20",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-gradle-plugin-2.1.20-gradle85.jar": "fb016e643b58e0aa2aec89110eaf14e78b3768c157f254345795fd6aa10493eb"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
-            ]
-        },
-        {
             "version": "2.2.20",
             "variants": [
                 {
@@ -24,6 +11,7 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[build-logic]"
             ]
         }

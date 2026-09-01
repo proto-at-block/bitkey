@@ -14,7 +14,7 @@ import build.wallet.platform.device.DevicePlatform
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.CustomContent
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpContent.Companion.TapBitkey
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpContentModel
 import build.wallet.ui.components.explainer.Statement as ExplainerStatement
@@ -38,9 +38,9 @@ class FingerprintEnrollmentHelpBodyModel(
     id = HW_FINGERPRINT_ENROLLMENT_HELP,
     onBack = onBack,
     toolbar = ToolbarModel(
-      leadingAccessory = BackAccessory(onClick = onBack)
+      leadingAccessory = BackAccessory(onClick = onBack),
+      title = ToolbarTitleModel.Large(title = "How it works")
     ),
-    formScreenTitle = FormScreenTitleModel(title = "How it works"),
     formScreenLayout = FormScreenLayoutModel.LargeTitle(),
     header = null,
     mainContentList = persistentListOf(

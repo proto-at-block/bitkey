@@ -1647,6 +1647,7 @@ class MigrationServiceImplTests : FunSpec({
     endorseArgs.oldHwAuthKey.shouldBe(mockAccount.keybox.activeHwKeyBundle.authKey)
     endorseArgs.newAppGlobalAuthKey.shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
     endorseArgs.newHwAuthKey.shouldBe(HwAuthSecp256k1PublicKeyMock)
+    endorseArgs.allowW3OnboardingPlaceholder.shouldBe(true)
     relationshipsService.syncCalls.awaitItem()
 
     val daoState = w3UpgradeDao.state.value.get().shouldNotBeNull()

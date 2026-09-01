@@ -6,12 +6,13 @@ sealed class HomeTab(
   open val selected: Boolean,
   open val onSelected: () -> Unit,
   val icon: Icon,
+  val label: String,
   open val badged: Boolean = false,
 ) {
   data class MoneyHome(
     override val selected: Boolean,
     override val onSelected: () -> Unit,
-  ) : HomeTab(selected, onSelected, if (selected) Icon.WalletFilled else Icon.Wallet)
+  ) : HomeTab(selected, onSelected, if (selected) Icon.WalletFilled else Icon.Wallet, "Money")
 
   data class SecurityHub(
     override val selected: Boolean,
@@ -20,6 +21,7 @@ sealed class HomeTab(
   ) : HomeTab(
       selected,
       onSelected,
-      if (selected) Icon.ShieldFilled else Icon.Shield
+      if (selected) Icon.ShieldFilled else Icon.Shield,
+      "Security"
     )
 }

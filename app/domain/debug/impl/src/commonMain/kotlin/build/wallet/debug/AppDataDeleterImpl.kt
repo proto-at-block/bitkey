@@ -3,6 +3,7 @@ package build.wallet.debug
 import bitkey.firmware.HardwareUnlockInfoService
 import bitkey.metrics.MetricTrackerService
 import bitkey.recovery.DescriptorBackupVerificationDao
+import bitkey.securitycenter.DelayNotifyConfigurationDao
 import bitkey.securitycenter.SecurityRecommendationInteractionDao
 import build.wallet.account.AccountService
 import build.wallet.auth.AuthKeyRotationAttemptDao
@@ -80,6 +81,7 @@ class AppDataDeleterImpl(
   private val metricTrackerService: MetricTrackerService,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
   private val securityRecommendationInteractionDao: SecurityRecommendationInteractionDao,
+  private val delayNotifyConfigurationDao: DelayNotifyConfigurationDao,
   private val coachmarkService: CoachmarkService,
   private val descriptorBackupVerificationDao: DescriptorBackupVerificationDao,
   private val migrationService: MigrationService,
@@ -120,6 +122,7 @@ class AppDataDeleterImpl(
       metricTrackerService.clearMetrics()
       hardwareUnlockInfoService.clear()
       securityRecommendationInteractionDao.clear()
+      delayNotifyConfigurationDao.clear()
       coachmarkService.resetCoachmarks()
       descriptorBackupVerificationDao.clear()
       migrationService.clearMigration(MigrationType.PrivateWalletMigration)

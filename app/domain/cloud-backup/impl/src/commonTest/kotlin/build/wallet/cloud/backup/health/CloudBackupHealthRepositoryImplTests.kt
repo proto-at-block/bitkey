@@ -1,40 +1,37 @@
 package build.wallet.cloud.backup.health
 
+import bitkey.account.HardwareType
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.F8eUnreachable
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.*
-import build.wallet.cloud.backup.CloudBackupOperationLockImpl
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.CsekMissing
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.CloudBackupOperationLockImpl
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.cloud.backup.v2.FullAccountFieldsMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.cloud.store.CloudError
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
-import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyexitkit.EmergencyExitKitData
 import build.wallet.emergencyexitkit.EmergencyExitKitRepositoryFake
 import build.wallet.encrypt.XCiphertext
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.CloudBackupForceReuploadTimestampFeatureFlag
-import build.wallet.feature.flags.CloudBackupHealthLoggingFeatureFlag
+import build.wallet.testing.shouldBeOk
 import build.wallet.logging.LogLevel
 import build.wallet.logging.LogWriterMock
 import build.wallet.logging.Logger
-import build.wallet.testing.shouldBeOk
-import co.touchlab.kermit.Severity
+import build.wallet.coroutines.turbine.turbines
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import okio.ByteString
 
@@ -55,7 +52,6 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val jsonSerializer = JsonSerializer()
   val featureFlagDao = FeatureFlagDaoFake()
-  val cloudBackupHealthLoggingFeatureFlag = CloudBackupHealthLoggingFeatureFlag(featureFlagDao)
   val cloudBackupForceReuploadTimestampFeatureFlag =
     CloudBackupForceReuploadTimestampFeatureFlag(featureFlagDao)
   val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
@@ -69,7 +65,6 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       fullAccountCloudBackupRepairer = fullAccountCloudBackupRepairer,
       appFunctionalityService = appFunctionalityService,
       jsonSerializer = jsonSerializer,
-      cloudBackupHealthLoggingFeatureFlag = cloudBackupHealthLoggingFeatureFlag,
       cloudBackupForceReuploadTimestampFeatureFlag = cloudBackupForceReuploadTimestampFeatureFlag,
       fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
       cloudBackupOperationLock = CloudBackupOperationLockImpl()
@@ -87,38 +82,6 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       requireAuthRefresh = false
     )
     cloudBackupService.awaitBackup(account)
-  }
-
-  // Helper function to set up a backup mismatch scenario
-  suspend fun setupBackupMismatch(
-    localBackup: CloudBackup,
-    cloudBackup: CloudBackup,
-  ) {
-    cloudStoreAccountRepository.set(cloudAccount)
-    cloudBackupDao.set(fullAccount.accountId.serverId, localBackup)
-    setCloudBackup(cloudAccount, cloudBackup)
-  }
-
-  // Helper function to filter mismatch warning logs
-  fun LogWriterMock.mismatchLogs() =
-    logs.filter {
-      it.severity == Severity.Warn && it.message.contains("Backup mismatch")
-    }
-
-  // Helper function to filter size warning logs
-  fun LogWriterMock.sizeWarningLogs() =
-    logs.filter {
-      it.severity == Severity.Warn && it.message.contains("Backup approaching 1MB")
-    }
-
-  // Helper function to create a large backup that exceeds the size warning threshold (900KB) but not the
-  // size limit (1MB)
-  fun createLargeBackup(): CloudBackupV3 {
-    val largeDekMap = (1..7400).associate {
-      "relationship-id-$it" to XCiphertext("cipher-text-$it-${"x".repeat(80)}.nonce-$it")
-    }
-    val largeFields = FullAccountFieldsMock.copy(socRecSealedDekMap = largeDekMap)
-    return CloudBackupV3WithFullAccountMock.copy(fullAccountFields = largeFields)
   }
 
   beforeTest {
@@ -330,175 +293,48 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     status.eekBackupStatus shouldBe EekBackupStatus.ProblemWithBackup.BackupMissing
   }
 
-  context("backup mismatch logging") {
-    val localBackup = CloudBackupV3WithFullAccountMock
-
-    test("logs backup mismatch when feature flag is enabled") {
-      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-      val healthRepository = createHealthRepository()
-      val cloudBackup = localBackup.copy(accountId = "different-account-id")
-      setupBackupMismatch(localBackup, cloudBackup)
-
-      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
-
-      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
-      logWriter.mismatchLogs().shouldNotBeEmpty()
-      logWriter.mismatchLogs().first().message shouldContain "accountId"
-    }
-
-    test("does not log backup mismatch when feature flag is disabled") {
-      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-      val healthRepository = createHealthRepository()
-      val cloudBackup = localBackup.copy(accountId = "different-account-id")
-      setupBackupMismatch(localBackup, cloudBackup)
-
-      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
-
-      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
-      logWriter.mismatchLogs().shouldBeEmpty()
-    }
-
-    test("logs diff summary with changed fields") {
-      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-      val healthRepository = createHealthRepository()
-      val cloudBackup = localBackup.copy(
-        accountId = "different-account-id",
-        deviceNickname = "different-device"
-      )
-      setupBackupMismatch(localBackup, cloudBackup)
-
-      healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
-
-      val mismatchLog = logWriter.mismatchLogs().first()
-      mismatchLog.message shouldContain "accountId"
-      mismatchLog.message shouldContain "deviceNickname"
-    }
-  }
-
-  context("backup size warning logging") {
-    test("logs size warning when backup exceeds threshold and feature flag is enabled") {
-      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-      val healthRepository = createHealthRepository()
-      val largeBackup = createLargeBackup()
-
-      cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, largeBackup)
-      setCloudBackup(cloudAccount, largeBackup)
-      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
-
-      healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
-
-      logWriter.sizeWarningLogs().shouldNotBeEmpty()
-      logWriter.sizeWarningLogs().first().message shouldContain "dek="
-    }
-
-    test("does not log size warning when feature flag is disabled") {
-      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-      val healthRepository = createHealthRepository()
-      val largeBackup = createLargeBackup()
-
-      cloudStoreAccountRepository.set(cloudAccount)
-      cloudBackupDao.set(fullAccount.accountId.serverId, largeBackup)
-      setCloudBackup(cloudAccount, largeBackup)
-      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
-
-      healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
-
-      logWriter.sizeWarningLogs().shouldBeEmpty()
-    }
-  }
-
   context("backup size limit exceeded for full accounts") {
-    // Helper to create an extremely large backup that exceeds 1MB limit
-    fun createExtraLargeFullAccountBackup(isV2: Boolean = false): CloudBackup {
-      // Create a backup over 1MB by adding a large socRecSealedDekMap
-      val extraLargeDekMap = (1..15000).associate {
+    fun createOversizedBackup(isV2: Boolean): CloudBackup {
+      val oversizedDekMap = (1..15000).associate {
         "relationship-id-$it" to XCiphertext("cipher-text-$it-${"x".repeat(100)}.nonce-$it")
       }
-      val largeFields = FullAccountFieldsMock.copy(socRecSealedDekMap = extraLargeDekMap)
+      val fields = FullAccountFieldsMock.copy(socRecSealedDekMap = oversizedDekMap)
       return if (isV2) {
-        CloudBackupV2WithFullAccountMock.copy(fullAccountFields = largeFields)
+        CloudBackupV2WithFullAccountMock.copy(fullAccountFields = fields)
       } else {
-        CloudBackupV3WithFullAccountMock.copy(fullAccountFields = largeFields)
+        CloudBackupV3WithFullAccountMock.copy(fullAccountFields = fields)
       }
     }
 
-    test("creates fixed backup when backup size exceeds limit for V3 full account") {
-      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-      val healthRepository = createHealthRepository()
-      val oversizedBackup = createExtraLargeFullAccountBackup(isV2 = false) as CloudBackupV3
+    listOf(false, true).forEach { isV2 ->
+      test("repairs oversized ${if (isV2) "V2" else "V3"} full account backup") {
+        val healthRepository = createHealthRepository()
+        val oversizedBackup = createOversizedBackup(isV2)
+        val fixedBackup = if (isV2) CloudBackupV2WithFullAccountMock else CloudBackupV3WithFullAccountMock
+        fullAccountCloudBackupCreator.backupResult = Ok(fixedBackup)
+        cloudStoreAccountRepository.set(cloudAccount)
+        setCloudBackup(cloudAccount, fixedBackup)
+        cloudBackupDao.set(fullAccount.accountId.serverId, oversizedBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-      // Setup the fixed backup that will be created
-      val fixedBackup = CloudBackupV3WithFullAccountMock
-      fullAccountCloudBackupCreator.backupResult = Ok(fixedBackup)
+        val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
-      cloudStoreAccountRepository.set(cloudAccount)
-      setCloudBackup(cloudAccount, fixedBackup)
-      cloudBackupDao.set(fullAccount.accountId.serverId, oversizedBackup)
-      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
-
-      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
-
-      // Should return Health status since the fixed backup will be used to silently repair
-      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
-
-      // Should have called the creator with the correct sealed CSEK and keybox
-      val createCall =
-        fullAccountCloudBackupCreator.createCalls.awaitItem() as Pair<SealedCsek, Keybox>
-      val (actualSealedCsek, actualKeybox) = createCall
-      actualSealedCsek shouldBe oversizedBackup.fullAccountFields!!.sealedHwEncryptionKey
-      actualKeybox shouldBe fullAccount.keybox
-
-      // Should have updated the DAO with the fixed backup
-      val updatedBackup = cloudBackupDao.get(fullAccount.accountId.serverId)
-      updatedBackup.shouldBeOk(fixedBackup)
-
-      // Should log the size warning
-      logWriter.sizeWarningLogs().shouldNotBeEmpty()
+        status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+        val (sealedCsek, keybox) =
+          fullAccountCloudBackupCreator.createCalls.awaitItem() as Pair<SealedCsek, Keybox>
+        sealedCsek shouldBe when (oversizedBackup) {
+          is CloudBackupV2 -> oversizedBackup.fullAccountFields!!.sealedHwEncryptionKey
+          is CloudBackupV3 -> oversizedBackup.fullAccountFields!!.sealedHwEncryptionKey
+        }
+        keybox shouldBe fullAccount.keybox
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(fixedBackup)
+      }
     }
 
-    test("creates fixed backup when backup size exceeds limit for V2 full account") {
-      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    test("continues when oversized backup repair fails") {
       val healthRepository = createHealthRepository()
-      val oversizedBackup = createExtraLargeFullAccountBackup(isV2 = true) as CloudBackupV2
-
-      // Setup the fixed backup that will be created
-      val fixedBackup = CloudBackupV2WithFullAccountMock
-      fullAccountCloudBackupCreator.backupResult = Ok(fixedBackup)
-
-      cloudStoreAccountRepository.set(cloudAccount)
-      setCloudBackup(cloudAccount, fixedBackup)
-      cloudBackupDao.set(fullAccount.accountId.serverId, oversizedBackup)
-      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
-
-      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
-
-      // Should return Health status since the fixed backup will be used to silently repair
-      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
-
-      // Should have called the creator with the correct sealed CSEK and keybox
-      val createCall =
-        fullAccountCloudBackupCreator.createCalls.awaitItem() as Pair<SealedCsek, Keybox>
-      val (actualSealedCsek, actualKeybox) = createCall
-      actualSealedCsek shouldBe oversizedBackup.fullAccountFields!!.sealedHwEncryptionKey
-      actualKeybox shouldBe fullAccount.keybox
-
-      // Should have updated the DAO with the fixed backup
-      val updatedBackup = cloudBackupDao.get(fullAccount.accountId.serverId)
-      updatedBackup.shouldBeOk(fixedBackup)
-
-      // Should log the size warning
-      logWriter.sizeWarningLogs().shouldNotBeEmpty()
-    }
-
-    test("handles fixed backup creation failure gracefully") {
-      cloudBackupHealthLoggingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-      val healthRepository = createHealthRepository()
-      val oversizedBackup = createExtraLargeFullAccountBackup() as CloudBackupV3
-
-      // Setup the creator to fail
+      val oversizedBackup = createOversizedBackup(isV2 = false)
       fullAccountCloudBackupCreator.backupResult = Err(CsekMissing)
-
       cloudStoreAccountRepository.set(cloudAccount)
       cloudBackupDao.set(fullAccount.accountId.serverId, oversizedBackup)
       setCloudBackup(cloudAccount, oversizedBackup)
@@ -506,16 +342,275 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
       val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
-      // Should have called the creator
       fullAccountCloudBackupCreator.createCalls.awaitItem()
-
-      // Should NOT crash, should continue with normal flow
-      // Since the fix failed and backups match, should report as healthy
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+      cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(oversizedBackup)
+    }
+  }
 
-      // DAO should still have the original oversized backup (not updated)
-      val unchangedBackup = cloudBackupDao.get(fullAccount.accountId.serverId)
-      unchangedBackup.shouldBeOk(oversizedBackup)
+  context("app global auth key hw signature check") {
+    // Backup written before the real hw signature was captured (keybox now has the real one).
+    fun withPlaceholderSignature(backup: CloudBackup): CloudBackup {
+      val placeholderFields = FullAccountFieldsMock.copy(
+        appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+          AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+        )
+      )
+      return when (backup) {
+        is CloudBackupV2 -> backup.copy(fullAccountFields = placeholderFields)
+        is CloudBackupV3 -> backup.copy(fullAccountFields = placeholderFields)
+      }
+    }
+
+    AllFullAccountBackupMocks.forEach { cloudBackup ->
+      val backupVersion = when (cloudBackup) {
+        is CloudBackupV2 -> "v2"
+        is CloudBackupV3 -> "v3"
+        else -> "unknown"
+      }
+
+      test("$backupVersion - regenerates backup and reports stale when backup has a placeholder signature") {
+        val healthRepository = createHealthRepository()
+        val staleBackup = withPlaceholderSignature(cloudBackup)
+
+        fullAccountCloudBackupCreator.backupResult = Ok(cloudBackup)
+
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, staleBackup)
+        setCloudBackup(cloudAccount, staleBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+        // Make the post-repair re-sync healthy by uploading the fixed backup during repair.
+        fullAccountCloudBackupRepairer.onRepairAttempt = {
+          setCloudBackup(cloudAccount, cloudBackup)
+        }
+
+        val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
+
+        status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+
+        val createCall =
+          fullAccountCloudBackupCreator.createCalls.awaitItem() as Pair<SealedCsek, Keybox>
+        val (actualSealedCsek, actualKeybox) = createCall
+        actualSealedCsek shouldBe FullAccountFieldsMock.sealedHwEncryptionKey
+        actualKeybox shouldBe fullAccount.keybox
+
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(cloudBackup)
+
+        fullAccountCloudBackupRepairer.attemptRepairCalls.size shouldBe 1
+        fullAccountCloudBackupRepairer.attemptRepairCalls.first()
+          .cloudBackupStatus.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.StaleBackup
+      }
+
+      test("$backupVersion - reports no cloud access when backup ownership cannot be confirmed") {
+        val healthRepository = createHealthRepository()
+        val staleBackup = withPlaceholderSignature(cloudBackup)
+
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, staleBackup)
+        setCloudBackup(cloudAccount, staleBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+        cloudBackupService.returnReadError =
+          CloudBackupError.UnrectifiableCloudBackupError(CloudError())
+
+        val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
+
+        status.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
+        fullAccountCloudBackupCreator.createCalls.expectNoEvents()
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(staleBackup)
+      }
+
+      test("$backupVersion - does not report stale when cloud backup belongs to another account") {
+        val healthRepository = createHealthRepository()
+        val staleBackup = withPlaceholderSignature(cloudBackup)
+        val otherAccountBackup = when (cloudBackup) {
+          is CloudBackupV2 -> cloudBackup.copy(accountId = "other-account-id")
+          is CloudBackupV3 -> cloudBackup.copy(accountId = "other-account-id")
+          else -> error("Unknown backup version: $cloudBackup")
+        }
+
+        fullAccountCloudBackupCreator.backupResult = Ok(cloudBackup)
+
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, staleBackup)
+        // Shared cloud account: the active cloud backup belongs to a different account.
+        setCloudBackup(cloudAccount, otherAccountBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+        val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
+
+        // Not reported stale: the repairer's StaleBackup path uploads unconditionally and
+        // would overwrite the other account's backup. The mismatch surfaces as InvalidBackup,
+        // whose repair branch refuses to overwrite a different account's backup.
+        fullAccountCloudBackupCreator.createCalls.expectNoEvents()
+        status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(staleBackup)
+      }
+
+      test("$backupVersion - does not report stale when backup regeneration fails") {
+        val healthRepository = createHealthRepository()
+        val staleBackup = withPlaceholderSignature(cloudBackup)
+
+        fullAccountCloudBackupCreator.backupResult = Err(CsekMissing)
+
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, staleBackup)
+        setCloudBackup(cloudAccount, staleBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+        val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
+
+        // The failed repair remains visible after performSync's post-repair health check.
+        fullAccountCloudBackupCreator.createCalls.awaitItem()
+        fullAccountCloudBackupCreator.createCalls.awaitItem()
+
+        status.appKeyBackupStatus shouldBe
+          AppKeyBackupStatus.ProblemWithBackup.PlaceholderSignatureRepairFailed
+        fullAccountCloudBackupRepairer.attemptRepairCalls.size shouldBe 1
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(staleBackup)
+      }
+
+      test("$backupVersion - does not report stale when persisting the regenerated backup fails") {
+        val healthRepository = createHealthRepository()
+        val staleBackup = withPlaceholderSignature(cloudBackup)
+
+        fullAccountCloudBackupCreator.backupResult = Ok(cloudBackup)
+
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, staleBackup)
+        setCloudBackup(cloudAccount, staleBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+        cloudBackupDao.returnErrorOnSet = true
+
+        val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
+
+        // The failed repair remains visible after performSync's post-repair health check.
+        fullAccountCloudBackupCreator.createCalls.awaitItem()
+        fullAccountCloudBackupCreator.createCalls.awaitItem()
+
+        status.appKeyBackupStatus shouldBe
+          AppKeyBackupStatus.ProblemWithBackup.PlaceholderSignatureRepairFailed
+        fullAccountCloudBackupRepairer.attemptRepairCalls.size shouldBe 1
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(staleBackup)
+      }
+
+      test("$backupVersion - does not regenerate when backup has a real but different signature") {
+        val healthRepository = createHealthRepository()
+        // Real but different signature, e.g. mid auth key rotation.
+        val rotatedFields = FullAccountFieldsMock.copy(
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("pre-rotation-signature")
+        )
+        val rotatedBackup = when (cloudBackup) {
+          is CloudBackupV2 -> cloudBackup.copy(fullAccountFields = rotatedFields)
+          is CloudBackupV3 -> cloudBackup.copy(fullAccountFields = rotatedFields)
+          else -> error("Unknown backup version: $cloudBackup")
+        }
+
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, rotatedBackup)
+        setCloudBackup(cloudAccount, rotatedBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+        val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
+
+        status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+        fullAccountCloudBackupCreator.createCalls.expectNoEvents()
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(rotatedBackup)
+      }
+
+      test("$backupVersion - skips signature check when backup hardware type does not match keybox") {
+        val healthRepository = createHealthRepository()
+        // Backup belongs to different hardware (mid-upgrade); its CSEK can't be reused.
+        val otherHardwareFields = FullAccountFieldsMock.copy(
+          hardwareType = HardwareType.W3,
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("other-hardware-signature")
+        )
+        val otherHardwareBackup = when (cloudBackup) {
+          is CloudBackupV2 -> cloudBackup.copy(fullAccountFields = otherHardwareFields)
+          is CloudBackupV3 -> cloudBackup.copy(fullAccountFields = otherHardwareFields)
+          else -> error("Unknown backup version: $cloudBackup")
+        }
+
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, otherHardwareBackup)
+        setCloudBackup(cloudAccount, otherHardwareBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+        val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
+
+        status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+        fullAccountCloudBackupCreator.createCalls.expectNoEvents()
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(otherHardwareBackup)
+      }
+
+      test("$backupVersion - skips signature check when keybox has orphaned key recovery sentinel") {
+        val healthRepository = createHealthRepository()
+        val sentinelKeybox = fullAccount.keybox.copy(
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+            AppGlobalAuthKeyHwSignature.ORPHANED_KEY_RECOVERY_SENTINEL
+          )
+        )
+
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
+        setCloudBackup(cloudAccount, cloudBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+        val status = healthRepository.performSync(fullAccount.accountId, sentinelKeybox)
+
+        status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+        fullAccountCloudBackupCreator.createCalls.expectNoEvents()
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(cloudBackup)
+      }
+
+      test("$backupVersion - skips signature check when keybox has W3 onboarding placeholder") {
+        val healthRepository = createHealthRepository()
+        val placeholderKeybox = fullAccount.keybox.copy(
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+            AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+          )
+        )
+
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
+        setCloudBackup(cloudAccount, cloudBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+        val status = healthRepository.performSync(fullAccount.accountId, placeholderKeybox)
+
+        status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+        fullAccountCloudBackupCreator.createCalls.expectNoEvents()
+        cloudBackupDao.get(fullAccount.accountId.serverId).shouldBeOk(cloudBackup)
+      }
+
+      test("$backupVersion - does not flag backup when signature matches keybox") {
+        val healthRepository = createHealthRepository()
+        cloudStoreAccountRepository.set(cloudAccount)
+        cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
+        setCloudBackup(cloudAccount, cloudBackup)
+        emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+        val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
+
+        status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+        fullAccountCloudBackupCreator.createCalls.expectNoEvents()
+      }
+    }
+
+    test("skips signature check for lite account backups") {
+      val healthRepository = createHealthRepository()
+      val liteBackup = CloudBackupV3WithLiteAccountMock
+
+      cloudStoreAccountRepository.set(cloudAccount)
+      cloudBackupDao.set(fullAccount.accountId.serverId, liteBackup)
+      setCloudBackup(cloudAccount, liteBackup)
+      emergencyExitKitRepository.setEekData(cloudAccount, eekData)
+
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
+
+      status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
+      fullAccountCloudBackupCreator.createCalls.expectNoEvents()
     }
   }
 
@@ -528,7 +623,6 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       fullAccountCloudBackupRepairer.reset()
       appFunctionalityService.reset()
       featureFlagDao.reset()
-      fullAccountCloudBackupCreator.reset()
       logWriter.clear()
       Logger.configure(
         tag = "Test",

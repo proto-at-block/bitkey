@@ -14,9 +14,6 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.PrivateWalletKeyboxMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
-import build.wallet.feature.flags.DescriptorBackupFailsafeFeatureFlag
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.notifications.RegisterWatchAddressProcessor
 import build.wallet.queueprocessor.Processor
@@ -41,8 +38,6 @@ class BitcoinAddressServiceImplTests : FunSpec({
   val transactionService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
   val descriptorBackupService = DescriptorBackupServiceFake()
-  val featureFlagDao = FeatureFlagDaoFake()
-  val descriptorBackupFailsafeFeatureFlag = DescriptorBackupFailsafeFeatureFlag(featureFlagDao)
   val spendingKeysetRepairService = SpendingKeysetRepairServiceFake()
 
   fun createService(
@@ -68,7 +63,6 @@ class BitcoinAddressServiceImplTests : FunSpec({
     transactionService.spendingWallet.value = spendingWallet
     accountService.reset()
     descriptorBackupService.reset()
-    featureFlagDao.reset()
     spendingKeysetRepairService.reset()
   }
 
@@ -145,7 +139,6 @@ class BitcoinAddressServiceImplTests : FunSpec({
   test("checks descriptor backup prior to address generation") {
     accountService.setActiveAccount(FullAccountMock.copy(keybox = PrivateWalletKeyboxMock))
     descriptorBackupService.checkBackupForPrivateKeysetResult = Err(IllegalStateException("No descriptor backup exists"))
-    descriptorBackupFailsafeFeatureFlag.setFlagValue(BooleanFlag(true))
 
     val service = createService()
     spendingWallet.newAddressResult = Ok(someBitcoinAddress)

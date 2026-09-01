@@ -1,0 +1,8 @@
+ALTER TABLE protectedCustomerEntity ADD COLUMN relationshipStatus TEXT NOT NULL DEFAULT 'UNENDORSED';
+
+-- Existing rows predate this column. They were cached as protected customers, which was only
+-- possible for endorsed relationships, so backfill them as ENDORSED to avoid a transient
+-- "Pending" state after upgrade until the next successful sync.
+UPDATE protectedCustomerEntity SET relationshipStatus = 'ENDORSED';
+
+PRAGMA foreign_key_check;

@@ -8,13 +8,19 @@ import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.bitcoin.wallet.SpendingWalletV2ProviderMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.csek.Csek
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.MessageSignerFake
+import build.wallet.encrypt.Secp256k1PrivateKey
+import build.wallet.encrypt.SignatureUtils
 import build.wallet.encrypt.SignatureUtilsMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.nfc.NfcSessionFake.Companion.invoke
+import build.wallet.nfc.platform.ActionProofAction
+import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.nfc.transaction.TransactionError
@@ -25,6 +31,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.shouldBe
+import okio.ByteString
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 import kotlinx.coroutines.runBlocking
@@ -227,6 +234,92 @@ class NfcCommandsFakeTests : FunSpec({
 
       // Now getAddress should work
       w3Commands.getAddress(sessionFake, 0u).shouldBeEqual("bc1q_fake_w3_0")
+    }
+  }
+
+  context("W3 action proof signing") {
+    val signedMessages = mutableListOf<ByteString>()
+    val actionProofMessageSigner =
+      object : MessageSigner {
+        override fun sign(
+          message: ByteString,
+          key: Secp256k1PrivateKey,
+        ): String {
+          signedMessages.add(message)
+          return "00"
+        }
+      }
+    val actionProofSignatureUtils =
+      object : SignatureUtils {
+        override fun encodeSignatureToDer(compactSignature: ByteArray): ByteString = ByteString.EMPTY
+
+        override fun decodeSignatureFromDer(derSignature: ByteString): ByteArray =
+          ByteArray(64) { 0xAB.toByte() }
+      }
+    val accountConfigService = AccountConfigServiceFake().also {
+      runBlocking { it.setHardwareType(HardwareType.W3) }
+    }
+    val w3Commands = BitkeyW3CommandsFake(
+      w1CommandsFake = nfcCommands,
+      accountConfigService = accountConfigService,
+      fakeHardwareKeyStore = fakeHardwareKeyStore,
+      fakeHardwareSpendingWalletProvider = fakeHardwareSpendingWalletProvider,
+      fakeHardwareStatesDao = fakeHardwareStatesDao,
+      messageSigner = actionProofMessageSigner,
+      signatureUtils = actionProofSignatureUtils
+    )
+
+    test("W3 fake signs delay notify period with the firmware action and value") {
+      signedMessages.clear()
+
+      val bindings = "n=nonce,tb=token"
+      val interaction = w3Commands.signActionProof(
+        session = sessionFake,
+        version = 1u,
+        action = ActionProofAction.SET_DELAY_NOTIFY_PERIOD,
+        value = "14",
+        bindings = bindings
+      )
+
+      val prompt = interaction as HardwareInteraction.ConfirmWithEmulatedPrompt<String>
+      val completed = prompt.approve.fetchResult(sessionFake, w3Commands)
+        as HardwareInteraction.Completed<String>
+
+      completed.result.shouldBeEqual("ab".repeat(64))
+      signedMessages.single().utf8().split(0x1F.toChar()).shouldBeEqual(
+        listOf(
+          "ACTIONPROOF",
+          "1",
+          "SetDelayNotifyPeriod",
+          "14",
+          bindings
+        )
+      )
+    }
+  }
+
+  context("W3 commands mock") {
+    test("records delay notify period action proof calls") {
+      val commands = W3NfcCommandsMock { name -> turbines.create("mock-$name") }
+      val bindings = "n=nonce,tb=token"
+
+      val completed = commands.signActionProof(
+        session = sessionFake,
+        version = 1u,
+        action = ActionProofAction.SET_DELAY_NOTIFY_PERIOD,
+        value = "14",
+        bindings = bindings
+      ) as HardwareInteraction.Completed<String>
+
+      completed.result.shouldBeEqual("0".repeat(128))
+      commands.signActionProofCalls.awaitItem().shouldBeEqual(
+        SignActionProofCall(
+          version = 1u,
+          action = ActionProofAction.SET_DELAY_NOTIFY_PERIOD,
+          value = "14",
+          bindings = bindings
+        )
+      )
     }
   }
 })

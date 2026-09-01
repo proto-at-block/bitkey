@@ -8,7 +8,7 @@ import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Treatment.*
 import build.wallet.ui.model.callout.CalloutModel
@@ -63,9 +63,9 @@ data class DeviceSettingsFormBodyModel(
     id = trackerScreenId,
     onBack = onBack,
     toolbar = ToolbarModel(
-      leadingAccessory = BackAccessory(onClick = onBack)
+      leadingAccessory = BackAccessory(onClick = onBack),
+      title = ToolbarTitleModel.Large(title = "Bitkey Device")
     ),
-    formScreenTitle = FormScreenTitleModel(title = "Bitkey Device"),
     formScreenLayout = FormScreenLayoutModel.LargeTitle(),
     header = null,
     mainContentList = immutableListOfNotNull(

@@ -4,6 +4,7 @@ import app.cash.turbine.plusAssign
 import bitkey.relationships.Relationships
 import build.wallet.LoadableValue.InitialLoading
 import build.wallet.bitkey.relationships.BeneficiaryInvitationFake
+import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.bitkey.relationships.InvitationFake
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.bitkey.relationships.UnendorsedTrustedContactFake
@@ -16,8 +17,8 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
 import io.kotest.matchers.should
+import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
 import kotlinx.datetime.Instant.Companion.DISTANT_PAST
 
@@ -71,7 +72,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       awaitItem().shouldBeLoaded().let { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
-          cardModel.title.shouldNotBeNull().string.shouldBeEqual("trustedContactAlias fake")
+          cardModel.title.shouldBeEqual("trustedContactAlias fake")
           cardModel.onClick.shouldNotBeNull().invoke()
         }
         onClickCalls.awaitItem()
@@ -87,13 +88,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       awaitItem().shouldBeLoaded().let { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
-          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Pending")
-          cardModel.style.shouldBeEqual(
-            build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient(
-              backgroundColor =
-                build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground
-            )
-          )
+          cardModel.inverse.shouldBeEqual(true)
         }
       }
     }
@@ -108,13 +103,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       awaitItem().shouldBeLoaded().let { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
-          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Expired")
-          cardModel.style.shouldBeEqual(
-            build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient(
-              backgroundColor =
-                build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient.BackgroundColor.Default
-            )
-          )
+          cardModel.inverse.shouldBeEqual(false)
         }
       }
     }
@@ -146,9 +135,8 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       awaitItem().shouldBeLoaded().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
-          cardModel.title.shouldNotBeNull().string.shouldBeEqual("someContact")
+          cardModel.title.shouldBeEqual("someContact")
           cardModel.subtitle.shouldNotBeNull().shouldBeEqual("Failed Recovery Contact")
-          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Review")
         }
       }
     }
@@ -167,9 +155,8 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       awaitItem().shouldBeLoaded().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
-          cardModel.title.shouldNotBeNull().string.shouldBeEqual("someContact")
+          cardModel.title.shouldBeEqual("someContact")
           cardModel.subtitle.shouldNotBeNull().shouldBeEqual("Failed Recovery Contact")
-          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Review")
         }
       }
     }
@@ -188,10 +175,46 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       awaitItem().shouldBeLoaded().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
-          cardModel.title.shouldNotBeNull().string.shouldBeEqual("someContact")
+          cardModel.title.shouldBeEqual("someContact")
           cardModel.subtitle.shouldNotBeNull().shouldBeEqual("Invalid Recovery Contact")
-          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Review")
         }
+      }
+    }
+  }
+
+  test("Placeholder endorsed contact produces a verification card") {
+    relationshipsService.relationships.value = relationships.copy(
+      endorsedTrustedContacts = listOf(
+        EndorsedTrustedContactFake1.copy(
+          authenticationState = TrustedContactAuthenticationState.AWAITING_VERIFY,
+          keyCertificate = EndorsedTrustedContactFake1.keyCertificate.copy(
+            appAuthGlobalKeyHwSignature = build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature(
+              build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+            )
+          )
+        )
+      )
+    )
+
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+      awaitItem().shouldBeLoaded().should { cards ->
+        cards.single().subtitle.shouldNotBeNull().shouldBeEqual("Needs verification")
+      }
+    }
+  }
+
+  test("Tampered endorsed contact produces an invalid card") {
+    relationshipsService.relationships.value = relationships.copy(
+      endorsedTrustedContacts = listOf(
+        EndorsedTrustedContactFake1.copy(
+          authenticationState = TrustedContactAuthenticationState.TAMPERED
+        )
+      )
+    )
+
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+      awaitItem().shouldBeLoaded().should { cards ->
+        cards.single().subtitle.shouldNotBeNull().shouldBeEqual("Invalid Recovery Contact")
       }
     }
   }

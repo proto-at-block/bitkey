@@ -1,0 +1,26 @@
+# Hand-authored recording for the welcome-screen smoke trail. Selectors reference stable
+# copy on ChooseAccountAccessScreen (app/ui/features/public). Re-record with the trailblaze
+# CLI if this drifts: docs/docs/mobile/testing/trailblaze.md
+- config:
+    id: bitkey/smoke/welcome-screen
+    target: world.bitkey.debug
+    platform: android
+    driver: ANDROID_ONDEVICE_ACCESSIBILITY
+- tools:
+  - launchApp:
+      appId: world.bitkey.debug
+- prompts:
+  - verify: The Bitkey welcome screen is shown with a "Set up a new wallet" button and a "More options" button
+    recording:
+      tools:
+      - assertVisibleBySelector:
+          reason: Verify the primary onboarding action is visible on the welcome screen.
+          nodeSelector:
+            androidAccessibility:
+              # Buttons render their labels uppercase, so the accessibility text is uppercase.
+              textRegex: (?i)set up a new wallet
+      - assertVisibleBySelector:
+          reason: Verify the secondary onboarding action is visible on the welcome screen.
+          nodeSelector:
+            androidAccessibility:
+              textRegex: (?i)more options

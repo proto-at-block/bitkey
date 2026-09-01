@@ -11,6 +11,8 @@ class SsekDaoFake : SsekDao {
 
   var setResult: Result<Unit, Throwable> = Ok(Unit)
   var getErrResult: Result<Ssek?, Throwable>? = null
+  var getAllErrResult: Result<Map<SealedSsek, Ssek>, Throwable>? = null
+  var getAllSealedIdsErrResult: Result<Set<SealedSsek>, Throwable>? = null
 
   override suspend fun get(key: SealedSsek): Result<Ssek?, Throwable> {
     return getErrResult ?: Ok(sseks[key])
@@ -24,6 +26,14 @@ class SsekDaoFake : SsekDao {
     return setResult
   }
 
+  override suspend fun getAll(): Result<Map<SealedSsek, Ssek>, Throwable> {
+    return getAllErrResult ?: Ok(sseks.toMap())
+  }
+
+  override suspend fun getAllSealedIds(): Result<Set<SealedSsek>, Throwable> {
+    return getAllSealedIdsErrResult ?: Ok(sseks.keys.toSet())
+  }
+
   override suspend fun clear(): Result<Unit, Throwable> {
     reset()
     return Ok(Unit)
@@ -32,6 +42,8 @@ class SsekDaoFake : SsekDao {
   fun reset() {
     setResult = Ok(Unit)
     getErrResult = null
+    getAllErrResult = null
+    getAllSealedIdsErrResult = null
     sseks.clear()
   }
 }

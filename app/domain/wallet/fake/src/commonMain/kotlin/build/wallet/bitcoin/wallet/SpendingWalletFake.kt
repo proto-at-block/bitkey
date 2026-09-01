@@ -263,6 +263,7 @@ class SpendingWalletFake(
   }
 
   private var transactionIndex: Int = 0
+  var nextTransactionId: String? = null
 
   private val defaultFee = BitcoinMoney.sats(500)
 
@@ -275,7 +276,7 @@ class SpendingWalletFake(
 
     addTransaction(
       BitcoinTransaction(
-        id = "fake-tx-$transactionIndex",
+        id = consumeNextTransactionId(),
         recipientAddress =
           lastUnusedAddress.also {
             lastUnusedAddress = rotatedAddress()
@@ -308,7 +309,7 @@ class SpendingWalletFake(
 
     addTransaction(
       BitcoinTransaction(
-        id = "fake-tx-$transactionIndex",
+        id = consumeNextTransactionId(),
         recipientAddress = externalAddress,
         broadcastTime = previousBlockTime.timestamp,
         estimatedConfirmationTime = previousBlockTime.timestamp + 10.minutes,
@@ -334,7 +335,7 @@ class SpendingWalletFake(
 
     addTransaction(
       BitcoinTransaction(
-        id = "fake-tx-$transactionIndex",
+        id = consumeNextTransactionId(),
         recipientAddress = rotatedAddress(),
         broadcastTime = previousBlockTime.timestamp,
         estimatedConfirmationTime = previousBlockTime.timestamp + 10.minutes,
@@ -355,6 +356,10 @@ class SpendingWalletFake(
    * Adds a transaction to this wallet. In order for transaction history balance to be updated,
    * call [sync].
    */
+  private fun consumeNextTransactionId(): String =
+    (nextTransactionId ?: "fake-tx-$transactionIndex")
+      .also { nextTransactionId = null }
+
   private suspend fun addTransaction(transaction: BitcoinTransaction) {
     walletLock.withLock {
       when (transaction.confirmationStatus) {
@@ -413,6 +418,7 @@ class SpendingWalletFake(
       pendingTransactions.clear()
       confirmedTransactions.clear()
       previousBlockTime = initialBlockTime
+      nextTransactionId = null
     }
   }
 }

@@ -105,7 +105,7 @@ private fun NotificationPreferencesSetupFormItemModel.State.icon(needsActionIcon
   when (this) {
     NeedsAction -> needsActionIcon
     Completed -> SmallIconCheckFilled
-    Skipped -> XFilled
+    Skipped -> XCircleFill
   }
 
 private fun NotificationPreferencesSetupFormItemModel.State.treatment(): ListItemTreatment =

@@ -21,8 +21,6 @@ import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_OPEN
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.isEnabled
-import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.firmware.UnlockInfo
 import build.wallet.logging.*
 import build.wallet.nfc.NfcException
@@ -48,6 +46,7 @@ import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.form.rememberHardwareInteractionRevealed
 import build.wallet.statemachine.core.SheetDragHandleTreatment.OVERLAY
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -70,7 +69,6 @@ class PairNewHardwareUiStateMachineImpl(
   private val appSessionManager: AppSessionManager,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
-  private val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
   private val accountConfigService: AccountConfigService,
 ) : PairNewHardwareUiStateMachine {
   private val seenTapBitkeyIntroSessionKeys = mutableSetOf<String>()
@@ -80,8 +78,6 @@ class PairNewHardwareUiStateMachineImpl(
     val scope = rememberStableCoroutineScope()
     val isDesignSystemV2Enabled = true
     val devicePlatform = remember { deviceInfoProvider.getDeviceInfo().devicePlatform }
-    // W3Upgrade context always forces W3 onboarding, regardless of feature flag.
-    val isW3Flow = props.pairingContext is PairingContext.W3Upgrade || w3OnboardingFeatureFlag.isEnabled()
     // Only override hardware type for fake hardware — real hardware auto-detects from firmware.
     val isHardwareFake = remember {
       when (val config = accountConfigService.activeOrDefaultConfig().value) {
@@ -107,19 +103,12 @@ class PairNewHardwareUiStateMachineImpl(
       }
     }
     var state: State by remember {
-      val initialState = if (isW3Flow) {
-        ShowingActivationInstructionsV2UiState()
-      } else {
-        ShowingActivationInstructionsUiState()
-      }
-      mutableStateOf(initialState)
+      mutableStateOf<State>(ShowingActivationInstructionsV2UiState())
     }
     val tapBitkeyIntroSessionKey = tapBitkeyIntroSessionKey(props.pairingContext)
     var hasSeenTapBitkeyIntroSheet by remember(tapBitkeyIntroSessionKey) {
       mutableStateOf(hasSeenTapBitkeyIntroSheet(tapBitkeyIntroSessionKey))
     }
-    val shouldShowTapBitkeyIntroSheet =
-      isW3Flow
     val pairNewHardwareBodyModelPresentationStyle = determinePresentationStyle(props.screenPresentationStyle)
 
     return when (val s = state) {
@@ -129,7 +118,6 @@ class PairNewHardwareUiStateMachineImpl(
           props,
           pairNewHardwareBodyModelPresentationStyle,
           devicePlatform,
-          shouldShowTapBitkeyIntroSheet = shouldShowTapBitkeyIntroSheet,
           hasSeenTapBitkeyIntroSheet = hasSeenTapBitkeyIntroSheet,
           markTapBitkeyIntroSheetSeen = {
             markTapBitkeyIntroSheetSeen(tapBitkeyIntroSessionKey)
@@ -193,7 +181,6 @@ class PairNewHardwareUiStateMachineImpl(
     props: PairNewHardwareProps,
     presentationStyle: ScreenPresentationStyle,
     devicePlatform: build.wallet.platform.device.DevicePlatform,
-    shouldShowTapBitkeyIntroSheet: Boolean,
     hasSeenTapBitkeyIntroSheet: Boolean,
     markTapBitkeyIntroSheetSeen: () -> Unit,
     updateState: (State) -> Unit,
@@ -243,7 +230,7 @@ class PairNewHardwareUiStateMachineImpl(
       presentationStyle = presentationStyle,
       themePreference = ThemePreference.Manual(Theme.DARK),
       bottomSheetModel =
-        if (shouldShowTapBitkeyIntroSheet && !hasSeenTapBitkeyIntroSheet) {
+        if (!hasSeenTapBitkeyIntroSheet) {
           SheetModel(
             dragHandleTreatment = OVERLAY,
             onClosed = dismissTapBitkeyIntroSheet,
@@ -455,6 +442,7 @@ class PairNewHardwareUiStateMachineImpl(
 
     // W3 flow - show "Finished on your device?" screen
     if (state.hardwareType == HardwareType.W3) {
+      val footerRevealed = rememberHardwareInteractionRevealed(isHardwareFake)
       return ScreenModel(
         body = CompleteTwoTapBodyModel(
           onContinue = {
@@ -463,7 +451,7 @@ class PairNewHardwareUiStateMachineImpl(
           onBack = props.onExit,
           onHelpClick = { updateState(state.copy(showingHelp = true)) },
           eventTrackerContext = props.eventTrackerContext,
-          isHardwareFake = isHardwareFake
+          footerRevealed = footerRevealed
         ),
         presentationStyle = presentationStyle,
         themePreference = screenThemePreference(isDesignSystemV2Enabled)
@@ -539,6 +527,8 @@ class PairNewHardwareUiStateMachineImpl(
         ),
         hardwareVerification = NotRequired,
         screenPresentationStyle = props.screenPresentationStyle,
+        segment = props.segment,
+        actionDescription = "Completing fingerprint enrollment while pairing new hardware",
         eventTrackerContext = NfcEventTrackerScreenIdContext.PAIR_NEW_HW_FINGERPRINT,
         onInauthenticHardware = { cause ->
           logError(throwable = cause) {

@@ -15,13 +15,13 @@ class NotificationPermissionRequesterMock(
 
   @Composable
   override fun requestNotificationPermission(
-    onGranted: () -> Unit,
-    onDeclined: () -> Unit,
+    onGrant: () -> Unit,
+    onDecline: () -> Unit,
   ) {
     LaunchedEffect("request-notification-permission") {
       requestNotificationPermissionCalls += Unit
     }
-    if (successful) onGranted() else onDeclined()
+    if (successful) onGrant() else onDecline()
   }
 
   fun reset() {

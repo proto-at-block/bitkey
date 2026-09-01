@@ -39,6 +39,7 @@ import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.compose.LocalHaptics
+import build.wallet.ui.compose.resId
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
@@ -163,6 +164,7 @@ private fun RowScope.KeypadButton(
       Modifier
         .weight(1F)
         .height(72.dp)
+        .resId(keypadButtonTestTag(button))
         .pointerInput(show, button) {
           if (!show) return@pointerInput
 
@@ -330,6 +332,20 @@ private fun DeleteIcon(
 
 private const val KEYPAD_PRESS_OUT_DURATION_MS = 120
 private const val KEYPAD_PRESS_MINIMUM_VISUAL_DURATION = 32L
+
+/**
+ * Stable, unique test tag per keypad button so UI test frameworks (and recorded
+ * Trailblaze trails) can target a specific button deterministically, instead of
+ * matching on the button's displayed text/label. Digit labels ("5", "0", etc.)
+ * are not unique on amount-entry screens once dynamic price/balance text is on
+ * screen, so text-based selectors can resolve to the wrong element.
+ */
+fun keypadButtonTestTag(button: KeypadButton): String =
+  when (button) {
+    is KeypadButton.Digit -> "keypad-digit-${button.value}"
+    KeypadButton.Decimal -> "keypad-decimal"
+    KeypadButton.Delete -> "keypad-delete"
+  }
 
 @Composable
 private fun DecimalIcon(

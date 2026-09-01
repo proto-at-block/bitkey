@@ -8,13 +8,10 @@ import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.*
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.feature.setFlagValue
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.onboarding.OnboardingKeyboxStep.*
 import build.wallet.platform.permissions.PermissionStatus
@@ -60,7 +57,6 @@ class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
         PermissionStatus.Authorized
       )
       accountConfigService.setHardwareType(coverageMode.hardwareType).getOrThrow()
-      w3OnboardingFeatureFlag.setFlagValue(coverageMode == HardwareCoverageMode.W3Private)
     }
   }
 
@@ -138,13 +134,7 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCreateKeyboxScree
   when (coverageMode) {
     HardwareCoverageMode.W1Baseline -> {
       awaitUntilBody<PairNewHardwareBodyModel>(
-        HW_ACTIVATION_INSTRUCTIONS,
-        matching = { !it.primaryButton.isLoading }
-      ) {
-        clickPrimaryButton()
-      }
-      awaitUntilBody<PairNewHardwareBodyModel>(
-        HW_PAIR_INSTRUCTIONS,
+        HW_ACTIVATION_INSTRUCTIONS_V2,
         matching = { !it.primaryButton.isLoading }
       ) {
         clickPrimaryButton()

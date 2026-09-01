@@ -67,7 +67,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
         label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("")
-        it.secondarySideText.shouldBe("100,000,000 sats")
+        it.secondarySideText.shouldBe("₿100,000,000")
         it.sideTextTint.shouldBe(GREEN)
         it.leadingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>()
           .model
@@ -90,7 +90,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
         label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("confirmed-time")
         it.sideText.shouldBe("")
-        it.secondarySideText.shouldBe("100,000,000 sats")
+        it.secondarySideText.shouldBe("₿100,000,000")
         it.sideTextTint.shouldBe(GREEN)
       }
 
@@ -106,7 +106,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
         label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("")
-        it.secondarySideText.shouldBe("101,000,000 sats")
+        it.secondarySideText.shouldBe("₿101,000,000")
         it.sideTextTint.shouldBe(PRIMARY)
       }
 
@@ -122,7 +122,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
         label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("confirmed-time")
         it.sideText.shouldBe("")
-        it.secondarySideText.shouldBe("101,000,000 sats")
+        it.secondarySideText.shouldBe("₿101,000,000")
         it.sideTextTint.shouldBe(PRIMARY)
         it.leadingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>()
           .model
@@ -140,7 +140,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
         it.title.shouldBe("Consolidation")
         it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("")
-        it.secondarySideText.shouldBe("100,000,000 sats")
+        it.secondarySideText.shouldBe("₿100,000,000")
         it.sideTextTint.shouldBe(PRIMARY)
       }
 
@@ -154,7 +154,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
         it.title.shouldBe("Consolidation")
         it.secondaryText.shouldBe("confirmed-time")
         it.sideText.shouldBe("")
-        it.secondarySideText.shouldBe("100,000,000 sats")
+        it.secondarySideText.shouldBe("₿100,000,000")
         it.sideTextTint.shouldBe(PRIMARY)
       }
 
@@ -172,7 +172,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
         label.string.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("")
-        it.secondarySideText.shouldBe("101,000,000 sats")
+        it.secondarySideText.shouldBe("₿101,000,000")
         it.sideTextTint.shouldBe(PRIMARY)
         it.leadingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>()
           .model

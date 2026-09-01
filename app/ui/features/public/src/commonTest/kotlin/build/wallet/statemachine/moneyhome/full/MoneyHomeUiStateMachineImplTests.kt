@@ -38,6 +38,8 @@ import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.send.SendUiProps
 import build.wallet.statemachine.send.SendUiStateMachine
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.transactions.FailedPartnerTransactionProps
 import build.wallet.statemachine.transactions.FailedPartnerTransactionUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetailsUiProps
@@ -77,6 +79,8 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
 
   val defaultW3UpgradeUiStateMachine = object : W3UpgradeUiStateMachine,
     ScreenStateMachineMock<W3UpgradeUiProps>("w3-upgrade") {}
+  val feedbackUiStateMachine = object : FeedbackUiStateMachine,
+    ScreenStateMachineMock<FeedbackUiProps>("feedback") {}
 
   val baseMigrationService = MigrationServiceFake()
   var resumeOverride: ((MigrationType) -> Result<MigrationProgress, MigrationError>)? = null
@@ -137,7 +141,8 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
     partnershipsPurchaseQuotesUiStateMachine = object : PartnershipsPurchaseQuotesUiStateMachine,
       ScreenStateMachineMock<PartnershipsPurchaseQuotesUiProps>("purchase-quotes") {},
     deepLinkHandler = DeepLinkHandlerMock(turbines::create),
-    w3UpgradeUiStateMachine = w3UpgradeUiStateMachine
+    w3UpgradeUiStateMachine = w3UpgradeUiStateMachine,
+    feedbackUiStateMachine = feedbackUiStateMachine
   )
 
   val stateMachine = createStateMachine()
@@ -170,6 +175,23 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
       }
 
       awaitBodyMock<CustomAmountEntryUiProps>(id = customAmountEntryUiStateMachine.id) {
+        onBack()
+      }
+
+      awaitUntilBodyMock<MoneyHomeViewingBalanceUiProps>(id = moneyHomeViewingBalanceUiStateMachine.id) {
+        state.shouldBe(MoneyHomeUiState.ViewingBalanceUiState())
+      }
+    }
+  }
+
+  test("contact support from money home opens feedback") {
+    stateMachine.test(props) {
+      awaitUntilBodyMock<MoneyHomeViewingBalanceUiProps>(id = moneyHomeViewingBalanceUiStateMachine.id) {
+        onContactSupport()
+      }
+
+      awaitBodyMock<FeedbackUiProps>(id = feedbackUiStateMachine.id) {
+        account.shouldBe(FullAccountMock)
         onBack()
       }
 

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:compose-compiler-gradle-plugin",
     "components": [
         {
-            "version": "2.1.20",
+            "version": "2.2.20",
             "variants": [
                 {
                     "artifacts": {
-                        "compose-compiler-gradle-plugin-2.1.20-gradle85.jar": "0a909146ca663ac5557bd19cc32ba6ec26e4e967f5d5f0e953c8889b17b79f78"
+                        "compose-compiler-gradle-plugin-2.2.20-gradle813.jar": "a3385b8a94cf4f00957ea7da0e25ea93053c1acc648e45df168b3d83ffc2d473"
                     }
                 }
             ],

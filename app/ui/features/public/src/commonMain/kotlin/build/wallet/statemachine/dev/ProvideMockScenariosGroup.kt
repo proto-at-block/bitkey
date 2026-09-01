@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProvideMockPriceScenariosGroup(
   mockScenarioService: MockScenarioService,
-  onConfigurationChanged: () -> Unit,
+  onConfigurationChange: () -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
   val coroutineScope = rememberStableCoroutineScope()
@@ -46,7 +46,7 @@ fun ProvideMockPriceScenariosGroup(
             coroutineScope.launch {
               mockScenarioService.clearScenarios(clearPrice = true, clearTransaction = false)
               currentPriceScenario = mockScenarioService.currentPriceScenario()
-              onConfigurationChanged()
+              onConfigurationChange()
             }
           }
         )
@@ -62,7 +62,7 @@ fun ProvideMockPriceScenariosGroup(
               coroutineScope.launch {
                 mockScenarioService.setPriceScenario(scenario)
                 currentPriceScenario = mockScenarioService.currentPriceScenario()
-                onConfigurationChanged()
+                onConfigurationChange()
               }
             }
           )
@@ -79,7 +79,7 @@ fun ProvideMockPriceScenariosGroup(
 @Composable
 fun ProvideMockTransactionScenariosGroup(
   mockScenarioService: MockScenarioService,
-  onConfigurationChanged: () -> Unit,
+  onConfigurationChange: () -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
   val coroutineScope = rememberStableCoroutineScope()
@@ -100,7 +100,7 @@ fun ProvideMockTransactionScenariosGroup(
             coroutineScope.launch {
               mockScenarioService.clearScenarios(clearPrice = false, clearTransaction = true)
               currentTransactionScenario = mockScenarioService.currentTransactionScenario()
-              onConfigurationChanged()
+              onConfigurationChange()
             }
           }
         )
@@ -116,7 +116,7 @@ fun ProvideMockTransactionScenariosGroup(
               coroutineScope.launch {
                 mockScenarioService.setTransactionScenario(scenario)
                 currentTransactionScenario = mockScenarioService.currentTransactionScenario()
-                onConfigurationChanged()
+                onConfigurationChange()
               }
             }
           )
@@ -134,7 +134,7 @@ fun ProvideMockTransactionScenariosGroup(
 fun ProvideMockChartDataControlsGroup(
   mockScenarioService: MockScenarioService,
   onShowSeedInput: () -> Unit,
-  onSeedCopied: (String) -> Unit,
+  onSeedCopy: (String) -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
   var currentConfig by remember { mutableStateOf<MockConfiguration?>(null) }
@@ -153,7 +153,7 @@ fun ProvideMockChartDataControlsGroup(
             title = "Current Seed: ${config.seed}",
             secondaryText = "Tap to copy • Generated at ${config.generatedAt}",
             onClick = {
-              onSeedCopied(config.seed.toString())
+              onSeedCopy(config.seed.toString())
             }
           )
         )
@@ -177,7 +177,7 @@ fun ProvideMockChartDataControlsGroup(
 @Composable
 fun ProvideMockDataQualityGroup(
   mockScenarioService: MockScenarioService,
-  onConfigurationChanged: () -> Unit,
+  onConfigurationChange: () -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
   val coroutineScope = rememberStableCoroutineScope()
@@ -206,7 +206,7 @@ fun ProvideMockDataQualityGroup(
               coroutineScope.launch {
                 mockScenarioService.setDataQuality(quality)
                 currentDataQuality = mockScenarioService.currentDataQuality()
-                onConfigurationChanged()
+                onConfigurationChange()
               }
             }
           )

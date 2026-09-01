@@ -17,6 +17,7 @@ import build.wallet.crypto.random.SecureRandom
 import build.wallet.crypto.random.nextBytes
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
@@ -24,6 +25,7 @@ import build.wallet.feature.intValue
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logDebug
+import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.nfc.*
@@ -549,6 +551,8 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     setState: (Any) -> Unit,
     onProgressUpdate: (Progress) -> Unit,
   ) {
+    val currentSetState by rememberUpdatedState(setState)
+    val currentOnProgressUpdate by rememberUpdatedState(onProgressUpdate)
     val continuation = state.fetchResult
     // Include whether this is a continuation in the key so a fresh NFC session starts
     val effectKey = "sign-transaction-${continuation != null}"
@@ -586,23 +590,30 @@ class SignTransactionNfcSessionUiStateMachineImpl(
               shouldLock = true,
               skipFirmwareTelemetry = props.skipFirmwareTelemetry,
               nfcFlowName = if (continuation != null) "sign-transaction-confirmation" else "sign-transaction",
-              requirePairedHardware = if (props.skipPairingCheck) {
-                logWarn { "skipPairingCheck=true, using NotRequired for pairing" }
-                RequirePairedHardware.NotRequired
-              } else {
-                hwPubKey?.let {
-                  RequirePairedHardware.Required(
-                    challenge = secureRandom.nextBytes(32).toByteString(),
-                    checkHardwareIsPaired = { signature, challengeString ->
-                      val verification = signatureVerifier.verifyEcdsaResult(
-                        message = challengeString,
-                        signature = signature,
-                        publicKey = hwPubKey
-                      )
-                      verification.get() == true
-                    }
-                  )
-                } ?: RequirePairedHardware.NotRequired
+              requirePairedHardware = when {
+                props.skipPairingCheck -> {
+                  logWarn { "skipPairingCheck=true, using NotRequired for pairing" }
+                  RequirePairedHardware.NotRequired
+                }
+                hwPubKey == null -> RequirePairedHardware.NotRequired
+                // EEK-restored keyboxes persist a sentinel string in place of a real hardware
+                // auth key, so pairing verification is impossible and must fail open — otherwise
+                // EEK users cannot sign the transaction needed to exit the wallet (W-17444).
+                EmergencyExitPayloadRestorer.isEekSentinelKey(hwPubKey.value) -> {
+                  logInfo { "Bypassing hardware pairing check due to EEK mode" }
+                  RequirePairedHardware.NotRequired
+                }
+                else -> RequirePairedHardware.Required(
+                  challenge = secureRandom.nextBytes(32).toByteString(),
+                  checkHardwareIsPaired = { signature, challengeString ->
+                    val verification = signatureVerifier.verifyEcdsaResult(
+                      message = challengeString,
+                      signature = signature,
+                      publicKey = hwPubKey
+                    )
+                    verification.get() == true
+                  }
+                )
               },
               asyncNfcSigning = false,
               maxNfcRetryAttempts = nfcSessionRetryAttemptsFeatureFlag.intValue()
@@ -613,10 +624,10 @@ class SignTransactionNfcSessionUiStateMachineImpl(
               // to Transferring (determinate progress bar). Only W3 fires this.
               // Guard to avoid redundant setState on subsequent callbacks.
               if (state.displayMode != InNfcSessionUiState.DisplayMode.Transferring) {
-                setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.Transferring))
+                currentSetState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.Transferring))
               }
               session.message = "${(progressFloat * 100).toInt()}%"
-              onProgressUpdate(
+              currentOnProgressUpdate(
                 progressFloat.asProgress().getOrElse {
                   if (progressFloat <= 0f) Progress.Zero else Progress.Full
                 }
@@ -653,7 +664,7 @@ class SignTransactionNfcSessionUiStateMachineImpl(
               }
               is NfcTransactionEvent.Succeeded<*> -> {
                 @Suppress("UNCHECKED_CAST")
-                handleNfcTransactionSuccess(event.result as SignTransactionResult, setState)
+                handleNfcTransactionSuccess(event.result as SignTransactionResult, currentSetState)
               }
               is NfcTransactionEvent.Failed ->
                 handleNfcTransactionFailure(
@@ -661,7 +672,7 @@ class SignTransactionNfcSessionUiStateMachineImpl(
                   continuation = continuation,
                   resolvedDeviceInfo = state.resolvedDeviceInfo,
                   props = props,
-                  setState = setState
+                  setState = currentSetState
                 )
               NfcTransactionEvent.TagDisconnected,
               NfcTransactionEvent.SessionCanceled,
@@ -675,10 +686,10 @@ class SignTransactionNfcSessionUiStateMachineImpl(
               // Start in Signing (indeterminate progress) — for W1 this is the
               // final visual state before success. For W3, the first progress
               // callback will transition to Transferring (determinate progress).
-              setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.Signing))
+              currentSetState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.Signing))
             }
             NfcTransactionEvent.TagDisconnected ->
-              setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.LostConnection))
+              currentSetState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.LostConnection))
             NfcTransactionEvent.SessionCanceled,
             is NfcTransactionEvent.Succeeded<*>,
             is NfcTransactionEvent.Failed,

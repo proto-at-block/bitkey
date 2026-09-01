@@ -2,19 +2,6 @@
     "module-identifier": "org.bouncycastle:bcpkix-jdk18on",
     "components": [
         {
-            "version": "1.77",
-            "variants": [
-                {
-                    "artifacts": {
-                        "bcpkix-jdk18on-1.77.jar": "1ac7fe8efd5b2f38cdc165be5a0675734fe44808dab92707201f03a535d6f1b8"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
-            ]
-        },
-        {
             "version": "1.79",
             "variants": [
                 {
@@ -24,7 +11,21 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.80",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcpkix-jdk18on-1.80.jar": "4f4ba6a92617ea19dc183f0fa5db492eee426fdde2a0a2d6c94777ffd1af6413"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
             ]
         }
     ]

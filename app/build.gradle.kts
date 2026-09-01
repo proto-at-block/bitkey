@@ -33,10 +33,19 @@ plugins {
 
 subprojects {
   configurations.configureEach {
+    // androidx.core 1.16.0 pulls tracing 1.2.0 on runtime classpaths, but androidx.test
+    // still requests 1.0.0 on androidTest compile classpaths. Our custom dependency locking
+    // requires a single version per locking group, so force alignment across configurations.
+    resolutionStrategy.force("androidx.tracing:tracing:1.2.0")
+
     resolutionStrategy.dependencySubstitution {
       substitute(module("bitkey:test-code-eliminator"))
         .using(project(":gradle:test-code-eliminator"))
         .because("Kotlin compiler plugins are installed via maven coordinates, so we substitute those coordinates with the local module.")
+
+      substitute(module("io.kotest:kotest-framework-multiplatform-plugin-embeddable-compiler"))
+        .using(project(":gradle:kotest-compiler-plugin"))
+        .because("Kotest 6.0.0.M1 compiler plugin must be rebuilt against Kotlin 2.2 for iOS tests.")
     }
   }
 }

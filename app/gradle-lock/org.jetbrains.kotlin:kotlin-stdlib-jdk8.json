@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "2.1.0",
+            "version": "2.1.21",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk8-2.1.0.jar": "238d3c7e492f119b50da1c22546dd762462e55f22409611f5e53dd77625cd544"
+                        "kotlin-stdlib-jdk8-2.1.21.jar": "87b4f956de27401446227e474ac7a31acff0d0a8087160c54288c1e6f46a67e6"
                     }
                 }
             ],
@@ -28,11 +28,11 @@
             ]
         },
         {
-            "version": "2.1.20",
+            "version": "2.2.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk8-2.1.20.jar": "ed22217b5dc0940a068d8be9440bbe2f7f9f51c466cdd1185e2385cdec19f238"
+                        "kotlin-stdlib-jdk8-2.2.20.jar": "c314177935d8dc2eda879507117f25d6de56f6c57ede99416b14cd622bb9e09d"
                     }
                 }
             ],

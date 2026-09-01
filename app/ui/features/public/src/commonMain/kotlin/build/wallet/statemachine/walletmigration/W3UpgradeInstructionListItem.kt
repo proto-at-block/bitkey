@@ -5,7 +5,7 @@ import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -46,7 +46,7 @@ internal fun w3UpgradeStepEyebrow(
 internal fun w3UpgradeInstructionScreenTitle(
   title: String,
   eyebrow: String? = null,
-) = FormScreenTitleModel(
+) = ToolbarTitleModel.Large(
   eyebrow = eyebrow,
   title = title
 )

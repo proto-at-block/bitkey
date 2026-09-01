@@ -691,7 +691,7 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("FailedPerformingDdkBackupData shows ErrorFormBodyModelWithOptionalErrorData") {
+  test("FailedPerformingDdkBackupData shows error form body model") {
     val retryCalls = turbines.create<Unit>("retry-ddk-backup")
     val props = baseProps.copy(
       completingRecoveryData = FailedPerformingDdkBackupData(

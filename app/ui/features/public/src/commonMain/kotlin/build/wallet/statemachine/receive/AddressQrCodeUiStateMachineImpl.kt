@@ -33,6 +33,7 @@ import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
 import build.wallet.statemachine.core.Icon.Copy
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
 import build.wallet.statemachine.nfc.DescriptorRepairUiProps
 import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -402,6 +403,8 @@ class AddressQrCodeUiStateMachineImpl(
               }
             },
             screenPresentationStyle = ScreenPresentationStyle.Modal,
+            segment = MoneyHomeAppSegment.Receive,
+            actionDescription = "Verifying receive address on hardware",
             eventTrackerContext = ADDRESS_VERIFICATION
           )
         )

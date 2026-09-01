@@ -75,10 +75,12 @@ private fun AuthenticatingPromptEffect(
   onAuthenticated: () -> Unit,
   onAuthenticationFailed: () -> Unit,
 ) {
+  val currentOnAuthenticated by rememberUpdatedState(onAuthenticated)
+  val currentOnAuthenticationFailed by rememberUpdatedState(onAuthenticationFailed)
   LaunchedEffect("prompting-for-auth") {
     biometricPrompter.promptForAuth()
-      .onSuccess { onAuthenticated() }
-      .onFailure { onAuthenticationFailed() }
+      .onSuccess { currentOnAuthenticated() }
+      .onFailure { currentOnAuthenticationFailed() }
   }
 }
 

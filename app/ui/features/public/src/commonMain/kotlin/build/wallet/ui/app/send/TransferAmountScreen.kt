@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,21 +38,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import build.wallet.amount.KeypadButton
 import build.wallet.platform.haptics.HapticsEffect
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.keypad.KeypadModel
-import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.send.TransferAmountBodyModel
+import build.wallet.statemachine.send.amountentry.SmartBarModel
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.amount.AmountEntryKeypadFeedback
 import build.wallet.ui.components.amount.AnimatedHeroAmount
 import build.wallet.ui.components.amount.amountEntryKeypadFeedback
 import build.wallet.ui.components.amount.rememberAmountEntryShakeOffset
 import build.wallet.ui.components.button.Button
-import build.wallet.ui.components.card.Card
-import build.wallet.ui.components.card.CardContent
-import build.wallet.ui.components.icon.Icon
+import build.wallet.ui.components.card.CardContainer
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.keypad.Keypad
 import build.wallet.ui.components.label.AutoResizedLabel
+import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.LabelTreatment.Disabled
 import build.wallet.ui.components.label.LabelTreatment.Primary
@@ -66,7 +65,6 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.currentStyle
-import build.wallet.statemachine.core.Icon
 import kotlinx.coroutines.delay
 
 private const val AMOUNT_SWAP_ANIMATION_DURATION_MS = 180
@@ -197,7 +195,7 @@ fun TransferAmountScreen(
           modifier = Modifier
             .align(CenterHorizontally)
             .padding(bottom = 16.dp),
-          model = model.cardModel
+          model = model.smartBarModel
         )
       } else {
         Spacer(Modifier.height(16.dp))
@@ -615,13 +613,13 @@ private fun rememberTrackingKeypadPresses(
  * based on the user's context.
  *
  * For instance, the Smart Bar will be able to tell users when the amount they enter would require a
- * HW tap, or when the user looks like they are trying to sweep their wallet. It leverages the same
- * underlying [CardModel] that other card primitives also use today.
+ * HW tap, or when the user looks like they are trying to sweep their wallet. It is driven by
+ * [SmartBarModel], a dedicated model owned by the send flow.
  */
 @Composable
 private fun SmartBar(
   modifier: Modifier = Modifier,
-  model: CardModel?,
+  model: SmartBarModel?,
 ) {
   Box(
     // banner space is always taken up even when it's not visible.
@@ -654,19 +652,14 @@ private fun SmartBar(
           )
     ) {
       bannerModel?.let {
-        Card(
+        CardContainer(
           modifier = Modifier.fillMaxHeight(),
           verticalArrangement = Center
         ) {
-          CardContent(
-            model = it,
-            titleType = LabelType.Body2Regular,
-            titleTreatment =
-              if (it.titleTreatment == CardModel.TitleTreatment.Destructive) {
-                LabelTreatment.Destructive
-              } else {
-                LabelTreatment.Primary
-              }
+          Label(
+            model = it.title,
+            type = LabelType.Body2Regular,
+            treatment = LabelTreatment.Primary
           )
         }
       }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-retain-desktop",
+    "components": [
+        {
+            "version": "1.10.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-retain-desktop-1.10.0.jar": "463ee9c1e93d1b913458bfecc96d128a3574a802f41c8c9781d7320c3b55ed8b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

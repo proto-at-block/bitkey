@@ -94,13 +94,12 @@ sealed interface FormMainContentModel {
         treatment: ListItemTreatment = ListItemTreatment.PRIMARY,
         onClick: (() -> Unit)?,
       ) : this(
-          title = title,
-          icon = IconModel(icon = icon, iconSize = IconSize.Small),
-          isEnabled = isEnabled,
-          treatment = treatment,
-          onClick = onClick
-        )
-
+        title = title,
+        icon = IconModel(icon = icon, iconSize = IconSize.Small),
+        isEnabled = isEnabled,
+        treatment = treatment,
+        onClick = onClick
+      )
     }
   }
 
@@ -204,7 +203,6 @@ sealed interface FormMainContentModel {
         }
       }
     }
-
   }
 
   /**
@@ -212,7 +210,7 @@ sealed interface FormMainContentModel {
    */
   data class HeaderBlock(
     val header: FormHeaderModel,
-  ) : FormMainContentModel
+  ) : FormMainContentModel, FormPreFooterContentModel
 
   /**
    * A display list of data with a left-aligned label and a right-aligned primary and secondary
@@ -485,11 +483,6 @@ sealed interface FormMainContentModel {
   data object Loader : FormMainContentModel
 
   /**
-   * A loading treatment using the dots loader artwork.
-   */
-  data object DotLoader : FormMainContentModel
-
-  /**
    * Allows a [CalloutModel] to be rendered in the [FormMainContentModel] list
    * @property item - the [CalloutModel] to be rendered
    */
@@ -523,7 +516,7 @@ sealed interface FormMainContentModel {
   data class CollapsibleAddress(
     val address: String,
     val label: String,
-  ) : FormMainContentModel
+  ) : FormMainContentModel, FormPreFooterContentModel
 
   /**
    * An information container with two action buttons and hero icon image.

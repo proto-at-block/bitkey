@@ -8,9 +8,6 @@ import build.wallet.analytics.v1.Action.ACTION_APP_BITCOIN_DISPLAY_PREFERENCE_CH
 import build.wallet.analytics.v1.Action.ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.inappsecurity.HideBalancePreferenceFake
 import build.wallet.money.currency.FiatCurrenciesServiceFake
 import build.wallet.money.currency.GBP
@@ -49,7 +46,6 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
   val bitcoinWalletService = BitcoinWalletServiceFake()
   val themePreferenceService = ThemePreferenceServiceFake()
   val chartTimeScalePreference = ChartRangePreferenceFake()
-  val bip177FeatureFlag = Bip177FeatureFlag(FeatureFlagDaoFake())
   val stringResourceProvider = object : StringResourceProvider {
     @Composable
     override fun getString(resourceId: StringResource): String {
@@ -68,15 +64,13 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
     bitcoinWalletService = bitcoinWalletService,
     themePreferenceService = themePreferenceService,
     chartRangePreference = chartTimeScalePreference,
-    stringResourceProvider = stringResourceProvider,
-    bip177FeatureFlag = bip177FeatureFlag
+    stringResourceProvider = stringResourceProvider
   )
 
   val onBackCalls = turbines.create<Unit>("onBack calls")
   val props = AppearancePreferenceProps(onBack = { onBackCalls += Unit })
 
   beforeTest {
-    bip177FeatureFlag.setFlagValue(true)
     bitcoinDisplayPreferenceRepository.clear()
     fiatCurrencyPreferenceRepository.clear()
     currencyConverter.reset()
@@ -103,7 +97,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
         selectedSection.shouldBe(AppearanceSection.CURRENCY)
         moneyHomeHero.isHidden.shouldBeFalse()
         moneyHomeHero.primaryAmount.shouldBe("$0.00")
-        moneyHomeHero.secondaryAmount.shouldBe("0 sats")
+        moneyHomeHero.secondaryAmount.shouldBe("₿0")
         fiatCurrencyPreferenceString.shouldBe("USD")
         onFiatCurrencyPreferenceClick()
       }
@@ -125,7 +119,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
       ) {
         moneyHomeHero.isHidden.shouldBeFalse()
         moneyHomeHero.primaryAmount.shouldBe("£0.00")
-        moneyHomeHero.secondaryAmount.shouldBe("0 sats")
+        moneyHomeHero.secondaryAmount.shouldBe("₿0")
         fiatCurrencyPreferenceString.shouldBe("GBP")
         selectedSection.shouldBe(AppearanceSection.CURRENCY)
       }
@@ -239,20 +233,20 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
 
       awaitBody<AppearancePreferenceBodyModel> {
         selectedSection.shouldBe(AppearanceSection.CURRENCY)
-        bitcoinDisplayPreferenceString.shouldBe("₿")
+        bitcoinDisplayPreferenceString.shouldBe("BTC")
         onBitcoinDisplayPreferenceClick()
       }
 
       awaitUntilSheet<BitcoinDisplayUnitSelectionBodyModel> {
-        onSelectUnit(BitcoinDisplayUnit.Bitcoin)
+        onSelectUnit(BitcoinDisplayUnit.Satoshi)
       }
 
       eventTracker.eventCalls.awaitItem().action.shouldBe(ACTION_APP_BITCOIN_DISPLAY_PREFERENCE_CHANGE)
 
       awaitUntilBody<AppearancePreferenceBodyModel>(
-        matching = { it.bitcoinDisplayPreferenceString == "BTC" }
+        matching = { it.bitcoinDisplayPreferenceString == "₿" }
       ) {
-        bitcoinDisplayPreferenceString.shouldBe("BTC")
+        bitcoinDisplayPreferenceString.shouldBe("₿")
         selectedSection.shouldBe(AppearanceSection.CURRENCY)
       }
     }

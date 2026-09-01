@@ -1,0 +1,15 @@
+- config:
+    id: "bitkey/smoke/new-wallet-onboarding"
+    target: "world.bitkey.debug"
+    platform: android
+    driver: ANDROID_ONDEVICE_ACCESSIBILITY
+- tools:
+    - launchApp:
+        appId: "world.bitkey.debug"
+- prompts:
+    - step: Open the debug menu from the welcome screen and enable "Skip Cloud Backup" and "Skip Notifications" under Onboarding, then go back to the welcome screen
+    - step: Tap "Set up a new wallet"
+    - step: Dismiss the "How to tap your Bitkey" instructions sheet
+    - step: Start pairing the (fake) Bitkey device
+    - step: Save the first fingerprint
+    - verify: The Money Home screen is shown with a $0.00 balance and Send/Receive actions

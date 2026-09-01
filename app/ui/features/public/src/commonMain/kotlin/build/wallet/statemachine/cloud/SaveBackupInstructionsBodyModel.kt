@@ -11,7 +11,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
@@ -36,10 +36,10 @@ data class SaveBackupInstructionsBodyModel(
           onClick = StandardClick(onLearnMoreClick),
           size = ButtonModel.Size.Compact
         )
+      ),
+      title = ToolbarTitleModel.Large(
+        title = backupInstructionsTitle(devicePlatform)
       )
-    ),
-    formScreenTitle = FormScreenTitleModel(
-      title = backupInstructionsTitle(devicePlatform)
     ),
     formScreenLayout = FormScreenLayoutModel.LargeTitle(
       scrollable = false,

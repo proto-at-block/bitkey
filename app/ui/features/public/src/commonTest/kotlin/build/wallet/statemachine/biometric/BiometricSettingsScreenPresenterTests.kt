@@ -65,7 +65,7 @@ class BiometricSettingsScreenPresenterTests : FunSpec({
     }
   }
 
-  test("hardware proof of possession fails") {
+  test("hardware proof of possession canceled returns to settings unchanged") {
     biometricSettingsPresenter.test(screen) {
       awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeFalse()
@@ -76,15 +76,17 @@ class BiometricSettingsScreenPresenterTests : FunSpec({
         onScanBitkeyDevice()
       }
 
-      // go to nfc and proof of possession fails
+      // go to nfc; user cancels (or dismisses the NFC error screen)
       awaitUntilBodyMock<HardwarePresenceProps> {
-        onFailure(Error("Serial number mismatch"))
+        onCancel()
       }
 
-      // show the error sheet on the biometrics screen
-      awaitUntilSheet<ErrorSheetBodyModel> {
-        headline.shouldBe("Unable to verify your Bitkey device")
+      // back on the settings screen with the preference unchanged
+      awaitUntilBody<BiometricSettingsScreenBodyModel> {
+        isEnabled.shouldBeFalse()
       }
+
+      biometricPreference.get().shouldBeOk(false)
     }
   }
 

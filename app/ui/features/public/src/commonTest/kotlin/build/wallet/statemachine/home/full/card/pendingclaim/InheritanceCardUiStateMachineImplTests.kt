@@ -7,7 +7,6 @@ import build.wallet.inheritance.InheritanceCardServiceFake
 import build.wallet.inheritance.InheritanceServiceMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.statemachine.moneyhome.card.CardModel.*
 import build.wallet.statemachine.moneyhome.card.inheritance.*
 import build.wallet.statemachine.moneyhome.card.inheritance.BenefactorLockedCompleteClaimCardModel
 import build.wallet.statemachine.moneyhome.card.inheritance.BenefactorPendingClaimCardModel
@@ -65,13 +64,14 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
+              id = "claim-benefactor-pending-id",
               title = "Inheritance claim pending",
               subtitle = "Funds available ${dateTimeFormatter.shortDateWithYear(
                 someInstant.toLocalDateTime(
                   TimeZone.currentSystemDefault()
                 )
               )}.",
-              isPendingClaim = true,
+              state = CardModel.PendingClaim.State.Pending,
               timeRemaining = 180.days,
               progress = Progress.Zero,
               onClick = null
@@ -97,25 +97,27 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
+              id = "claim-benefactor-pending-id",
               title = "Inheritance claim pending",
               subtitle = "Funds available ${dateTimeFormatter.shortDateWithYear(
                 someInstant.toLocalDateTime(
                   TimeZone.currentSystemDefault()
                 )
               )}.",
-              isPendingClaim = true,
+              state = CardModel.PendingClaim.State.Pending,
               timeRemaining = 180.days,
               progress = Progress.Zero,
               onClick = null
             ),
             BeneficiaryPendingClaimCardModel(
+              id = "claim-benefactor-pending-id2",
               title = "Inheritance claim pending",
               subtitle = "Funds available ${dateTimeFormatter.shortDateWithYear(
                 someInstant.toLocalDateTime(
                   TimeZone.currentSystemDefault()
                 )
               )}.",
-              isPendingClaim = true,
+              state = CardModel.PendingClaim.State.Pending,
               timeRemaining = 360.days,
               progress = Progress.Zero,
               onClick = null
@@ -135,9 +137,10 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
+              id = "claim-benefactor-locked-id",
               title = "Claim approved",
               subtitle = "Transfer funds now.",
-              isPendingClaim = false,
+              state = CardModel.PendingClaim.State.Locked,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
               onClick = null
@@ -162,17 +165,19 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
+              id = "claim-benefactor-locked-id",
               title = "Claim approved",
               subtitle = "Transfer funds now.",
-              isPendingClaim = false,
+              state = CardModel.PendingClaim.State.Locked,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
               onClick = null
             ),
             BeneficiaryPendingClaimCardModel(
+              id = "claim-benefactor-locked-id2",
               title = "Claim approved",
               subtitle = "Transfer funds now.",
-              isPendingClaim = false,
+              state = CardModel.PendingClaim.State.Locked,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
               onClick = null
@@ -192,21 +197,23 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
+              id = "claim-benefactor-pending-id",
               title = "Inheritance claim pending",
               subtitle = "Funds available ${dateTimeFormatter.shortDate(
                 someInstant.toLocalDateTime(
                   TimeZone.currentSystemDefault()
                 )
               )}.",
-              isPendingClaim = true,
+              state = CardModel.PendingClaim.State.Pending,
               timeRemaining = 180.days,
               progress = Progress.Zero,
               onClick = null
             ),
             BeneficiaryPendingClaimCardModel(
+              id = "claim-benefactor-locked-id",
               title = "Claim approved",
               subtitle = "Transfer funds now.",
-              isPendingClaim = false,
+              state = CardModel.PendingClaim.State.Locked,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
               onClick = null
@@ -226,6 +233,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
         equalIgnoringOnClick(
           listOf(
             BenefactorPendingClaimCardModel(
+              id = "claim-benefactor-pending-id",
               title = "Inheritance claim initiated",
               subtitle = "Decline claim by date-time to retain control of your funds.",
               onClick = null
@@ -245,9 +253,10 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
+              id = "claim-benefactor-pending-id",
               title = "Claim approved",
               subtitle = "Transfer funds now.",
-              isPendingClaim = false,
+              state = CardModel.PendingClaim.State.Locked,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
               onClick = null
@@ -267,6 +276,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
         equalIgnoringOnClick(
           listOf(
             BenefactorPendingClaimCardModel(
+              id = "claim-benefactor-pending-id",
               title = "Inheritance claim initiated",
               subtitle = "Decline claim by date-time to retain control of your funds.",
               onClick = null
@@ -286,6 +296,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
         equalIgnoringOnClick(
           listOf(
             BenefactorLockedCompleteClaimCardModel(
+              id = "claim-benefactor-locked-id",
               title = "Inheritance approved",
               subtitle = "To retain control of any remaining funds, transfer them to a new wallet.",
               onClick = StandardClick {}
@@ -299,25 +310,19 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
 
 fun equalIgnoringOnClick(expected: List<CardModel>) =
   object : Matcher<List<CardModel>> {
+    private fun stripOnClick(card: CardModel): CardModel =
+      when (card) {
+        is CardModel.Hero -> card.copy(onClick = null)
+        is CardModel.PendingClaim -> card.copy(onClick = null)
+        is CardModel.BitcoinPrice -> card.copy(onClick = null)
+        is CardModel.Status -> card.copy(onClick = null)
+        is CardModel.Callout -> card.copy(callout = card.callout.copy(onClick = null))
+        is CardModel.DrillList -> card
+      }
+
     override fun test(value: List<CardModel>): MatcherResult {
-      val expectedCopy = expected.map {
-        val content = (it.content as? CardContent.PendingClaim)?.copy(onClick = null)
-        val model = (it.style as? CardStyle.Callout)?.model?.copy(onClick = null)
-        if (model != null) {
-          it.copy(style = it.style.copy(model = model), onClick = null, content = content)
-        } else {
-          it.copy(onClick = null, content = content)
-        }
-      }
-      val actualCopy = value.map {
-        val content = (it.content as? CardContent.PendingClaim)?.copy(onClick = null)
-        val model = (it.style as? CardStyle.Callout)?.model?.copy(onClick = null)
-        if (model != null) {
-          it.copy(style = it.style.copy(model = model), onClick = null, content = content)
-        } else {
-          it.copy(onClick = null, content = content)
-        }
-      }
+      val expectedCopy = expected.map(::stripOnClick)
+      val actualCopy = value.map(::stripOnClick)
       val passed = expectedCopy == actualCopy
       return MatcherResult(
         passed,

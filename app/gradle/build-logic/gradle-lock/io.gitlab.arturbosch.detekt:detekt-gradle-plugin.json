@@ -2,11 +2,11 @@
     "module-identifier": "io.gitlab.arturbosch.detekt:detekt-gradle-plugin",
     "components": [
         {
-            "version": "1.23.7",
+            "version": "1.23.8",
             "variants": [
                 {
                     "artifacts": {
-                        "detekt-gradle-plugin-1.23.7.jar": "64953a1d81e9062ca2ec96841c0844cb58f2a1591c7bfea92a4275d392417805"
+                        "detekt-gradle-plugin-1.23.8.jar": "783150e4708942c5d7705ff8b7b90f9fb5ad0179d46ad6a9b01d192b70379750"
                     }
                 }
             ],

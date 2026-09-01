@@ -80,13 +80,13 @@ fun IconButton(
 @Composable
 fun IconButton(
   iconModel: IconModel,
+  onClick: () -> Unit,
   modifier: Modifier = Modifier,
   iconColor: Color = Color.Unspecified,
   enabled: Boolean = true,
   text: String? = null,
   testTag: String? = null,
   isClosingSheet: Boolean = false,
-  onClick: () -> Unit,
 ) {
   val clickHandler: () -> Unit =
     if (isClosingSheet) {
@@ -118,15 +118,17 @@ fun IconButton(
   )
 }
 
+// Callers size the clickable icon Box via this modifier; the root Column also wraps a text label.
+@Suppress("ModifierNotUsedAtRoot")
 @Composable
 fun IconButton(
   iconModel: IconModel,
+  onClick: () -> Unit,
   modifier: Modifier = Modifier,
   text: String? = null,
   enabled: Boolean = true,
   testTag: String? = null,
   color: Color = Color.Unspecified,
-  onClick: () -> Unit,
 ) {
   val resolvedTestTag = resolveTestTag(
     testTag = testTag,

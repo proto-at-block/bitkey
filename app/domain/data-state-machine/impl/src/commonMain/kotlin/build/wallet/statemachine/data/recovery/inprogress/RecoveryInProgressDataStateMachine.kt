@@ -4,6 +4,7 @@ package build.wallet.statemachine.data.recovery.inprogress
 
 import androidx.compose.runtime.*
 import bitkey.account.*
+import bitkey.auth.AccountAuthTokens
 import bitkey.auth.AuthTokenScope
 import bitkey.backup.DescriptorBackup
 import bitkey.f8e.error.F8eError
@@ -275,9 +276,13 @@ class RecoveryInProgressDataStateMachineImpl(
             .firmwareDeviceInfo
             ?.hardwareType()
             ?: HardwareType.W1
+          val authTokens = authTokensService
+            .getTokens(props.recovery.fullAccountId, AuthTokenScope.Global)
+            .getOrElse { null }
           state = AwaitingCancellationProofOfPossessionState(
             rollback = dataState.rollback,
-            hardwareType = hardwareType
+            hardwareType = hardwareType,
+            authTokens = authTokens
           )
         }
         CancellingData(props.recovery.factorToRecover)
@@ -286,6 +291,7 @@ class RecoveryInProgressDataStateMachineImpl(
       is AwaitingCancellationProofOfPossessionState -> {
         AwaitingProofOfPossessionForCancellationData(
           appAuthKey = props.recovery.appGlobalAuthKey,
+          authTokens = dataState.authTokens,
           hardwareType = dataState.hardwareType,
           addProof = {
             state = CancellingState(CancelLostAppAndCloudRecovery(it))
@@ -1866,6 +1872,7 @@ class RecoveryInProgressDataStateMachineImpl(
     data class AwaitingCancellationProofOfPossessionState(
       val rollback: () -> Unit,
       val hardwareType: HardwareType,
+      val authTokens: AccountAuthTokens?,
     ) : State
 
     /**

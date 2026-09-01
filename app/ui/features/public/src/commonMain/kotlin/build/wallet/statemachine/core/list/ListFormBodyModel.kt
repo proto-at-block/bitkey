@@ -5,7 +5,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -23,7 +23,7 @@ data class ListFormBodyModel(
     onBack = onBack,
     toolbar = ToolbarModel(
       leadingAccessory = BackAccessory(onBack),
-      middleAccessory = ToolbarMiddleAccessoryModel(title = toolbarTitle)
+      title = ToolbarTitleModel.Inline(title = toolbarTitle)
     ),
     header = null,
     mainContentList = listGroups.map {

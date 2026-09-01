@@ -25,6 +25,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.HardwarePresenceProps
 import build.wallet.statemachine.nfc.HardwarePresenceUiStateMachine
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
@@ -193,17 +194,10 @@ class BiometricSettingScreenPresenter(
               uiState = State.EnablingBiometricSetting(isEnabled = !isEnabled)
             }
           },
-          onFailure = {
-            // hardware proof of possession failed - device not authenticated or serial mismatch
-            uiState = State.EnablingBiometricSetting(isEnabled = isEnabled)
-            sheetModel = ErrorSheetBodyModel(
-              headline = "Unable to verify your Bitkey device",
-              subline = "Verify you are using the hardware for this wallet and it is unlocked.",
-              onBack = { sheetModel = null }
-            ).asSheetModalScreen(onClosed = { sheetModel = null })
-          },
-          onCancel = { uiState = State.EnablingBiometricSetting() },
+          onCancel = { uiState = State.EnablingBiometricSetting(isEnabled = isEnabled) },
           screenPresentationStyle = ScreenPresentationStyle.FullScreen,
+          segment = SettingsAppSegment,
+          actionDescription = "Verifying hardware presence to change biometric setting",
           eventTrackerContext = NfcEventTrackerScreenIdContext.METADATA
         )
       )

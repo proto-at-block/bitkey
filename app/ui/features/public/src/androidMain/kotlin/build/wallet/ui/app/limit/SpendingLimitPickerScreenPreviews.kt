@@ -6,7 +6,7 @@ import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.tokens.lightStyleDictionaryColors
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -20,7 +20,7 @@ fun PreviewSpendingLimitPickerScreenNoValueKeypad() {
         onBack = {},
         toolbarModel = ToolbarModel(
           leadingAccessory = BackAccessory {},
-          middleAccessory = ToolbarMiddleAccessoryModel(title = "Set daily limit")
+          title = ToolbarTitleModel.Inline(title = "Set daily limit")
         ),
         amountModel = MoneyAmountEntryModel(
           primaryAmount = "$0.00",
@@ -48,7 +48,7 @@ fun PreviewSpendingLimitPickerScreenWithValueKeypad() {
         onBack = {},
         toolbarModel = ToolbarModel(
           leadingAccessory = BackAccessory {},
-          middleAccessory = ToolbarMiddleAccessoryModel(title = "Set daily limit")
+          title = ToolbarTitleModel.Inline(title = "Set daily limit")
         ),
         amountModel = MoneyAmountEntryModel(
           primaryAmount = "$100",

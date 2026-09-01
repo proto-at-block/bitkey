@@ -24,9 +24,8 @@ import build.wallet.ui.theme.Theme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {
@@ -194,7 +193,7 @@ class MainActivity : FragmentActivity() {
           setRecentsScreenshotEnabled(!isEnabled)
         }
       }
-      .stateIn(lifecycleScope, SharingStarted.Eagerly, false)
+      .launchIn(lifecycleScope)
   }
 
   private fun observeThemeChanges(activityComponent: AndroidActivityComponent) {

@@ -16,6 +16,7 @@ import build.wallet.statemachine.cloud.SAVING_BACKUP_MESSAGE
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.account.create.full.OnboardingAppSegment
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import com.github.michaelbull.result.onFailure
@@ -78,6 +79,8 @@ class OnboardDescriptorBackupUiStateMachineImpl(
               props.onBackupFailed(Error("User cancelled sealing SSEK NFC session"))
             },
             screenPresentationStyle = ScreenPresentationStyle.Root,
+            segment = OnboardingAppSegment.FullAccount,
+            actionDescription = "Sealing SSEK with hardware to back up descriptors during onboarding",
             eventTrackerContext = NfcEventTrackerScreenIdContext.SEAL_SSEK
           )
         )

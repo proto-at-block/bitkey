@@ -10,6 +10,8 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.catchingResult
 import build.wallet.crypto.PublicKey
+import build.wallet.crypto.random.SecureRandom
+import build.wallet.crypto.random.nextBytes
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SignatureUtils
@@ -24,7 +26,6 @@ import okio.ByteString.Companion.toByteString
 import uniffi.actionproof.Action
 import uniffi.actionproof.ContextBinding
 import uniffi.actionproof.ContextBindingPair
-import kotlin.random.Random
 
 @BitkeyInject(AppScope::class)
 class ActionProofServiceImpl(
@@ -254,7 +255,8 @@ class ActionProofServiceImpl(
     ).mapError { ActionProofError.F8eError(it) }
   }
 
-  override fun generateNonce(): String = Random.nextInt(256).toString(16).padStart(2, '0')
+  override fun generateNonce(): String =
+    (SecureRandom().nextBytes(1).first().toInt() and 0xff).toString(16).padStart(2, '0')
 
   private suspend fun resolveAccountId(
     accountId: AccountId?,

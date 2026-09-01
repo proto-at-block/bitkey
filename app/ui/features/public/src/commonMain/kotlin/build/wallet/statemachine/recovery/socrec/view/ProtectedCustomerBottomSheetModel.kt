@@ -2,6 +2,7 @@ package build.wallet.statemachine.recovery.socrec.view
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerRelationshipStatus.ENDORSED
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -42,16 +43,23 @@ private data class ProtectedCustomerBottomSheetBodyModel(
     header =
       recoveryContactFormHeader(
         headline = protectedCustomer.alias.alias,
-        subline = "You’re currently protecting their wallet.",
+        subline = if (protectedCustomer.relationshipStatus == ENDORSED) {
+          "You’re currently protecting their wallet."
+        } else {
+          "You’ll be able to help with recovery after they finish setup."
+        },
         alignment = FormHeaderModel.Alignment.CENTER
       ),
-    primaryButton =
+    primaryButton = if (protectedCustomer.relationshipStatus == ENDORSED) {
       ButtonModel(
         text = "Help with Recovery",
         size = ButtonModel.Size.Footer,
         onClick = SheetClosingClick(onHelpWithRecovery),
         treatment = ButtonModel.Treatment.Secondary
-      ),
+      )
+    } else {
+      null
+    },
     secondaryButton =
       ButtonModel(
         text = "Remove Myself as Recovery Contact",

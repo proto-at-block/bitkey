@@ -14,6 +14,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 data class HardwareReplacementInstructionsModel(
   val onContinue: () -> Unit,
   val onClose: () -> Unit,
+  val delayPeriodDays: Int?,
 ) : FormBodyModel(
     onBack = onClose,
     toolbar = ToolbarModel(leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClose)),
@@ -25,7 +26,10 @@ data class HardwareReplacementInstructionsModel(
         immutableListOf(
           FormMainContentModel.Explainer.Statement(
             leadingIcon = Icon.Clock,
-            title = "7-day security waiting period",
+            title = when (delayPeriodDays) {
+              null -> "Security waiting period"
+              else -> "$delayPeriodDays-day security waiting period"
+            },
             body = "During this time, you’ll get regular alerts about the recovery. No action is needed; they are to keep you informed and aware."
           ),
           FormMainContentModel.Explainer.Statement(

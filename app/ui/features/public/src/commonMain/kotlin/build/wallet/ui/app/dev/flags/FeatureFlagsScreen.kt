@@ -17,7 +17,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
 
@@ -38,7 +38,7 @@ fun FeatureFlagsScreen(
         model =
           ToolbarModel(
             leadingAccessory = BackAccessory(onClick = model.onBack),
-            middleAccessory = ToolbarMiddleAccessoryModel(title = "Feature Flags"),
+            title = ToolbarTitleModel.Inline(title = "Feature Flags"),
             trailingAccessory = ToolbarAccessoryModel.ButtonAccessory(
               ButtonModel(
                 text = "Reset",

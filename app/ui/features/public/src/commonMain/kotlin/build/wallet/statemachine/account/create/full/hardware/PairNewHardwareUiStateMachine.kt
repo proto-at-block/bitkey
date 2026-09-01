@@ -16,8 +16,7 @@ interface PairNewHardwareUiStateMachine :
 data class PairNewHardwareProps(
   val request: Request,
   val onExit: () -> Unit,
-  // TODO: BKR-1117: make non-nullable
-  val segment: AppSegment? = null,
+  val segment: AppSegment,
   val eventTrackerContext: PairHardwareEventTrackerScreenIdContext,
   val screenPresentationStyle: ScreenPresentationStyle,
   val pairingContext: PairingContext,

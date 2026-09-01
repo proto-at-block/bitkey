@@ -2,6 +2,19 @@
     "module-identifier": "com.google.errorprone:error_prone_annotations",
     "components": [
         {
+            "version": "2.28.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "error_prone_annotations-2.28.0.jar": "f3fc8a3a0a4020706a373b00e7f57c2512dd26d1f83d28c7d38768f8682b231e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        },
+        {
             "version": "2.30.0",
             "variants": [
                 {

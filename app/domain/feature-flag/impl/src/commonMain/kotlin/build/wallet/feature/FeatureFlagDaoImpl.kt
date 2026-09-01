@@ -5,6 +5,7 @@ import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.sqldelight.awaitAsListResult
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
@@ -15,6 +16,19 @@ import kotlin.reflect.KClass
 class FeatureFlagDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : FeatureFlagDao {
+  override suspend fun getFlags(): Result<Map<String, FeatureFlagValue>, DbError> =
+    databaseProvider.database().featureFlagsQueries
+      .getAllFlags { featureFlagId, booleanValue, doubleValue, stringValue ->
+        featureFlagId to when {
+          booleanValue != null -> BooleanFlag(booleanValue)
+          doubleValue != null -> FeatureFlagValue.DoubleFlag(doubleValue)
+          stringValue != null -> FeatureFlagValue.StringFlag(stringValue)
+          else -> error("Persisted feature flag '$featureFlagId' has no value")
+        }
+      }
+      .awaitAsListResult()
+      .map { it.toMap() }
+
   override suspend fun <T : FeatureFlagValue> getFlag(
     featureFlagId: String,
     kClass: KClass<T>,
@@ -61,25 +75,24 @@ class FeatureFlagDaoImpl(
     flagValue: T,
     featureFlagId: String,
   ): Result<Unit, DbError> {
-    return when (flagValue) {
-      is BooleanFlag ->
-        databaseProvider.database()
-          .booleanFeatureFlagQueries
-          .awaitTransaction {
-            setFlag(featureFlagId, flagValue.value)
-          }
-      is FeatureFlagValue.DoubleFlag ->
-        databaseProvider.database()
-          .doubleFeatureFlagQueries
-          .awaitTransaction {
-            setFlag(featureFlagId, flagValue.value)
-          }
-      is FeatureFlagValue.StringFlag ->
-        databaseProvider.database()
-          .stringFeatureFlagQueries
-          .awaitTransaction {
-            setFlag(featureFlagId, flagValue.value)
-          }
+    return databaseProvider.database().awaitTransaction {
+      when (flagValue) {
+        is BooleanFlag -> {
+          doubleFeatureFlagQueries.deleteFlag(featureFlagId)
+          stringFeatureFlagQueries.deleteFlag(featureFlagId)
+          booleanFeatureFlagQueries.setFlag(featureFlagId, flagValue.value)
+        }
+        is FeatureFlagValue.DoubleFlag -> {
+          booleanFeatureFlagQueries.deleteFlag(featureFlagId)
+          stringFeatureFlagQueries.deleteFlag(featureFlagId)
+          doubleFeatureFlagQueries.setFlag(featureFlagId, flagValue.value)
+        }
+        is FeatureFlagValue.StringFlag -> {
+          booleanFeatureFlagQueries.deleteFlag(featureFlagId)
+          doubleFeatureFlagQueries.deleteFlag(featureFlagId)
+          stringFeatureFlagQueries.setFlag(featureFlagId, flagValue.value)
+        }
+      }
     }
   }
 

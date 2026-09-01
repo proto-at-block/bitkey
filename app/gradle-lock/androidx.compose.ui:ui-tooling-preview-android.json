@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-tooling-preview-android",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-tooling-preview.aar": "0f2e022c32d4dfb900f6fb4f7d33fd79e8caa8b3836f5c1d3989067b06280eff"
+                        "ui-tooling-preview.aar": "19d4d9c5226a95999ab214dec6c80851dce514a6fc54a0dee2a308c6c09d49a7"
                     }
                 }
             ],

@@ -1,4 +1,6 @@
 package build.wallet.statemachine.export
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 import app.cash.turbine.plusAssign
 import build.wallet.bitcoin.export.ExportTransactionsServiceMock
@@ -52,7 +54,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
 
         val formBody = body as ExportToolsSelectionModel
         formBody.run {
-          toolbar.shouldNotBeNull().middleAccessory.shouldNotBeNull().title.shouldBe("Exports")
+          toolbar.shouldNotBeNull().title.shouldBeInstanceOf<ToolbarTitleModel.Inline>().title.shouldBe("Exports")
           toolbar.shouldNotBeNull().leadingAccessory.shouldBeTypeOf<IconAccessory>()
 
           mainContentList.count().shouldBe(1)

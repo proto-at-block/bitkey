@@ -215,11 +215,6 @@ sealed interface DeviceWipeEligibilityError {
  */
 sealed interface InactiveDeviceWipeValidationError {
   /**
-   * Historical inactive-device wipe is not enabled.
-   */
-  data object FeatureDisabled : InactiveDeviceWipeValidationError
-
-  /**
    * The tapped NFC device does not match the expected inactive device identity.
    */
   data object WrongDevice : InactiveDeviceWipeValidationError

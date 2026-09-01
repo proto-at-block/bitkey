@@ -5,9 +5,9 @@ import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.f8e.privilegedactions.AuthorizationStrategyType
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.f8e.privilegedactions.PrivilegedActionType
-import bitkey.privilegedactions.PrivilegedActionError
 import bitkey.privilegedactions.FingerprintResetF8eClientFake
 import bitkey.privilegedactions.FingerprintResetServiceFake
+import bitkey.privilegedactions.PrivilegedActionError
 import build.wallet.LoadableValue.InitialLoading
 import build.wallet.LoadableValue.LoadedValue
 import build.wallet.account.AccountServiceFake
@@ -103,7 +103,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().shouldBe(InitialLoading)
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("6 days remaining...")
       }
@@ -149,7 +149,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().shouldBe(InitialLoading)
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("3 days remaining...")
         click()
@@ -176,7 +176,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem()
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("5 hours remaining...")
       }
@@ -200,7 +200,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem()
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("45 minutes remaining...")
       }
@@ -224,7 +224,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem()
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("Less than 1 minute remaining...")
       }
@@ -248,7 +248,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem()
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("1 day remaining...")
       }
@@ -272,7 +272,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem()
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("1 hour remaining...")
       }
@@ -296,7 +296,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem()
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("1 minute remaining...")
       }
@@ -320,7 +320,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem()
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("Less than 1 minute remaining...")
       }
@@ -351,7 +351,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem()
-      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel.Status>().apply {
         click()
       }
 

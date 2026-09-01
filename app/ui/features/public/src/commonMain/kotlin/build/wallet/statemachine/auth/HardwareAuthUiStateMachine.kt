@@ -1,6 +1,7 @@
 package build.wallet.statemachine.auth
 
 import bitkey.account.HardwareType
+import bitkey.auth.AccountAuthTokens
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
@@ -179,6 +180,14 @@ sealed interface ActionProofType {
     override val extra: Map<String, String> = mapOf("eid" to entityId)
   }
 
+  // -- Delay & Notify period --
+
+  /** Set the delay & notify security period (7, 14, or 30 days). */
+  data class SetDelayNotifyPeriod(val periodDays: Int) : ActionProofType {
+    override val action: Action = Action.SET_DELAY_NOTIFY_PERIOD
+    override val value: String = periodDays.toString()
+  }
+
   // -- Cancel D&N Recovery --
 
   /** Cancel an in-progress lost app D&N recovery. */
@@ -217,11 +226,14 @@ sealed interface ActionProofType {
 /**
  * Unified state machine for obtaining hardware authorization for privileged actions.
  *
- * Both paths begin by refreshing auth tokens, then branch based on hardware type:
+ * Most paths begin by refreshing auth tokens, then branch based on hardware type:
  * - **W1**: Signs the access token via NFC,
  *   producing [PrivilegedActionProof.HwKeyProof].
  * - **W3**: Builds a structured action proof payload, app-signs it, then hardware-signs it via NFC,
  *   producing [PrivilegedActionProof.HwSignedAction].
+ * - **Hardware-signature-only actions**: Skip app authentication and app-signing. W1 signs
+ *   existing hardware-authenticated tokens; action-proof based cancellation signs the structured
+ *   payload via NFC.
  *
  * Callers don't need to know the hardware type — they just describe the action and get back a
  * [PrivilegedActionProof] on success.
@@ -234,6 +246,9 @@ interface HardwareAuthUiStateMachine : StateMachine<HardwareAuthUiProps, ScreenM
  * @property fullAccountId The account ID for auth token refresh.
  * @property hardwareType The hardware type (W1 or W3) to determine the signing path.
  * @property appAuthKey The app global auth key used for app-signing the action proof (W3 path).
+ * @property authTokens Existing tokens to sign for hardware-signature-only W1 proofs, such as
+ *   lost-app recovery cancellation. For normal W1 proofs, null means refresh app-auth tokens
+ *   before NFC.
  * @property useRecoveryPubKey When true, NFC hardware verification checks against the recovery
  *   hardware key instead of the paired hardware key. Used during lost-app recovery flows.
  * @property actionProofType Describes the privileged action being authorized.
@@ -255,6 +270,7 @@ data class HardwareAuthUiProps(
   val fullAccountId: FullAccountId,
   val hardwareType: HardwareType,
   val appAuthKey: PublicKey<AppGlobalAuthKey>,
+  val authTokens: AccountAuthTokens? = null,
   val useRecoveryPubKey: Boolean = false,
   val actionProofType: ActionProofType,
   val segment: AppSegment,
@@ -296,11 +312,13 @@ data class HardwareAuthUiProps(
         onRetry: () -> Unit,
       ) -> ScreenModel
     )? = null,
+    authTokens: AccountAuthTokens? = null,
     shouldLock: Boolean = true,
   ) : this(
     fullAccountId = account.accountId,
     hardwareType = account.config.hardwareType,
     appAuthKey = account.keybox.activeAppKeyBundle.authKey,
+    authTokens = authTokens,
     actionProofType = actionProofType,
     segment = segment,
     actionDescription = actionDescription,

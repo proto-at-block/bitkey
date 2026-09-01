@@ -2,17 +2,17 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-uikit-uikitx64",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-uikit-uikitX64Cinterop-utilsMain-1.9.1.klib": "b3f013e26753447d74b837f4b9340a1cef57b76b44bf5c3de4f6207228801206",
-                        "ui-uikit-uikitX64Main-1.9.1.klib": "b767968cb51202b26c58b1ae1587f23259dad1c9a5e73bcffafc28fc20ff844c"
+                        "ui-uikit-uikitX64Cinterop-utilsMain-1.10.0-rc02.klib": "64c3ac1667e8f1e670e25aec0fe867bd72ec3992649f24471ceafa93db38bbed",
+                        "ui-uikit-uikitX64Main-1.10.0-rc02.klib": "d798b232a15f917e323140f59d29f3f9bde5c197045cbf6fbe2a3ed3da7a3ee2"
                     }
                 },
                 {
                     "artifacts": {
-                        "ui-uikit-uikitx64-1.9.1-metadata.jar": "999d4c1c0e042ad7c9182bf77ad529b0bdc55061878ac49125909924043fb1d6"
+                        "ui-uikit-uikitx64-1.10.0-rc02-metadata.jar": "b218537740d0812d24e0734f2f5a6456c5aa7002dd8f156a38235d9d57ad43a6"
                     }
                 }
             ],

@@ -50,7 +50,7 @@ import build.wallet.ui.components.icon.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.loadingScrim
-import build.wallet.ui.components.loading.LoadingIndicator
+import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.components.switch.Switch
 import build.wallet.ui.compose.LocalHaptics
 import build.wallet.ui.compose.resId
@@ -304,7 +304,7 @@ private fun ContactAvatarAccessory(
             )
             .padding(2.dp)
         ) {
-          LoadingIndicator(
+          LoadingBadge(
             color = WalletTheme.colors.primaryIconForeground
           )
         }
@@ -315,10 +315,10 @@ private fun ContactAvatarAccessory(
 
 @Composable
 private fun AnimatedCheckboxAccessory(
-  modifier: Modifier = Modifier,
   isChecked: Boolean,
   isEnabled: Boolean,
   onClick: () -> Unit,
+  modifier: Modifier = Modifier,
 ) {
   val fillAlphaProgress = animateFloatAsState(
     targetValue = if (isChecked) 1f else 0f,

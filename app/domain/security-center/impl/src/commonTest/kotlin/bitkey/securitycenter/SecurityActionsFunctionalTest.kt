@@ -21,6 +21,8 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.ConfigurableDelayNotifyFeatureFlag
+import build.wallet.feature.flags.ConfigurableDelayNotifyW3MinFirmwareVersionFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.feature.flags.KeysetRepairFeatureFlag
 import build.wallet.firmware.*
@@ -130,6 +132,17 @@ class SecurityActionsFunctionalTest : FunSpec({
     accountService = accountService,
     keysetRepairFeatureFlag = keysetRepairFeatureFlag
   )
+  val configurableDelayNotifyFeatureFlag = ConfigurableDelayNotifyFeatureFlag(featureFlagDao)
+  val configurableDelayNotifyW3MinFirmwareVersionFeatureFlag =
+    ConfigurableDelayNotifyW3MinFirmwareVersionFeatureFlag(featureFlagDao)
+  val delayNotifyPeriodActionFactory = DelayNotifyPeriodActionFactoryImpl(
+    accountService = accountService,
+    delayNotifyConfigurationService = DelayNotifyConfigurationServiceFake(),
+    configurableDelayNotifyFeatureFlag = configurableDelayNotifyFeatureFlag,
+    configurableDelayNotifyW3MinFirmwareVersionFeatureFlag =
+      configurableDelayNotifyW3MinFirmwareVersionFeatureFlag,
+    firmwareDeviceInfoDao = firmwareDeviceInfoDao
+  )
 
   val securityActionsService = SecurityActionsServiceImpl(
     appKeyBackupHealthActionFactory,
@@ -141,6 +154,7 @@ class SecurityActionsFunctionalTest : FunSpec({
     hardwareDeviceActionFactory,
     txVerificationActionFactory,
     keysetSyncActionFactory,
+    delayNotifyPeriodActionFactory,
     eventTracker,
     metricTrackerService,
     securityRecommendationInteractionDao,
@@ -160,6 +174,7 @@ class SecurityActionsFunctionalTest : FunSpec({
     // Set default feature flag values
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
     keysetRepairFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    configurableDelayNotifyFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     // Set activeAccountKeys but don't record provisioned key - simulates not provisioned state
     hardwareProvisionedAppKeyStatusDao.activeAccountKeys =
       FullAccountMock.keybox.activeHwKeyBundle.authKey to FullAccountMock.keybox.activeAppKeyBundle.authKey
@@ -359,6 +374,6 @@ class SecurityActionsFunctionalTest : FunSpec({
   test("getActions returns expected actions") {
     val state = securityActionsService.securityActionsWithRecommendations.value.shouldNotBeNull()
     state.recoveryActions.size shouldBe 4
-    state.securityActions.size shouldBe 4
+    state.securityActions.size shouldBe 5
   }
 })

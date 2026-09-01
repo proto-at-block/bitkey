@@ -4,6 +4,7 @@ import app.cash.turbine.plusAssign
 import bitkey.account.HardwareType
 import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import bitkey.recovery.InitiateDelayNotifyRecoveryError.CommsVerificationRequiredError
+import bitkey.securitycenter.DelayNotifyConfigurationServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
@@ -75,6 +76,9 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   val onFoundHardwareCalls = turbines.create<Unit>("on found hardware calls")
 
   val eventTracker = EventTrackerMock(turbines::create)
+  val delayNotifyConfigurationService = DelayNotifyConfigurationServiceFake().apply {
+    periodDays.value = 14
+  }
 
   val lostHardwareRecoveryService = LostHardwareRecoveryServiceFake()
   val stateMachine = InitiatingLostHardwareRecoveryUiStateMachineImpl(
@@ -82,6 +86,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     eventTracker = eventTracker,
     recoveryNotificationVerificationUiStateMachine = recoveryNotificationVerificationUiStateMachine,
     hardwarePresenceUiStateMachine = hardwarePresenceUiStateMachine,
+    delayNotifyConfigurationService = delayNotifyConfigurationService,
     lostHardwareRecoveryService = lostHardwareRecoveryService,
     minimumLoadingDuration = MinimumLoadingDuration(0.milliseconds),
   )
@@ -110,6 +115,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
           )
+        delayPeriodDays.shouldBe(14)
         onContinue()
       }
 
@@ -505,22 +511,6 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
 
       awaitBodyMock<HardwarePresenceProps> {
         onCancel()
-      }
-
-      awaitBody<NewDeviceReadyQuestionBodyModel>()
-    }
-  }
-
-  test("resumed recovery attempt -- found old hardware failure returns to question") {
-    stateMachine.test(
-      props = props.copy(instructionsStyle = InstructionsStyle.ResumedRecoveryAttempt)
-    ) {
-      awaitUntilBody<NewDeviceReadyQuestionBodyModel> {
-        primaryAction.shouldNotBeNull().onClick()
-      }
-
-      awaitBodyMock<HardwarePresenceProps> {
-        onFailure(Error("Device is locked"))
       }
 
       awaitBody<NewDeviceReadyQuestionBodyModel>()

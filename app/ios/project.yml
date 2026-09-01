@@ -19,8 +19,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2026.11.2
-        PROJECT_BUNDLE_VERSION: 1
+        PROJECT_BUNDLE_SHORT_VERSION: 2026.13.0
+        PROJECT_BUNDLE_VERSION: 4
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -183,11 +183,130 @@ targets:
             exit 0
           fi
           cd "$SRCROOT/.."
-          GRADLE_FLAGS="--configuration-cache"
+          # Array, not a string: the Kotlin/Native jvmArgs value contains spaces and must reach
+          # Gradle as a single argv entry.
+          GRADLE_FLAGS=(--configuration-cache)
           if [ -n "$CI" ]; then
-            GRADLE_FLAGS="$GRADLE_FLAGS --no-watch-fs"
+            # Use a project cache dir dedicated to the Xcode-driven build.
+            #
+            # The `executionHistory` cache lives in the project cache dir and is locked for the
+            # duration of a build. CI reuses the agent workspace and the Gradle daemon across
+            # Buildkite jobs, so this Gradle invocation can share both the daemon and
+            # `app/.gradle` with another concurrent Gradle build. When that happens every task
+            # here fails with:
+            #   "Cannot lock execution history cache (app/.gradle/<version>/executionHistory)
+            #    as it has already been locked by this process."
+            # Note "by this process": the contention is two concurrent builds inside one shared
+            # daemon, not a stale lock from a dead process. It surfaces as a bare `xcodebuild`
+            # exit 65 with no test failures. A dedicated project cache dir gives this build its
+            # own execution history, so it no longer collides.
+            #
+            # Run konanc out of process with an explicit heap.
+            #
+            # By default KGP runs the Kotlin/Native compiler *in process*, inside the Gradle
+            # daemon: KotlinNativeLink passes `shouldRunInProcessMode = !forceDisableRunningInProcess`
+            # and `kotlin.native.disableCompilerDaemon` defaults to false. On that path
+            # `KotlinNativeToolRunner.runInProcess` ignores `toolSpec.jvmArgs` entirely (it only
+            # reads them to check for `-ea`), so the plugin's `-Xmx3g` default never applies.
+            # konanc therefore linked the device framework inside the daemon heap, sized only by
+            # `org.gradle.jvmargs=-XX:MaxRAMPercentage=70`, while the daemon was potentially also
+            # serving a second concurrent build. That is what produced the recurring
+            # "GC overhead limit exceeded" in the nightly TeamAlpha archive.
+            #
+            # `disableCompilerDaemon=true` moves konanc onto the `runViaExec` path, where jvmArgs
+            # are honoured, giving the link step a bounded heap of its own that cannot be starved
+            # by, or starve, other work in the daemon. On a 16 GiB agent that bound matters more
+            # than its size: an unbounded in-daemon konanc sharing RAM with a concurrent build is
+            # exactly the configuration that failed. The heap dump is requested here because the
+            # daemon's own `HeapDumpOnOutOfMemoryError` does not cover a child JVM; if this OOMs
+            # again we want the hprof rather than another round of inference.
+            # CI agents are mac2.metal: Apple M1, 8 cores, 16 GiB of RAM, shared between the
+            # Gradle daemon, konanc, xcodebuild and clang.
+            #
+            # Sizing comes from build 43462, the first archive to run with konanc out of process.
+            # It failed with `Java heap space` followed by exit 137, in that order: konanc hit its
+            # own 4 GiB ceiling, and while the JVM was trying to write the OOM dump the kernel
+            # SIGKILLed it because the machine was already out of memory. So 4 GiB was too small
+            # for the link *and* the total was too large, which is only contradictory until you
+            # look at the split: `MaxRAMPercentage=70` let the daemon grow to ~11 GiB to run seven
+            # near-trivial tasks, leaving the one process doing real work with 4 GiB.
+            #
+            # This inverts it: the daemon is capped (see -Dorg.gradle.jvmargs below) and the link
+            # gets the majority of the budget.
+            #   daemon 2 GiB + konanc 8 GiB = 10 GiB, leaving ~6 GiB for xcodebuild, clang and OS.
+            # That headroom is also what makes the OOM dump viable. In 43462 there was none, so the
+            # dump attempt itself was what got the process killed.
+            KONANC_HEAP="${KOTLIN_NATIVE_MAX_HEAP:-8g}"
+            # `kotlin.native.*` are project-wide, so the heap above applies to every native
+            # compiler process, not just the framework link: KotlinNativeCompile reads the same
+            # `nativeProperties.jvmArgs` and `forceDisableRunningInProcess` as KotlinNativeLink.
+            # With `org.gradle.parallel=true`, ~200 modules and no worker cap, Gradle would
+            # otherwise be free to run one of these JVMs per core on a 16 GiB agent and get killed
+            # by memory pressure on a cold cache, before ever reaching the link step.
+            # Out-of-process compilation makes each worker's heap additive rather than shared, so
+            # the concurrency has to be capped alongside it. At 8 GiB per worker the cap is what
+            # keeps the budget viable, so it is 1: the framework link is the serial bottleneck here
+            # and gets the whole allowance, rather than two workers splitting it and both coming up
+            # short. Raise it only together with a smaller per-worker heap.
+            GRADLE_FLAGS+=(--max-workers="${KOTLIN_NATIVE_MAX_WORKERS:-1}")
+            # Keep the dump out of ARTIFACT_DIR. Two separate reasons:
+            #  - the agent environment hook exports ARTIFACT_DIR and overwrites
+            #    BUILDKITE_ARTIFACT_PATHS, so a pipeline-level artifact_paths is silently dropped;
+            #  - the pre-artifact hook size-caps that directory, and a dump from a multi-GiB heap
+            #    is far over the macOS agent's limit, so it would be deleted before upload.
+            # It is therefore written to the workspace and uploaded explicitly below, compressed.
+            # Use $(pwd) rather than the PWD variable: xcodegen resolves the build-setting and
+            # environment placeholders it recognises (PWD among them) at generation time, which
+            # baked the generating machine's absolute path into project.pbxproj, comments included.
+            # Arbitrary shell variables such as KONANC_HEAP pass through untouched, so ${...} is
+            # safe for those; only names xcodegen knows are at risk. Command substitution always
+            # survives generation and is evaluated at build time. Absolute, because the heap dump
+            # is written by a child JVM whose working directory we do not control.
+            KONANC_HPROF_DIR="$(pwd)/_build"
+            mkdir -p "$KONANC_HPROF_DIR"
+            GRADLE_FLAGS+=(--no-watch-fs --project-cache-dir .gradle-xcode)
+            # Cap the daemon for this invocation only. `org.gradle.jvmargs` in gradle.properties
+            # takes precedence over GRADLE_OPTS, so it has to be overridden on the command line;
+            # a `-D` system property is the highest-precedence route. The daemon only orchestrates
+            # a handful of light tasks in this phase (build 43462 ran seven, six of them dependency
+            # checks), so its ceiling allowed ~11 GiB for very little while konanc went short. The
+            # ceiling is not a reservation, but it is what the JVM will expand into under pressure,
+            # which on a 16 GiB agent is enough to squeeze konanc out. Keeping
+            # HeapDumpOnOutOfMemoryError and UseParallelGC from gradle.properties, since replacing
+            # the property drops everything it set.
+            #
+            # A different daemon heap means Gradle cannot reuse the daemon started by other jobs on
+            # this agent, so a separate one is forked for the Xcode build. That is a side benefit:
+            # it also removes the execution-history lock contention that --project-cache-dir works
+            # around, though the flag is left in place because it is what makes the isolation
+            # explicit rather than incidental.
+            GRADLE_FLAGS+=("-Dorg.gradle.jvmargs=-Xmx${GRADLE_DAEMON_HEAP:-2g} -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC")
+            GRADLE_FLAGS+=(-Pkotlin.native.disableCompilerDaemon=true)
+            GRADLE_FLAGS+=("-Pkotlin.native.jvmArgs=-Xmx${KONANC_HEAP} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${KONANC_HPROF_DIR}/konanc-oom.hprof")
+
+            echo "Kotlin/Native: konanc out of process, heap=${KONANC_HEAP}, max-workers=${KOTLIN_NATIVE_MAX_WORKERS:-1}, daemon heap=${GRADLE_DAEMON_HEAP:-2g}"
           fi
-          REPRODUCIBLE_BUILD="$REPRODUCIBLE_BUILD_VARIABLES_PATH" ./bin/gradle :shared:xc-framework:embedAndSignAppleFrameworkForXcode $GRADLE_FLAGS
+          # `set -e` would abort before the dump could be uploaded, so capture the status and
+          # re-raise it after. Only konanc's own OOM dump is handled here; nothing else is retried
+          # or suppressed, so a failing build still fails with its original exit code.
+          GRADLE_STATUS=0
+          REPRODUCIBLE_BUILD="$REPRODUCIBLE_BUILD_VARIABLES_PATH" ./bin/gradle :shared:xc-framework:embedAndSignAppleFrameworkForXcode "${GRADLE_FLAGS[@]}" || GRADLE_STATUS=$?
+
+          if [ -n "$CI" ] && [ -f "$KONANC_HPROF_DIR/konanc-oom.hprof" ]; then
+            # Compress before upload: a dump from a multi-GiB heap is far too large otherwise, and
+            # heap dumps compress very well. Uploaded directly rather than via ARTIFACT_DIR, whose
+            # contents the pre-artifact hook size-caps.
+            echo "konanc OOM heap dump found; compressing for upload"
+            gzip -f "$KONANC_HPROF_DIR/konanc-oom.hprof"
+            if command -v buildkite-agent >/dev/null 2>&1; then
+              ( cd "$KONANC_HPROF_DIR" && buildkite-agent artifact upload konanc-oom.hprof.gz ) \
+                || echo "warning: heap dump upload failed; it remains at $KONANC_HPROF_DIR"
+            else
+              echo "warning: buildkite-agent not on PATH; heap dump left at $KONANC_HPROF_DIR"
+            fi
+          fi
+
+          exit $GRADLE_STATUS
       - name: Embed reproducible-build-variables if exists
         basedOnDependencyAnalysis: false
         shell: /usr/bin/env bash

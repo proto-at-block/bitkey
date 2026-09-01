@@ -13,5 +13,9 @@ getFlag:
 SELECT value FROM booleanFeatureFlagEntity
 WHERE featureFlagId = ?;
 
+deleteFlag:
+DELETE FROM booleanFeatureFlagEntity
+WHERE featureFlagId = ?;
+
 clear:
 DELETE FROM booleanFeatureFlagEntity;

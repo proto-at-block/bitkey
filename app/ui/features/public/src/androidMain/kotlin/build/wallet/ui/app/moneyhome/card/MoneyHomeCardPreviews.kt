@@ -3,6 +3,7 @@
 package build.wallet.ui.app.moneyhome.card
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.Progress
 import build.wallet.bitkey.relationships.*
@@ -17,8 +18,6 @@ import build.wallet.pricechart.PriceDirection
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
-import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
 import build.wallet.statemachine.moneyhome.card.gettingstarted.FirmwareUpdateGettingStartedTileModel
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardModel
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedTaskRowModel
@@ -44,25 +43,20 @@ import kotlin.time.Duration.Companion.days
 
 @Preview
 @Composable
-fun PreviewMoneyHomePriceCard(
+fun PreviewPriceCard(
   isLoading: Boolean = false,
   price: String = "$90,000.00",
 ) {
-  MoneyHomeCard(
+  Card(
     model =
-      CardModel(
-        title = null,
-        content = BitcoinPrice(
-          isLoading = isLoading,
-          priceChange = "10.00% today",
-          priceDirection = PriceDirection.UP,
-          lastUpdated = "Updated 12:00am",
-          price = price,
-          data = generateChartData(150)
-            .takeUnless { isLoading }
-            ?: immutableListOf()
-        ),
-        style = Outline()
+      CardModel.BitcoinPrice(
+        isLoading = isLoading,
+        priceChange = "10.00% today",
+        priceDirection = PriceDirection.UP,
+        price = price,
+        data = generateChartData(150)
+          .takeUnless { isLoading }
+          ?: immutableListOf()
       )
   )
 }
@@ -70,7 +64,7 @@ fun PreviewMoneyHomePriceCard(
 @Preview
 @Composable
 fun PreviewMoneyHomePriceCardLoading() {
-  PreviewMoneyHomePriceCard(isLoading = true)
+  PreviewPriceCard(isLoading = true)
 }
 
 @Preview(
@@ -78,7 +72,7 @@ fun PreviewMoneyHomePriceCardLoading() {
 )
 @Composable
 fun PreviewMoneyHomePriceCardLargeFont() {
-  PreviewMoneyHomePriceCard(
+  PreviewPriceCard(
     isLoading = false,
     price = "$100,000.00"
   )
@@ -89,7 +83,7 @@ fun PreviewMoneyHomePriceCardLargeFont() {
 )
 @Composable
 fun PreviewMoneyHomePriceCardHugeFont() {
-  PreviewMoneyHomePriceCard(
+  PreviewPriceCard(
     isLoading = false,
     price = "$100,000.00"
   )
@@ -97,57 +91,49 @@ fun PreviewMoneyHomePriceCardHugeFont() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeGettingStarted() {
-  MoneyHomeCard(
-    model =
-      GettingStartedCardModel(
-        animations = null,
-        taskModels =
-          immutableListOf(
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(AddBitcoin, Incomplete),
-              isEnabled = true,
-              onClick = {}
-            ),
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(EnableSpendingLimit, Incomplete),
-              isEnabled = false,
-              onClick = {}
-            )
-          )
+fun PreviewGettingStarted() {
+  GettingStartedCardModel(
+    taskModels =
+      immutableListOf(
+        GettingStartedTaskRowModel(
+          task = GettingStartedTask(AddBitcoin, Incomplete),
+          isEnabled = true,
+          onClick = {}
+        ),
+        GettingStartedTaskRowModel(
+          task = GettingStartedTask(EnableSpendingLimit, Incomplete),
+          isEnabled = false,
+          onClick = {}
+        )
       )
-  )
+  ).render(Modifier)
 }
 
 @Preview
 @Composable
-fun PreviewMoneyHomeGettingStartedWithFirmwareUpdate() {
-  MoneyHomeCard(
-    model =
-      GettingStartedCardModel(
-        animations = null,
-        taskModels =
-          immutableListOf(
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(AddBitcoin, Incomplete),
-              isEnabled = true,
-              onClick = {}
-            ),
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(EnableSpendingLimit, Incomplete),
-              isEnabled = false,
-              onClick = {}
-            )
-          ),
-        firmwareUpdateTile = FirmwareUpdateGettingStartedTileModel(onClick = {})
-      )
-  )
+fun PreviewGettingStartedWithFirmwareUpdate() {
+  GettingStartedCardModel(
+    taskModels =
+      immutableListOf(
+        GettingStartedTaskRowModel(
+          task = GettingStartedTask(AddBitcoin, Incomplete),
+          isEnabled = true,
+          onClick = {}
+        ),
+        GettingStartedTaskRowModel(
+          task = GettingStartedTask(EnableSpendingLimit, Incomplete),
+          isEnabled = false,
+          onClick = {}
+        )
+      ),
+    firmwareUpdateTile = FirmwareUpdateGettingStartedTileModel(onClick = {})
+  ).render(Modifier)
 }
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardInvitationPending() {
-  MoneyHomeCard(
+fun PreviewCardInvitationPending() {
+  Card(
     model =
       TrustedContactCardModel(
         contact =
@@ -167,8 +153,8 @@ fun PreviewMoneyHomeCardInvitationPending() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardInvitationExpired() {
-  MoneyHomeCard(
+fun PreviewCardInvitationExpired() {
+  Card(
     model =
       TrustedContactCardModel(
         contact =
@@ -188,8 +174,8 @@ fun PreviewMoneyHomeCardInvitationExpired() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardReplacementPending() {
-  MoneyHomeCard(
+fun PreviewCardReplacementPending() {
+  Card(
     model =
       HardwareRecoveryCardModel(
         title = "Replacement pending...",
@@ -203,8 +189,8 @@ fun PreviewMoneyHomeCardReplacementPending() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardReplacementReady() {
-  MoneyHomeCard(
+fun PreviewCardReplacementReady() {
+  Card(
     model =
       HardwareRecoveryCardModel(
         title = "Replacement Ready",
@@ -217,22 +203,19 @@ fun PreviewMoneyHomeCardReplacementReady() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardInactiveWallet() {
-  MoneyHomeCard(
+fun PreviewCardInactiveWallet() {
+  Card(
     model =
-      CardModel(
-        title = null,
-        content = null,
-        style = CardModel.CardStyle.Callout(
-          CalloutModel(
-            title = "Funds in inactive wallet",
-            subtitle = LabelModel.StringModel("Transfer funds now"),
-            treatment = CalloutModel.Treatment.Warning,
-            useMonochromeStyle = true,
-            leadingIcon = Icon.Information,
-            trailingIcon = Icon.ArrowRight,
-            onClick = StandardClick {}
-          )
+      CardModel.Callout(
+        id = "preview",
+        callout = CalloutModel(
+          title = "Funds in inactive wallet",
+          subtitle = LabelModel.StringModel("Transfer funds now"),
+          treatment = CalloutModel.Treatment.Warning,
+          useMonochromeStyle = true,
+          leadingIcon = Icon.Information,
+          trailingIcon = Icon.ArrowRight,
+          onClick = StandardClick {}
         )
       )
   )
@@ -240,10 +223,11 @@ fun PreviewMoneyHomeCardInactiveWallet() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardBenefactorPendingClaim() {
-  MoneyHomeCard(
+fun PreviewCardBenefactorPendingClaim() {
+  Card(
     model =
       BenefactorPendingClaimCardModel(
+        id = "preview",
         title = "Inheritance claim initiated",
         subtitle = "Decline claim by Apr 14, 2026 to retain control of your funds.",
         onClick = StandardClick {}
@@ -253,10 +237,11 @@ fun PreviewMoneyHomeCardBenefactorPendingClaim() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardBenefactorApprovedClaim() {
-  MoneyHomeCard(
+fun PreviewCardBenefactorApprovedClaim() {
+  Card(
     model =
       BenefactorLockedCompleteClaimCardModel(
+        id = "preview",
         title = "Inheritance approved",
         subtitle = "To retain control of your funds, transfer them to a new wallet.",
         onClick = StandardClick {}
@@ -266,13 +251,14 @@ fun PreviewMoneyHomeCardBenefactorApprovedClaim() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardBeneficiaryPendingClaim() {
-  MoneyHomeCard(
+fun PreviewCardBeneficiaryPendingClaim() {
+  Card(
     model =
       BeneficiaryPendingClaimCardModel(
+        id = "preview",
         title = "Inheritance claim pending",
         subtitle = "Funds available Apr 14, 2026.",
-        isPendingClaim = true,
+        state = CardModel.PendingClaim.State.Pending,
         timeRemaining = 1.days,
         progress = Progress.Half,
         onClick = null
@@ -282,13 +268,14 @@ fun PreviewMoneyHomeCardBeneficiaryPendingClaim() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardBeneficiaryApprovedClaim() {
-  MoneyHomeCard(
+fun PreviewCardBeneficiaryApprovedClaim() {
+  Card(
     model =
       BeneficiaryPendingClaimCardModel(
+        id = "preview",
         title = "Claim approved",
         subtitle = "Transfer funds now.",
-        isPendingClaim = false,
+        state = CardModel.PendingClaim.State.Locked,
         timeRemaining = Duration.ZERO,
         progress = Progress.Full,
         onClick = {}
@@ -298,8 +285,8 @@ fun PreviewMoneyHomeCardBeneficiaryApprovedClaim() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardWalletsProtecting() {
-  MoneyHomeCard(
+fun PreviewCardWalletsProtecting() {
+  Card(
     model =
       WalletsProtectingMoneyHomeCardModel(
         protectedCustomers =
@@ -323,16 +310,16 @@ fun PreviewMoneyHomeCardWalletsProtecting() {
 
 @Preview
 @Composable
-fun PreviewMoneyHomeCardBuyOwnBitkey() {
-  MoneyHomeCard(
+fun PreviewCardBuyOwnBitkey() {
+  Card(
     model = BuyOwnBitkeyMoneyHomeCardModel(onClick = {})
   )
 }
 
 @Preview
 @Composable
-fun PreviewInheritanceMoneyHomeCard() {
-  MoneyHomeCard(
+fun PreviewInheritanceCard() {
+  Card(
     model = InheritanceMoneyHomeCard(
       onIHaveABitkey = {},
       onGetABitkey = {}

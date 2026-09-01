@@ -51,6 +51,9 @@ import build.wallet.ui.tokens.LabelType.Title2
 /**
  * Displays coming soon details and animated icon for Your balance screen.
  */
+// Emits the data row and chart as siblings on purpose: the caller's Column applies
+// Arrangement.spacedBy between them (same pattern as BitcoinPriceChartScreen).
+@Suppress("MultipleEmitters")
 @Composable
 internal fun BalanceHistoryScreen(model: BitcoinPriceDetailsBodyModel) {
   val showChart = model.data.isNotEmpty() && (!model.isLoading || model.preservePreviousChartWhileLoading)

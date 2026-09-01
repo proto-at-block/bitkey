@@ -9,8 +9,8 @@ import build.wallet.partnerships.PartnershipPurchaseServiceFake
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.DotLoader
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
+import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiStateMachineImpl
@@ -35,7 +35,7 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
   val stateMachine = PartnershipsPurchaseAmountUiStateMachineImpl(
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     partnershipPurchaseService = partnershipPurchaseService,
-    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
   )
 
   fun props(selectedAmount: FiatMoney? = null) =
@@ -189,6 +189,6 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
 
 private suspend fun StateMachineTester<PartnershipsPurchaseAmountUiProps, SheetModel>.awaitLoader() {
   awaitSheet<FormBodyModel> {
-    mainContentList[0].shouldBeTypeOf<DotLoader>()
+    mainContentList[0].shouldBeTypeOf<Loader>()
   }
 }

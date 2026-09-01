@@ -23,24 +23,16 @@ import build.wallet.limit.MobilePayServiceMock
 import build.wallet.recovery.socrec.SocRecServiceFake
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet
-import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Height
-import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Scale
-import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.DrillList
-import build.wallet.statemachine.moneyhome.card.CardModel.GettingStartedTileModel
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachineImpl
-import build.wallet.statemachine.ui.matchers.shouldHaveTitle
+import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedSectionModel
+import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedTileModel
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.Instant
 
@@ -99,7 +91,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           GettingStartedTask(EnableSpendingLimit, state = Incomplete)
         )
       )
-      awaitItem().shouldNotBeNull().expect(
+      awaitItem().shouldNotBeNull().asGettingStarted().expect(
         listOf(
           GettingStartedTask(AddBitcoin, state = Incomplete),
           GettingStartedTask(EnableSpendingLimit, state = Incomplete)
@@ -121,7 +113,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       gettingStartedTaskDao.addTasks(
         listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
       )
-      awaitItem().shouldNotBeNull().expect(
+      awaitItem().shouldNotBeNull().asGettingStarted().expect(
         tasks = listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
       )
     }
@@ -134,11 +126,11 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
         listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
       )
 
-      val cardModel = awaitItem().shouldNotBeNull()
+      val cardModel = awaitItem().shouldNotBeNull().asGettingStarted()
       cardModel.expect(
         tasks = listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
       )
-      cardModel.onClick("Add bitcoin").invoke()
+      cardModel.tileOnClick("Add bitcoin").invoke()
       onAddBitcoinCalls.awaitItem()
     }
   }
@@ -150,63 +142,52 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
         listOf(GettingStartedTask(EnableSpendingLimit, state = Incomplete))
       )
 
-      val cardModel = awaitItem().shouldNotBeNull()
+      val cardModel = awaitItem().shouldNotBeNull().asGettingStarted()
       cardModel.expect(
         tasks = listOf(GettingStartedTask(EnableSpendingLimit, state = Incomplete))
       )
-      cardModel.onClick("Customize transfer settings").invoke()
+      cardModel.tileOnClick("Customize transfer settings").invoke()
       onEnableSpendingLimitCalls.awaitItem()
     }
   }
 
   test("shows firmware update tile first when available") {
     stateMachine.test(props.copy(showUpdateFirmwareTile = true)) {
-      val firmwareOnlyCardModel = awaitItem().shouldNotBeNull()
-      firmwareOnlyCardModel.firmwareListItem().let { firmwareItem ->
-        firmwareItem.title.shouldBe("Update firmware")
-        firmwareItem.enabled.shouldBe(true)
-        firmwareItem.leadingAccessory.shouldNotBeNull()
-          .shouldBeTypeOf<ListItemAccessory.IconAccessory>()
-          .model.iconImage.shouldBeTypeOf<IconImage.LocalImage>()
-          .icon.shouldBe(Bitkey)
-      }
-
-      gettingStartedTaskDao.addTasks(
-        listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
-      )
-
-      val cardModel = awaitItem().shouldNotBeNull()
-      cardModel.expect(
-        tasks = listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
-      )
-
-      val firmwareTile = cardModel.kind
-        .shouldBeTypeOf<CardModel.Kind.GettingStarted>()
-        .tiles
-        .first()
-      firmwareTile.id.shouldBe(GettingStartedTileModel.Id.UpdateFirmware)
+      val firmwareOnlyCardModel = awaitItem().shouldNotBeNull().asGettingStarted()
+      val firmwareTile = firmwareOnlyCardModel.tiles
+        .first { it.id == GettingStartedTileModel.Id.UpdateFirmware }
       firmwareTile.title.shouldBe("Update firmware")
       firmwareTile.isEnabled.shouldBe(true)
       firmwareTile.isComplete.shouldBe(false)
       firmwareTile.leadingIcon.shouldNotBeNull()
         .iconImage.shouldBeTypeOf<IconImage.LocalImage>()
         .icon.shouldBe(DotBitkey)
+
+      gettingStartedTaskDao.addTasks(
+        listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
+      )
+
+      val cardModel = awaitItem().shouldNotBeNull().asGettingStarted()
+      cardModel.expect(
+        tasks = listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
+      )
+
+      // Firmware tile is still present
+      cardModel.tiles.first().id.shouldBe(GettingStartedTileModel.Id.UpdateFirmware)
     }
   }
 
   test("onUpdateFirmware click") {
     stateMachine.test(props.copy(showUpdateFirmwareTile = true)) {
-      val cardModel = awaitItem().shouldNotBeNull()
+      val cardModel = awaitItem().shouldNotBeNull().asGettingStarted()
       cardModel.firmwareTile().onClick.shouldNotBeNull().invoke()
-      onUpdateFirmwareCalls.awaitItem()
-      cardModel.firmwareListItem().onClick.shouldNotBeNull().invoke()
       onUpdateFirmwareCalls.awaitItem()
     }
   }
 
   test("keeps firmware update card after onboarding tasks clear") {
     stateMachine.test(props.copy(showUpdateFirmwareTile = true)) {
-      awaitItem().shouldNotBeNull().firmwareTile()
+      awaitItem().shouldNotBeNull().asGettingStarted().firmwareTile()
 
       gettingStartedTaskDao.addTasks(
         listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
@@ -218,17 +199,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
       gettingStartedTaskDao.clearTasksCalls.awaitItem()
 
-      val firmwareOnlyCard = awaitItem().shouldNotBeNull()
-      firmwareOnlyCard.animation.shouldBeNull()
-      firmwareOnlyCard.content.shouldBeInstanceOf<DrillList>()
-        .items
-        .single()
-        .title
-        .shouldBe("Update firmware")
-      firmwareOnlyCard.kind.shouldBeTypeOf<CardModel.Kind.GettingStarted>()
-        .tiles
-        .single()
-        .id
+      val firmwareOnlyCard = awaitItem().shouldNotBeNull().asGettingStarted()
+      firmwareOnlyCard.tiles.single().id
         .shouldBe(GettingStartedTileModel.Id.UpdateFirmware)
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_GETTINGSTARTED_COMPLETED)
@@ -246,7 +218,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           GettingStartedTask(EnableSpendingLimit, state = Incomplete)
         )
       )
-      awaitItem().shouldNotBeNull().expect(
+      awaitItem().shouldNotBeNull().asGettingStarted().expect(
         tasks =
           listOf(
             GettingStartedTask(AddBitcoin, state = Incomplete),
@@ -255,7 +227,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       )
 
       gettingStartedTaskDao.updateTask(AddBitcoin, Complete)
-      awaitItem().shouldNotBeNull().expect(
+      awaitItem().shouldNotBeNull().asGettingStarted().expect(
         tasks =
           listOf(
             GettingStartedTask(AddBitcoin, state = Complete),
@@ -264,20 +236,13 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       )
 
       gettingStartedTaskDao.updateTask(EnableSpendingLimit, Complete)
-      awaitItem().shouldNotBeNull().expect(
+      awaitItem().shouldNotBeNull().asGettingStarted().expect(
         tasks =
           listOf(
             GettingStartedTask(AddBitcoin, state = Complete),
             GettingStartedTask(EnableSpendingLimit, state = Complete)
           )
       )
-
-      // And then animate
-      awaitItem().shouldNotBeNull().animation
-        .shouldContainExactly(
-          AnimationSet(setOf(Scale(1.05f)), 0.55),
-          AnimationSet(setOf(Scale(0.001f), Height(0f)), 0.55)
-        )
 
       // And then clear the dao
       gettingStartedTaskDao.clearTasksCalls.awaitItem()
@@ -298,7 +263,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
         )
       )
 
-      awaitItem().shouldNotBeNull().expect(
+      awaitItem().shouldNotBeNull().asGettingStarted().expect(
         tasks =
           listOf(
             GettingStartedTask(AddBitcoin, state = Incomplete),
@@ -308,7 +273,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
       mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
 
-      awaitItem().shouldNotBeNull().expect(
+      awaitItem().shouldNotBeNull().asGettingStarted().expect(
         tasks =
           listOf(
             GettingStartedTask(AddBitcoin, state = Incomplete),
@@ -328,7 +293,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
         )
       )
 
-      awaitItem().shouldNotBeNull().expect(
+      awaitItem().shouldNotBeNull().asGettingStarted().expect(
         tasks =
           listOf(
             GettingStartedTask(EnableSpendingLimit, state = Incomplete),
@@ -338,7 +303,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
       bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
-      awaitItem().shouldNotBeNull().expect(
+      awaitItem().shouldNotBeNull().asGettingStarted().expect(
         tasks =
           listOf(
             GettingStartedTask(EnableSpendingLimit, state = Incomplete),
@@ -365,8 +330,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
         )
       )
 
-      val cardModel = awaitItem().shouldNotBeNull()
-      cardModel.expectTaskModelWithEnabled(
+      val cardModel = awaitItem().shouldNotBeNull().asGettingStarted()
+      cardModel.expectTilesWithEnabled(
         taskPairs =
           listOf(
             Pair(GettingStartedTask(AddBitcoin, state = Incomplete), false),
@@ -377,56 +342,23 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 })
 
-/**
- * Helper function to check card model for drill row content
- */
-private fun CardModel.expect(tasks: List<GettingStartedTask>) =
-  expectTaskModelWithEnabled(taskPairs = tasks.map { Pair(it, true) })
+private fun GettingStartedSectionModel.asGettingStarted(): GettingStartedSectionModel = this
 
-/**
- * Helper function to check card model for drill row content
- * The task is paired with whether it should be enabled
- */
-private fun CardModel.expectTaskModelWithEnabled(
+private fun GettingStartedSectionModel.expect(tasks: List<GettingStartedTask>) =
+  expectTilesWithEnabled(taskPairs = tasks.map { Pair(it, true) })
+
+private fun GettingStartedSectionModel.expectTilesWithEnabled(
   taskPairs: List<Pair<GettingStartedTask, Boolean>>,
 ) {
-  shouldHaveTitle("Getting Started")
-  subtitle.shouldBeNull()
-  leadingImage.shouldBeNull()
-  val gettingStartedKind = kind.shouldBeTypeOf<CardModel.Kind.GettingStarted>()
-  val drillList = content.shouldBeInstanceOf<DrillList>().items
-  for (taskPair in taskPairs) {
-    val (task, taskEnabled) = taskPair
-    val listItem = drillList.first { it.title == task.listTitle() }
-    listItem.enabled.shouldBe(taskEnabled)
-    listItem.leadingAccessory.shouldNotBeNull()
-      .shouldBeTypeOf<ListItemAccessory.IconAccessory>()
-      .model.iconImage.shouldBeTypeOf<IconImage.LocalImage>()
-      .icon.shouldBe(
-        when (task.state) {
-          Complete -> SmallIconCheckFilled
-          Incomplete ->
-            when (task.id) {
-              EnableSpendingLimit -> MobileLimit
-              AddBitcoin -> Plus
-            }
-        }
-      )
-
-    val tile = gettingStartedKind.tiles.first {
-      it.id ==
-        when (task.id) {
-          AddBitcoin -> GettingStartedTileModel.Id.AddBitcoin
-          EnableSpendingLimit -> GettingStartedTileModel.Id.EnableSpendingLimit
-        }
-    }
-    tile.id.shouldBe(
-      when (task.id) {
+  title.shouldBe("Getting Started")
+  for ((task, taskEnabled) in taskPairs) {
+    val tile = tiles.first {
+      it.id == when (task.id) {
         AddBitcoin -> GettingStartedTileModel.Id.AddBitcoin
         EnableSpendingLimit -> GettingStartedTileModel.Id.EnableSpendingLimit
       }
-    )
-    tile.title.shouldBe(listItem.title)
+    }
+    tile.title.shouldBe(task.listTitle())
     tile.isEnabled.shouldBe(taskEnabled || task.state == Complete)
     tile.isComplete.shouldBe(task.state == Complete)
     tile.leadingIcon.shouldNotBeNull()
@@ -454,23 +386,12 @@ private fun CardModel.expectTaskModelWithEnabled(
   }
 }
 
-/** Helper function to get onClick action for drill row */
-private fun CardModel.onClick(taskTitle: String): (() -> Unit) {
-  return content.shouldBeInstanceOf<DrillList>()
-    .items.first { it.title == taskTitle }
-    .onClick.shouldNotBeNull()
+private fun GettingStartedSectionModel.tileOnClick(taskTitle: String): (() -> Unit) {
+  return tiles.first { it.title == taskTitle }.onClick.shouldNotBeNull()
 }
 
-private fun CardModel.firmwareTile(): GettingStartedTileModel {
-  return kind.shouldBeTypeOf<CardModel.Kind.GettingStarted>()
-    .tiles
-    .first { it.id == GettingStartedTileModel.Id.UpdateFirmware }
-}
-
-private fun CardModel.firmwareListItem() =
-  content.shouldBeInstanceOf<DrillList>()
-    .items
-    .first { it.title == "Update firmware" }
+private fun GettingStartedSectionModel.firmwareTile(): GettingStartedTileModel =
+  tiles.first { it.id == GettingStartedTileModel.Id.UpdateFirmware }
 
 private fun GettingStartedTask.listTitle(): String =
   when (id) {

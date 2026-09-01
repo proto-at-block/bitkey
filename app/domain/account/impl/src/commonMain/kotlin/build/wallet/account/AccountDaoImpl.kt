@@ -117,6 +117,7 @@ class AccountDaoImpl(
 
   override suspend fun clear(): Result<Unit, DbError> {
     return databaseProvider.database().awaitTransaction {
+      walletMetadataQueries.clear()
       liteAccountQueries.clear()
       fullAccountQueries.clear()
       softwareAccountQueries.clear()

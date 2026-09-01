@@ -7,7 +7,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.ui.model.list.CoachmarkLabelModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.tooling.PreviewWalletTheme
 
@@ -67,7 +67,7 @@ fun SettingsScreen(allItemsEnabled: Boolean = false) {
         ),
       toolbarModel = ToolbarModel(
         leadingAccessory = BackAccessory(onClick = {}),
-        middleAccessory = ToolbarMiddleAccessoryModel(title = "Settings")
+        title = ToolbarTitleModel.Inline(title = "Settings")
       )
     )
   )

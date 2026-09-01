@@ -11,6 +11,8 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.explorer.BitcoinExplorer
 import build.wallet.bitcoin.explorer.BitcoinExplorerType.Mempool
 import build.wallet.bitcoin.fees.FeeRate
+import build.wallet.bitcoin.metadata.TransactionNote
+import build.wallet.bitcoin.metadata.TransactionNoteService
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
@@ -22,6 +24,9 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.TransactionNotesFeatureFlag
+import build.wallet.feature.isEnabled
+import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -55,11 +60,14 @@ import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.toast.ToastModel
+import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -86,6 +94,9 @@ class TransactionDetailsUiStateMachineImpl(
   private val clipboard: Clipboard,
   private val haptics: Haptics,
   private val feeEstimationErrorUiStateMachine: FeeEstimationErrorUiStateMachine,
+  private val transactionNoteService: TransactionNoteService,
+  private val transactionNoteEditUiStateMachine: TransactionNoteEditUiStateMachine,
+  private val transactionNotesFeatureFlag: TransactionNotesFeatureFlag,
 ) : TransactionDetailsUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -104,6 +115,10 @@ class TransactionDetailsUiStateMachineImpl(
         }
     }.collectAsState(props.transaction)
 
+    val areTransactionNotesEnabled by remember {
+      transactionNotesFeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = transactionNotesFeatureFlag.isEnabled())
+
     return when (val state = uiState) {
       is SpeedingUpTransactionUiState ->
         feeBumpConfirmationUiStateMachine.model(
@@ -118,8 +133,29 @@ class TransactionDetailsUiStateMachineImpl(
 
       is ShowingTransactionDetailUiState -> {
         var isShowingEducationSheet by remember { mutableStateOf(false) }
+        var isShowingNoteEditSheet by remember { mutableStateOf(false) }
         var isPreparingSpeedUp by remember { mutableStateOf(false) }
         var transactionIdCopiedToastId by remember { mutableStateOf<String?>(null) }
+        val transactionId = remember(transaction.onChainDetails()?.id) {
+          transaction.onChainDetails()?.id?.let(::BitcoinTransactionId)
+        }
+
+        // Observe the note from the database so edits are reflected here without
+        // any manual refresh plumbing.
+        val transactionNote: TransactionNote? by remember(
+          areTransactionNotesEnabled,
+          transactionId
+        ) {
+          when {
+            areTransactionNotesEnabled && transactionId != null ->
+              transactionNoteService.note(transactionId).map { result ->
+                result
+                  .logFailure { "Failed to load transaction note for transaction details." }
+                  .getOr(null)
+              }
+            else -> flowOf(null)
+          }
+        }.collectAsState(initial = null)
 
         if (isPreparingSpeedUp) {
           val bitcoinTransaction = transaction.onChainDetails()
@@ -193,6 +229,11 @@ class TransactionDetailsUiStateMachineImpl(
           onSpeedUpTransaction = onSpeedUpTransaction,
           onTransactionIdCopy = {
             transactionIdCopiedToastId = uuid()
+          },
+          transactionNote = transactionNote,
+          isShowingTransactionNote = areTransactionNotesEnabled && transactionId != null,
+          onEditTransactionNote = {
+            isShowingNoteEditSheet = true
           }
         ).asModalScreen()
 
@@ -209,8 +250,25 @@ class TransactionDetailsUiStateMachineImpl(
           )
         )
 
+        // Only composed while showing so draft state resets on each open.
+        val transactionNoteEditModel = if (isShowingNoteEditSheet && transactionId != null) {
+          transactionNoteEditUiStateMachine.model(
+            TransactionNoteEditUiProps(
+              transactionId = transactionId,
+              existingNote = transactionNote,
+              onClose = { isShowingNoteEditSheet = false }
+            )
+          )
+        } else {
+          null
+        }
+
         transactionDetailModel.body.asRootScreen(
-          bottomSheetModel = transactionSpeedUpEducationModel.takeIf { isShowingEducationSheet },
+          bottomSheetModel = when {
+            isShowingEducationSheet -> transactionSpeedUpEducationModel
+            transactionNoteEditModel != null -> transactionNoteEditModel
+            else -> null
+          },
           toastModel = transactionIdCopiedToastId?.let {
             ToastModel(
               id = it,
@@ -364,6 +422,9 @@ class TransactionDetailsUiStateMachineImpl(
     feeBumpEnabled: Boolean,
     onViewSpeedUpEducation: () -> Unit,
     onTransactionIdCopy: () -> Unit,
+    transactionNote: TransactionNote?,
+    isShowingTransactionNote: Boolean,
+    onEditTransactionNote: () -> Unit,
   ): ImmutableList<FormMainContentModel> {
     val coroutineScope = rememberStableCoroutineScope()
 
@@ -509,6 +570,10 @@ class TransactionDetailsUiStateMachineImpl(
           ).asTransactionDetailTypography()
         )
       ),
+      transactionNoteDataList(
+        transactionNote = transactionNote,
+        onEditTransactionNote = onEditTransactionNote
+      ).takeIf { isShowingTransactionNote },
       transactionDetails
     )
   }
@@ -582,6 +647,9 @@ class TransactionDetailsUiStateMachineImpl(
     onSpeedUpTransaction: () -> Unit,
     onViewSpeedUpEducation: () -> Unit,
     onTransactionIdCopy: () -> Unit,
+    transactionNote: TransactionNote?,
+    isShowingTransactionNote: Boolean,
+    onEditTransactionNote: () -> Unit,
   ): TransactionDetailModel {
     val transactionsData by remember { bitcoinWalletService.transactionsData() }.collectAsState()
 
@@ -619,7 +687,10 @@ class TransactionDetailsUiStateMachineImpl(
           transaction = transaction.details,
           feeBumpEnabled = feeBumpEnabled,
           onViewSpeedUpEducation = onViewSpeedUpEducation,
-          onTransactionIdCopy = onTransactionIdCopy
+          onTransactionIdCopy = onTransactionIdCopy,
+          transactionNote = transactionNote,
+          isShowingTransactionNote = isShowingTransactionNote,
+          onEditTransactionNote = onEditTransactionNote
         )
 
         is Transaction.PartnershipTransaction -> if (transaction.bitcoinTransaction != null) {
@@ -627,7 +698,10 @@ class TransactionDetailsUiStateMachineImpl(
             transaction = requireNotNull(transaction.bitcoinTransaction),
             feeBumpEnabled = feeBumpEnabled,
             onViewSpeedUpEducation = onViewSpeedUpEducation,
-            onTransactionIdCopy = onTransactionIdCopy
+            onTransactionIdCopy = onTransactionIdCopy,
+            transactionNote = transactionNote,
+            isShowingTransactionNote = isShowingTransactionNote,
+            onEditTransactionNote = onEditTransactionNote
           )
         } else {
           partnershipTransactionFormContent(
@@ -644,23 +718,6 @@ class TransactionDetailsUiStateMachineImpl(
       actionDescription = "Speeding up an on-chain transaction",
       cause = cause ?: IllegalStateException("Unknown fee bump error")
     )
-
-  private fun Data.asTransactionDetailTypography(
-    titleTextType: Data.TitleTextType = Data.TitleTextType.BODY2REGULAR,
-    sideTextType: Data.SideTextType = Data.SideTextType.BODY2REGULAR,
-    secondarySideTextType: Data.SideTextType =
-      if (secondarySideText != null) {
-        Data.SideTextType.BODY2REGULAR
-      } else {
-        this.secondarySideTextType
-      },
-  ): Data {
-    return copy(
-      titleTextType = titleTextType,
-      sideTextType = sideTextType,
-      secondarySideTextType = secondarySideTextType
-    )
-  }
 
   private sealed interface UiState {
     /**

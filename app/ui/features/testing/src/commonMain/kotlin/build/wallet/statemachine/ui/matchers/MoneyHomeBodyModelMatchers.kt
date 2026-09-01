@@ -1,32 +1,30 @@
 package build.wallet.statemachine.ui.matchers
 
 import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.statemachine.moneyhome.card.subtitleString
+import build.wallet.statemachine.moneyhome.card.titleString
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.ui.robots.protectedCustomersCard
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 fun LiteMoneyHomeBodyModel.hasProtectedCustomers(): Boolean {
-  return protectedCustomersCard()
-    ?.content
-    ?.shouldBeTypeOf<CardModel.CardContent.DrillList>()
-    ?.let { it.items.size > 0 }
-    ?: false
+  val card = protectedCustomersCard() as? CardModel.DrillList ?: return false
+  return card.items.size > 0
 }
 
 fun CardModel.shouldHaveTitle(title: String) =
   apply {
-    this.title.shouldNotBeNull().string.shouldBe(title)
+    this.titleString.shouldNotBeNull().shouldBe(title)
   }
 
 fun CardModel.shouldHaveSubtitle(subtitle: String) =
   apply {
-    this.subtitle.shouldBe(subtitle)
+    this.subtitleString.shouldBe(subtitle)
   }
 
 fun CardModel.shouldNotHaveSubtitle() =
   apply {
-    this.subtitle.shouldBeNull()
+    this.subtitleString.shouldBeNull()
   }

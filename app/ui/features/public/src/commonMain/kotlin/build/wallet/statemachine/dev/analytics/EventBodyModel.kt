@@ -6,7 +6,7 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
@@ -19,7 +19,7 @@ data class EventBodyModel(
     onBack = onBack,
     toolbar = ToolbarModel(
       leadingAccessory = BackAccessory(onClick = onBack),
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Event Detail")
+      title = ToolbarTitleModel.Inline(title = "Event Detail")
     ),
     header = null,
     mainContentList = immutableListOfNotNull(

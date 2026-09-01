@@ -37,6 +37,15 @@ interface FullAccountFieldsCreator {
       override val cause: Throwable,
     ) : FullAccountFieldsCreationError()
 
+    /**
+     * SSEKs could not be enumerated from encrypted storage. Failing the backup attempt
+     * prevents replacing an existing backup with one that silently omits SSEKs; the
+     * backup worker retries later.
+     */
+    data class SsekRetrievalError(
+      override val cause: Throwable,
+    ) : FullAccountFieldsCreationError()
+
     /** Wraps JsonEncodingError for the [FullAccountKeys]. */
     data class KeysInfoEncodingError(
       override val cause: Throwable,

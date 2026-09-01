@@ -101,6 +101,16 @@ class MigrationServiceFake : MigrationService {
     return isW3UpgradeInProgressResult
   }
 
+  var hasPersistedMigrationStateResult: Result<Boolean, MigrationError> = Ok(false)
+  var hasPersistedMigrationStateCalls = mutableListOf<MigrationType>()
+
+  override suspend fun hasPersistedMigrationState(
+    type: MigrationType,
+  ): Result<Boolean, MigrationError> {
+    hasPersistedMigrationStateCalls.add(type)
+    return hasPersistedMigrationStateResult
+  }
+
   var savedOldHardwareFingerprint: String? = null
 
   override suspend fun getOldHardwareFingerprint(): Result<String?, MigrationError> {
@@ -121,6 +131,8 @@ class MigrationServiceFake : MigrationService {
     estimateMigrationFeesCalls.clear()
     isW3UpgradeInProgressResult = false
     isW3UpgradeInProgressCalls = 0
+    hasPersistedMigrationStateResult = Ok(false)
+    hasPersistedMigrationStateCalls.clear()
     savedOldHardwareFingerprint = null
   }
 }

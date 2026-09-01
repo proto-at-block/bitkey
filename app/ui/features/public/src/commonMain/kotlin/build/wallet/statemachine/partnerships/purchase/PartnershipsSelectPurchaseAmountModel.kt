@@ -21,7 +21,7 @@ import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTitleAlignment
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.statemachine.core.Icon
 import kotlinx.collections.immutable.ImmutableList
@@ -127,7 +127,6 @@ internal data class SelectPurchaseAmountBodyModel(
         }
       ),
     secondaryButton = null,
-    keepScreenOn = false,
     eventTrackerContext = null,
     renderContext = RenderContext.Sheet
   )

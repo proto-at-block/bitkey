@@ -15,6 +15,9 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
+import build.wallet.cloud.backup.csek.SealedSsekFake
+import build.wallet.cloud.backup.csek.SsekDaoFake
+import build.wallet.cloud.backup.csek.SsekFake
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.*
 import build.wallet.encrypt.SealedDataMock
 import build.wallet.encrypt.SymmetricKeyEncryptorFake
@@ -37,6 +40,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
   val symmetricKeyEncryptor = SymmetricKeyEncryptorFake()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val csekDao = CsekDaoFake()
+  val ssekDao = SsekDaoFake()
   val trustedContacts = listOf(EndorsedTrustedContactFake1, EndorsedTrustedContactFake2)
 
   val relationshipsCrypto = RelationshipsCryptoFake(appPrivateKeyDao = appPrivateKeyDao)
@@ -44,12 +48,14 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
     FullAccountFieldsCreatorImpl(
       appPrivateKeyDao = appPrivateKeyDao,
       csekDao = csekDao,
+      ssekDao = ssekDao,
       symmetricKeyEncryptor = symmetricKeyEncryptor,
       relationshipsCrypto = relationshipsCrypto
     )
 
   afterTest {
     csekDao.reset()
+    ssekDao.reset()
     appPrivateKeyDao.reset()
     symmetricKeyEncryptor.reset()
   }
@@ -114,6 +120,48 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
 
     // Verify that keysets are empty when canUseKeyboxKeysets is false
     fullAccountKeys.keysets.shouldBeEmpty()
+  }
+
+  test("sseks are included in encrypted account keys") {
+    prepareDaosWithFakes()
+    ssekDao.set(SealedSsekFake, SsekFake)
+
+    fullAccountFieldsCreator.create(
+      keybox = KeyboxMock,
+      sealedCsek = SealedCsekFake,
+      endorsedTrustedContacts = trustedContacts
+    ).shouldBeOk()
+
+    val sealedJsonData = symmetricKeyEncryptor.lastSealedData.shouldNotBeNull()
+    val fullAccountKeys = Json.decodeFromString<FullAccountKeys>(sealedJsonData.utf8())
+
+    fullAccountKeys.sealedSseks.shouldBe(mapOf(SealedSsekFake to SsekFake))
+  }
+
+  test("sseks are empty when none are stored") {
+    prepareDaosWithFakes()
+
+    fullAccountFieldsCreator.create(
+      keybox = KeyboxMock,
+      sealedCsek = SealedCsekFake,
+      endorsedTrustedContacts = trustedContacts
+    ).shouldBeOk()
+
+    val sealedJsonData = symmetricKeyEncryptor.lastSealedData.shouldNotBeNull()
+    val fullAccountKeys = Json.decodeFromString<FullAccountKeys>(sealedJsonData.utf8())
+
+    fullAccountKeys.sealedSseks.shouldBe(emptyMap())
+  }
+
+  test("ssek read failure fails backup creation") {
+    prepareDaosWithFakes()
+    ssekDao.getAllErrResult = Err(Throwable("ssek store unavailable"))
+
+    fullAccountFieldsCreator.create(
+      keybox = KeyboxMock,
+      sealedCsek = SealedCsekFake,
+      endorsedTrustedContacts = trustedContacts
+    ).shouldBeErrOfType<SsekRetrievalError>()
   }
 
   test("create full account backup") {

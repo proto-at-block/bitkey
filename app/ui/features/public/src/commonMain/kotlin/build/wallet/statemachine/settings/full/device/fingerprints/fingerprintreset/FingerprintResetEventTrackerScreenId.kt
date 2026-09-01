@@ -9,7 +9,7 @@ enum class FingerprintResetEventTrackerScreenId : EventTrackerScreenId {
   /** Confirmation sheet for resetting fingerprints */
   TAP_DEVICE_TO_RESET_SHEET,
 
-  /** Progress screen showing the 7-day waiting period */
+  /** Progress screen showing the security waiting period */
   RESET_FINGERPRINTS_PROGRESS,
 
   /** Loading screen when checking fingerprint reset status */

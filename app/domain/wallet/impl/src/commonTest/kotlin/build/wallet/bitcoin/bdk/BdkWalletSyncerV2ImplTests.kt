@@ -12,6 +12,7 @@ import build.wallet.bitcoin.sync.ElectrumServer.Blockstream
 import build.wallet.bitcoin.sync.ElectrumServerSetting.Default
 import build.wallet.bitcoin.sync.ElectrumServerSettingProviderMock
 import build.wallet.bitcoin.sync.F8eDefinedElectrumServerMock
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.time.ClockFake
@@ -21,6 +22,10 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import uniffi.bdk.NoPointer
 import uniffi.bdk.Persister
 
@@ -87,6 +92,45 @@ class BdkWalletSyncerV2ImplTests : FunSpec({
 
     datadogRumMonitor.startResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
     datadogRumMonitor.stopResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
+    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+  }
+
+  test("concurrent syncs wait instead of returning without scanning") {
+    val firstScanStarted = CompletableDeferred<Unit>()
+    val releaseFirstScan = CompletableDeferred<Unit>()
+    electrumClient.onFullScan = {
+      if (electrumClient.fullScanCalls.size == 1) {
+        firstScanStarted.complete(Unit)
+        runBlocking { releaseFirstScan.await() }
+      }
+    }
+
+    val firstWallet = BdkWalletSyncerV2WalletFake(checkpointHeight = 0u)
+    val secondWallet = BdkWalletSyncerV2WalletFake(checkpointHeight = 0u)
+    val backgroundScope = createBackgroundScope()
+
+    val firstSync = backgroundScope.launch(Dispatchers.Default) {
+      walletSyncer.sync(firstWallet, persister, BITCOIN)
+    }
+    firstScanStarted.await()
+
+    val secondSync = backgroundScope.launch(Dispatchers.Default) {
+      walletSyncer.sync(secondWallet, persister, BITCOIN)
+    }
+
+    releaseFirstScan.complete(Unit)
+    firstSync.join()
+    secondSync.join()
+
+    electrumClient.fullScanCalls.size.shouldBe(2)
+    firstWallet.persistCalls.shouldBe(1)
+    secondWallet.persistCalls.shouldBe(1)
+
+    datadogRumMonitor.startResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
+    datadogRumMonitor.startResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
+    datadogRumMonitor.stopResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
+    datadogRumMonitor.stopResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
+    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
     networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
   }
 

@@ -9,6 +9,7 @@ import build.wallet.bitcoin.descriptor.BitcoinDescriptor.Spending
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.app.AppSessionManagerFake
+import build.wallet.store.KeyValueStoreFactoryFake
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -20,6 +21,8 @@ class SpendingWalletV2ProviderImplTests : FunSpec({
   val accountConfigService = AccountConfigServiceFake()
   val appSessionManager = AppSessionManagerFake()
   val bitcoinFeeRateEstimator = BitcoinFeeRateEstimatorMock()
+  val bdk2InitialSyncCompletionDao =
+    Bdk2InitialSyncCompletionDaoImpl(KeyValueStoreFactoryFake())
 
   val bdkWalletProvider =
     BdkWalletProviderMock(
@@ -51,6 +54,7 @@ class SpendingWalletV2ProviderImplTests : FunSpec({
         accountConfigService = accountConfigService,
         bdkTransactionMapperV2 = mapper,
         bdkWalletSyncerV2 = walletSyncer,
+        bdk2InitialSyncCompletionDao = bdk2InitialSyncCompletionDao,
         bitcoinFeeRateEstimator = bitcoinFeeRateEstimator
       )
   }

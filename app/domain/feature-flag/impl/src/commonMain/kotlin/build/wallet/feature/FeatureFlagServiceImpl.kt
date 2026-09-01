@@ -4,6 +4,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.get
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 @BitkeyInject(AppScope::class)
 class FeatureFlagServiceImpl(
   private val featureFlags: List<FeatureFlag<out FeatureFlagValue>>,
+  private val featureFlagDao: FeatureFlagDao,
   private val featureFlagSyncer: FeatureFlagSyncer,
 ) : FeatureFlagService, FeatureFlagSyncWorker {
   private val featureFlagsInitializedState = MutableStateFlow(false)
@@ -32,9 +34,10 @@ class FeatureFlagServiceImpl(
 
   override suspend fun executeWork() {
     coroutineScope {
-      // Initialize feature flag cache from database
-      featureFlags.forEach {
-        it.initializeFromDao()
+      // Load all persisted values in one database operation instead of issuing one query per flag.
+      val persistedFlags = featureFlagDao.getFlags().get().orEmpty()
+      featureFlags.forEach { flag ->
+        flag.initializeFromPersistedValue(persistedFlags[flag.identifier])
       }
 
       // Kick off feature flag sync loop to keep flags up to date with remote values

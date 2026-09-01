@@ -85,4 +85,15 @@ interface MigrationService {
    * Returns the persisted old hardware fingerprint for a W3 upgrade, or null if not yet saved.
    */
   suspend fun getOldHardwareFingerprint(): Result<String?, MigrationError>
+
+  /**
+   * Whether durable local state exists for a migration of the given type that has not been
+   * cleared or completed.
+   *
+   * This is a lower-level signal than [resume]: [resume] maps some persisted-but-early
+   * checkpoints back to [MigrationProgress.NotStarted] for flow routing, whereas this returns
+   * true for any persisted migration attempt. Use this when work must be suppressed while a
+   * migration attempt exists (e.g. background backup refreshes), not for flow navigation.
+   */
+  suspend fun hasPersistedMigrationState(type: MigrationType): Result<Boolean, MigrationError>
 }

@@ -2,9 +2,6 @@ package build.wallet.coachmark
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
-import build.wallet.feature.flags.W3UpgradeBlockerFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.onboarding.OnboardingCompletionService
 import com.github.michaelbull.result.getOr
 import kotlinx.datetime.Clock
@@ -22,9 +19,6 @@ import kotlin.time.Duration.Companion.days
 class CoachmarkVisibilityDecider(
   val clock: Clock,
   private val bip177CoachmarkPolicy: Bip177CoachmarkPolicy,
-  @Suppress("unused") // retained for DI wiring; will be used again when PrivateWalletHomeCoachmark is re-enabled
-  private val privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
-  private val w3UpgradeBlockerFeatureFlag: W3UpgradeBlockerFeatureFlag,
   private val onboardingCompletionService: OnboardingCompletionService,
 ) {
   companion object {
@@ -46,7 +40,7 @@ class CoachmarkVisibilityDecider(
       // migration to fail if the user signs out other devices. Will re-enable after fix.
       CoachmarkIdentifier.PrivateWalletHomeCoachmark -> false
       CoachmarkIdentifier.W3UpgradeBlockerCoachmark ->
-        w3UpgradeBlockerFeatureFlag.isEnabled() && hasEnoughTimeSinceOnboarding()
+        hasEnoughTimeSinceOnboarding()
       else -> true
     }
 
@@ -61,7 +55,7 @@ class CoachmarkVisibilityDecider(
       // Hard-coded off: see shouldCreate comment above.
       CoachmarkIdentifier.PrivateWalletHomeCoachmark -> false
       CoachmarkIdentifier.W3UpgradeBlockerCoachmark ->
-        w3UpgradeBlockerFeatureFlag.isEnabled() && hasEnoughTimeSinceOnboarding()
+        hasEnoughTimeSinceOnboarding()
       else -> {
         // Not all coachmarks have associated feature flags
         true

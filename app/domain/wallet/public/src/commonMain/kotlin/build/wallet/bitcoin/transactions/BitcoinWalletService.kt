@@ -2,6 +2,7 @@ package build.wallet.bitcoin.transactions
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -32,6 +33,11 @@ interface BitcoinWalletService {
    * - exchange rates change
    */
   fun transactionsData(): StateFlow<TransactionsData?>
+
+  /**
+   * Status for any first wallet data sync that should block showing Money Home.
+   */
+  fun initialSyncStatus(): StateFlow<WalletInitialSyncStatus>
 
   suspend fun broadcast(
     psbt: Psbt,

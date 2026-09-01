@@ -3,6 +3,7 @@ package build.wallet.debug
 import app.cash.turbine.test
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.metrics.MetricTrackerServiceFake
+import bitkey.securitycenter.DelayNotifyConfigurationDaoFake
 import bitkey.securitycenter.SecurityActionRecommendation
 import bitkey.securitycenter.SecurityRecommendationInteractionDaoMock
 import build.wallet.account.AccountServiceFake
@@ -104,6 +105,7 @@ class AppDataDeleterImplTests : FunSpec({
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
   val fwupDataDao = FwupDataDaoMock(turbines::create)
   val securityRecommendationInteractionDao = SecurityRecommendationInteractionDaoMock()
+  val delayNotifyConfigurationDao = DelayNotifyConfigurationDaoFake()
   val coachmarkService = CoachmarkServiceMock(
     turbineFactory = turbines::create
   )
@@ -146,6 +148,7 @@ class AppDataDeleterImplTests : FunSpec({
       metricTrackerService = MetricTrackerServiceFake(),
       hardwareUnlockInfoService = hardwareUnlockInfoService,
       securityRecommendationInteractionDao = securityRecommendationInteractionDao,
+      delayNotifyConfigurationDao = delayNotifyConfigurationDao,
       coachmarkService = coachmarkService,
       descriptorBackupVerificationDao = descriptorBackupVerificationDao,
       migrationService = migrationService
@@ -160,6 +163,7 @@ class AppDataDeleterImplTests : FunSpec({
     appPrivateKeyDao.reset()
     cloudBackupDao.reset()
     securityRecommendationInteractionDao.clear()
+    delayNotifyConfigurationDao.reset()
     coachmarkService.defaultCoachmarks = listOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
   }
 
@@ -196,6 +200,10 @@ class AppDataDeleterImplTests : FunSpec({
         triggeredAt = Instant.DISTANT_PAST,
         currentTime = Instant.DISTANT_FUTURE
       )
+      delayNotifyConfigurationDao.setDelayNotifyPeriod(
+        accountId = FullAccountMock.accountId,
+        delayPeriodDays = 14
+      )
 
       appDataDeleter(variant).deleteAll()
 
@@ -226,6 +234,9 @@ class AppDataDeleterImplTests : FunSpec({
 
       cloudBackupDao.shouldBeEmpty()
       securityRecommendationInteractionDao.getAllInteractions().first().shouldBeEmpty()
+      delayNotifyConfigurationDao.getDelayNotifyPeriod(FullAccountMock.accountId)
+        .first()
+        .shouldBeNull()
     }
   }
 })

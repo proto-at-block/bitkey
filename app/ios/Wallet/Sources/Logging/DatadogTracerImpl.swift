@@ -17,7 +17,7 @@ public class DatadogTracerImpl: DatadogTracer {
         let spanImpl = parentSpan as! DatadogSpanImpl
         let span = Tracer.shared().startSpan(
             operationName: spanName,
-            childOf: spanImpl.span.context
+            childOf: spanImpl.context
         )
         return DatadogSpanImpl(span: span)
     }
@@ -34,8 +34,8 @@ public class DatadogTracerImpl: DatadogTracer {
         )
         var headers: [String: String] = [:]
 
-        Tracer.shared().inject(spanContext: spanImpl.span.context, writer: ddHeadersWriter)
-        Tracer.shared().inject(spanContext: spanImpl.span.context, writer: w3cHeadersWriter)
+        Tracer.shared().inject(spanContext: spanImpl.context, writer: ddHeadersWriter)
+        Tracer.shared().inject(spanContext: spanImpl.context, writer: w3cHeadersWriter)
 
         for (headerField, value) in ddHeadersWriter.traceHeaderFields {
             headers[headerField] = value

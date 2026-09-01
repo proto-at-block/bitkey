@@ -5,7 +5,9 @@ import bitkey.notifications.NotificationsAppWorker
 import bitkey.privilegedactions.FingerprintResetSyncWorker
 import bitkey.recovery.DescriptorBackupHealthSyncWorker
 import bitkey.recovery.RecoverySyncWorker
+import bitkey.recovery.WalletMetadataServerBackupSyncWorker
 import bitkey.recovery.fundslost.FundsLostRiskSyncWorker
+import bitkey.securitycenter.DelayNotifyConfigurationSyncWorker
 import bitkey.securitycenter.SecurityActionsWorker
 import bitkey.verification.TxVerificationSyncWorker
 import build.wallet.activity.TransactionsActivitySyncWorker
@@ -88,12 +90,14 @@ class AppWorkerProviderImpl(
   private val sweepSyncWorker: SweepSyncWorker,
   private val fundsLostRiskSyncWorker: FundsLostRiskSyncWorker,
   private val securityActionsWorker: SecurityActionsWorker,
+  private val delayNotifyConfigurationSyncWorker: DelayNotifyConfigurationSyncWorker,
   private val notificationsAppWorker: NotificationsAppWorker,
   private val fingerprintResetSyncWorker: FingerprintResetSyncWorker,
   private val onboardingCompletionFailsafeWorker: OnboardingCompletionFailsafeWorker,
   private val pushPermissionCheckerWorker: PushPermissionCheckerWorker,
   private val deviceTokenAppWorker: DeviceTokenAppWorker,
   private val descriptorBackupHealthSyncWorker: DescriptorBackupHealthSyncWorker,
+  private val walletMetadataServerBackupSyncWorker: WalletMetadataServerBackupSyncWorker,
   private val keysetRepairWorker: KeysetRepairWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
@@ -130,12 +134,14 @@ class AppWorkerProviderImpl(
       sweepSyncWorker,
       fundsLostRiskSyncWorker,
       securityActionsWorker,
+      delayNotifyConfigurationSyncWorker,
       notificationsAppWorker,
       fingerprintResetSyncWorker,
       onboardingCompletionFailsafeWorker,
       pushPermissionCheckerWorker,
       deviceTokenAppWorker,
       descriptorBackupHealthSyncWorker,
+      walletMetadataServerBackupSyncWorker,
       keysetRepairWorker
     )
   }

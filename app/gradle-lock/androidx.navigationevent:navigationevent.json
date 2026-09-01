@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.navigationevent:navigationevent",
+    "components": [
+        {
+            "version": "1.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "navigationevent-metadata-1.0.1.jar": "3d706844dc49606cb1aa3cd7d6b27f47f180dfc4c6d4b7b80ea478ff88dcbd93"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

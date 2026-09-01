@@ -49,6 +49,18 @@ class TransactionListSnapshots : FunSpec({
                       isPending = false,
                       isLate = false,
                       onClick = {}
+                    ),
+                    TransactionItemModel(
+                      truncatedRecipientAddress = "Ma3Y...D2pX",
+                      date = "3 hours ago",
+                      amount = " + $20.00",
+                      amountEquivalent = "0.00017 BTC",
+                      note = "This is a really long note - so long that it should get " +
+                        "ellipsized to a single line instead of wrapping",
+                      transactionType = Incoming,
+                      isPending = false,
+                      isLate = false,
+                      onClick = {}
                     )
                   ),
                   style = ListGroupStyle.NONE

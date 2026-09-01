@@ -62,6 +62,8 @@ class NfcConfirmableSessionUiStateMachineImplTests : FunSpec({
       true
     },
     screenPresentationStyle = ScreenPresentationStyle.Modal,
+    segment = NfcConfirmableTestSegment,
+    actionDescription = "Testing confirmable NFC session",
     eventTrackerContext = SIGN_TRANSACTION,
     confirmationResultContent = confirmationResultContent
   )
@@ -335,6 +337,8 @@ class NfcConfirmableSessionUiStateMachineImplTests : FunSpec({
         true
       },
       screenPresentationStyle = ScreenPresentationStyle.Modal,
+      segment = NfcConfirmableTestSegment,
+      actionDescription = "Testing confirmable NFC session",
       eventTrackerContext = SIGN_TRANSACTION
     )
 
@@ -370,3 +374,7 @@ class NfcConfirmableSessionUiStateMachineImplTests : FunSpec({
     }
   }
 })
+
+private object NfcConfirmableTestSegment : build.wallet.statemachine.core.AppSegment {
+  override val id: String = "Test"
+}

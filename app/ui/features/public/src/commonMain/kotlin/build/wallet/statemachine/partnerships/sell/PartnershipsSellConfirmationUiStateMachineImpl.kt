@@ -189,10 +189,12 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
     onLoaded: (PartnershipTransaction) -> Unit,
     onBack: () -> Unit,
   ): ScreenModel {
+    val currentOnLoadFailed by rememberUpdatedState(onLoadFailed)
+    val currentOnLoaded by rememberUpdatedState(onLoaded)
     LaunchedEffect("load-transaction") {
       val transactionId = confirmedPartnerSale.partnerTransactionId
       if (transactionId == null) {
-        onLoadFailed(
+        currentOnLoadFailed(
           ErrorData(
             segment = PartnershipsSegment.Sell.LoadTransactionDetails,
             actionDescription = "Missing transaction ID",
@@ -205,9 +207,9 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
       partnershipTransactionsService.syncTransaction(transactionId)
         .onSuccess { transaction ->
           if (transaction != null) {
-            onLoaded(transaction)
+            currentOnLoaded(transaction)
           } else {
-            onLoadFailed(
+            currentOnLoadFailed(
               ErrorData(
                 segment = PartnershipsSegment.Sell.LoadTransactionDetails,
                 actionDescription = "Transaction not found",
@@ -217,7 +219,7 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
           }
         }
         .onFailure { exception ->
-          onLoadFailed(
+          currentOnLoadFailed(
             ErrorData(
               segment = PartnershipsSegment.Sell.LoadTransactionDetails,
               actionDescription = "Failed to sync transaction details",

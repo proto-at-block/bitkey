@@ -7,6 +7,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import com.russhwolf.settings.coroutines.SuspendSettings
 import com.russhwolf.settings.datastore.DataStoreSettings
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Android implementation of [KeyValueStoreFactory], backed by [androidx.datastore.preferences].
@@ -22,7 +24,9 @@ class KeyValueStoreFactoryImpl(
   private val application: Application,
 ) : KeyValueStoreFactory {
   override suspend fun getOrCreate(storeName: String): SuspendSettings {
-    val dataStoreHolder = dataStores.getOrPut(key = storeName) { DataStoreHolder(storeName) }
+    val dataStoreHolder = dataStoresLock.withLock {
+      dataStores.getOrPut(key = storeName) { DataStoreHolder(storeName) }
+    }
     return DataStoreSettings(
       datastore = with(dataStoreHolder) { application.dataStore }
     )
@@ -36,6 +40,14 @@ class KeyValueStoreFactoryImpl(
      * See https://developer.android.com/topic/libraries/architecture/datastore#preferences-create
      */
     val dataStores = mutableMapOf<String, DataStoreHolder>()
+
+    /**
+     * Serializes read-check-create access to [dataStores]. Without this, concurrent callers
+     * (e.g. parallel event tracking on first launch) can race `getOrPut` and create multiple
+     * [DataStoreHolder] instances for the same file, violating DataStore's single-instance
+     * requirement and failing subsequent reads/writes.
+     */
+    val dataStoresLock = Mutex()
   }
 }
 

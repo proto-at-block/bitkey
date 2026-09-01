@@ -27,11 +27,11 @@ fun DataGroupDevice(
 ) {
   val lineColor = WalletTheme.colors.foreground10
   Box(
-    modifier = Modifier.clip(RoundedCornerShape(24.dp))
+    modifier = modifier.clip(RoundedCornerShape(24.dp))
   ) {
     Column(
       modifier =
-        modifier
+        Modifier
           .background(WalletTheme.colors.subtleBackground)
           .clip(RoundedCornerShape(48.dp)),
       horizontalAlignment = Alignment.CenterHorizontally

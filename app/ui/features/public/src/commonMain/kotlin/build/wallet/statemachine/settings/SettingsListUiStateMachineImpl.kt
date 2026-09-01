@@ -16,7 +16,7 @@ import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import build.wallet.ui.model.list.CoachmarkLabelModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.wallet.migration.MigrationProgress
 import build.wallet.wallet.migration.MigrationService
@@ -47,7 +47,7 @@ class SettingsListUiStateMachineImpl(
       onBack = props.onBack,
       toolbarModel = ToolbarModel(
         leadingAccessory = BackAccessory(onClick = props.onBack),
-        middleAccessory = ToolbarMiddleAccessoryModel(title = "Settings")
+        title = ToolbarTitleModel.Inline(title = "Settings")
       ),
       sectionModels = immutableListOfNotNull(
         SettingsSection(

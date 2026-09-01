@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.androidx.savedstate:savedstate-compose-uikitsimarm64",
+    "components": [
+        {
+            "version": "1.3.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "savedstate-compose-uikitSimArm64Main-1.3.6.klib": "ab0ceb3cfa4d34701a03093799e4dee8fa81bf2aa54a97d0ff45fc673581f3a0"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "savedstate-compose-uikitsimarm64-1.3.6-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

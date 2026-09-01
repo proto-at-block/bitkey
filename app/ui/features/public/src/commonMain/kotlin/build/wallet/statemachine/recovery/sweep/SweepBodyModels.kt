@@ -2,6 +2,8 @@ package build.wallet.statemachine.recovery.sweep
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import bitkey.privilegedactions.HardwareVerificationPrivilegedActionService
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
@@ -21,7 +23,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.statemachine.core.form.formHeroIconHeader
 import build.wallet.statemachine.core.form.formWarningIconHeader
 import build.wallet.statemachine.money.amount.MoneyAmountModel
@@ -291,13 +293,15 @@ data class ZeroBalancePromptBodyModel(
 ) : FormBodyModel(
     id = id,
     onBack = onDone,
-    toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClick = onDone)),
-    formScreenTitle = eyebrow?.let {
-      FormScreenTitleModel(
-        eyebrow = it,
-        title = "No funds found"
-      )
-    },
+    toolbar = ToolbarModel(
+      leadingAccessory = CloseAccessory(onClick = onDone),
+      title = eyebrow?.let {
+        ToolbarTitleModel.Large(
+          eyebrow = it,
+          title = "No funds found"
+        )
+      }
+    ),
     formScreenLayout = when (eyebrow) {
       null -> FormScreenLayoutModel.Legacy
       else -> FormScreenLayoutModel.LargeTitle(scrollable = false)
@@ -362,12 +366,13 @@ fun hardwareVerificationRequiredScreenModel(
   onResendEmail: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
 ): ScreenModel {
+  val currentOnActionResolved by rememberUpdatedState(onActionResolved)
   LaunchedEffect(pollKey) {
     hardwareVerificationPrivilegedActionService
       .pollPendingHardwareVerificationAction()
       .collect { state ->
         if (state is ConfirmationState.Complete) {
-          onActionResolved()
+          currentOnActionResolved()
         }
       }
   }

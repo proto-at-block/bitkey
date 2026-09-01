@@ -6,7 +6,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -31,25 +30,20 @@ import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.theme.LocalTheme
-import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import org.jetbrains.compose.resources.Font
 
 @Composable
 fun PendingClaimContent(
-  model: CardModel.CardContent.PendingClaim,
+  model: CardModel.PendingClaim,
   modifier: Modifier = Modifier,
 ) {
-  val theme = LocalTheme.current
-  val useMonochromeStyle =
-    model.useMonochromeStyle
   val cornerRadius = 8.dp
   Box(
     modifier = modifier
       .fillMaxWidth()
       .background(
-        color = if (useMonochromeStyle) WalletTheme.colors.secondary else WalletTheme.colors.calloutInformationBackground,
+        color = WalletTheme.colors.secondary,
         shape = RoundedCornerShape(size = cornerRadius)
       ),
     contentAlignment = Alignment.CenterStart
@@ -58,17 +52,10 @@ fun PendingClaimContent(
       modifier = Modifier
         .fillMaxWidth()
         .padding(16.dp),
-      verticalAlignment = pendingClaimVerticalAlignment(
-        useMonochromeStyle = useMonochromeStyle,
-        isPendingClaim = model.isPendingClaim
-      ),
+      verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.Start
     ) {
-      PendingClaimLeadingIcon(
-        model = model,
-        useMonochromeStyle = useMonochromeStyle,
-        theme = theme
-      )
+      PendingClaimLeadingIcon(model = model)
 
       Column(
         modifier = Modifier
@@ -84,79 +71,49 @@ fun PendingClaimContent(
             lineHeight = 24.sp,
             fontFamily = FontFamily(Font(Res.font.inter_medium)),
             fontWeight = FontWeight(500),
-            color = if (useMonochromeStyle) WalletTheme.colors.foreground else WalletTheme.colors.calloutInformationTitle
+            color = WalletTheme.colors.foreground
           )
         )
         Label(
           model = LabelModel.StringModel(model.subtitle),
-          modifier = Modifier
-            .padding(top = 4.dp)
-            .alpha(if (useMonochromeStyle) 1f else 0.6f),
+          modifier = Modifier.padding(top = 4.dp),
           style = TextStyle(
             fontSize = 16.sp,
             lineHeight = 24.sp,
             fontFamily = FontFamily(Font(Res.font.inter_regular)),
             fontWeight = FontWeight(400),
-            color = if (useMonochromeStyle) WalletTheme.colors.foreground60 else WalletTheme.colors.calloutInformationSubtitle
+            color = WalletTheme.colors.foreground60
           )
         )
       }
 
-      PendingClaimAction(
-        model = model,
-        useMonochromeStyle = useMonochromeStyle,
-        theme = theme
-      )
+      PendingClaimAction(model = model)
     }
   }
 }
 
-private fun pendingClaimVerticalAlignment(
-  useMonochromeStyle: Boolean,
-  isPendingClaim: Boolean,
-) =
-  when {
-    useMonochromeStyle -> Alignment.CenterVertically
-    isPendingClaim -> Alignment.Top
-    else -> Alignment.CenterVertically
-  }
-
 @Composable
-private fun PendingClaimLeadingIcon(
-  model: CardModel.CardContent.PendingClaim,
-  useMonochromeStyle: Boolean,
-  theme: Theme,
-) {
+private fun PendingClaimLeadingIcon(model: CardModel.PendingClaim) {
   Box {
-    IconImage(
-      model = pendingClaimLeadingIconModel(
-        isPendingClaim = model.isPendingClaim,
-        useMonochromeStyle = useMonochromeStyle,
-        theme = theme
-      )
-    )
-    if (showPendingClaimProgressIndicator(useMonochromeStyle, model.isPendingClaim)) {
+    IconImage(model = pendingClaimLeadingIconModel(state = model.state))
+    if (model.state == CardModel.PendingClaim.State.Pending) {
       CircularProgressIndicator(
         progress = model.progress.value,
         direction = TimerDirection.Clockwise,
         remainingSeconds = model.timeRemaining.inWholeSeconds,
         size = 40.dp,
-        indicatorColor = pendingClaimProgressColor(useMonochromeStyle, theme),
+        indicatorColor = WalletTheme.colors.foreground30,
         backgroundColor = Color.Unspecified,
-        strokeWidth = if (useMonochromeStyle) 3.dp else 4.dp
+        strokeWidth = 3.dp
       )
     }
   }
 }
 
-private fun pendingClaimLeadingIconModel(
-  isPendingClaim: Boolean,
-  useMonochromeStyle: Boolean,
-  theme: Theme,
-): IconModel {
-  if (useMonochromeStyle && isPendingClaim) {
+private fun pendingClaimLeadingIconModel(state: CardModel.PendingClaim.State): IconModel {
+  if (state == CardModel.PendingClaim.State.Pending) {
     return IconModel(
-      icon = Icon.ShieldPerson,
+      icon = Icon.ClockHands,
       iconSize = IconSize.Accessory,
       iconTint = IconTint.On60,
       iconBackgroundType = IconBackgroundType.Circle(
@@ -167,58 +124,27 @@ private fun pendingClaimLeadingIconModel(
   }
 
   return IconModel(
-    icon = if (isPendingClaim) Icon.ClockHands else Icon.CheckInheritance,
+    icon = Icon.CheckInheritance,
     iconSize = IconSize.Accessory,
-    iconTint = when {
-      useMonochromeStyle -> IconTint.On60
-      theme == Theme.LIGHT -> IconTint.Information
-      else -> IconTint.Foreground
-    },
+    iconTint = IconTint.On60,
     iconBackgroundType = IconBackgroundType.Circle(
       circleSize = IconSize.Large,
-      color = when {
-        useMonochromeStyle -> IconBackgroundType.Circle.CircleColor.SubtleBackground
-        theme == Theme.LIGHT -> IconBackgroundType.Circle.CircleColor.Information
-        else -> IconBackgroundType.Circle.CircleColor.TransparentForeground
-      }
+      color = IconBackgroundType.Circle.CircleColor.SubtleBackground
     )
   )
 }
 
-private fun showPendingClaimProgressIndicator(
-  useMonochromeStyle: Boolean,
-  isPendingClaim: Boolean,
-) = !useMonochromeStyle || isPendingClaim
-
 @Composable
-private fun pendingClaimProgressColor(
-  useMonochromeStyle: Boolean,
-  theme: Theme,
-) =
-  when {
-    useMonochromeStyle -> WalletTheme.colors.foreground30
-    theme == Theme.LIGHT -> WalletTheme.colors.calloutInformationTrailingIconBackground.copy(alpha = 0.33f)
-    else -> WalletTheme.colors.foreground
-  }
-
-@Composable
-private fun PendingClaimAction(
-  model: CardModel.CardContent.PendingClaim,
-  useMonochromeStyle: Boolean,
-  theme: Theme,
-) {
+private fun PendingClaimAction(model: CardModel.PendingClaim) {
   Column {
-    if (model.isPendingClaim) {
+    if (model.state == CardModel.PendingClaim.State.Pending) {
       model.onClick?.let { onClick ->
         IconButton(
           modifier = Modifier.padding(start = 12.dp, end = 0.dp),
           iconModel = IconModel(
-            icon = Icon.XFilled,
+            icon = Icon.XCircleFill,
             iconSize = IconSize.Accessory,
-            iconTint = pendingClaimDismissIconTint(
-              useMonochromeStyle = useMonochromeStyle,
-              theme = theme
-            )
+            iconTint = IconTint.On60
           ),
           onClick = {
             onClick.invoke()
@@ -228,21 +154,11 @@ private fun PendingClaimAction(
     } else {
       CalloutButton(
         Icon.ArrowRight,
-        if (useMonochromeStyle) WalletTheme.colors.foreground60 else WalletTheme.colors.calloutDefaultTrailingIcon,
-        if (useMonochromeStyle) CalloutModel.Treatment.Default else CalloutModel.Treatment.Information,
+        WalletTheme.colors.foreground60,
+        CalloutModel.Treatment.Default,
         StandardClick { model.onClick?.invoke() },
-        useInverseButtonStyle = useMonochromeStyle
+        useInverseButtonStyle = true
       )
     }
   }
 }
-
-private fun pendingClaimDismissIconTint(
-  useMonochromeStyle: Boolean,
-  theme: Theme,
-) =
-  when {
-    useMonochromeStyle -> IconTint.On60
-    theme == Theme.LIGHT -> IconTint.Information
-    else -> IconTint.On30
-  }

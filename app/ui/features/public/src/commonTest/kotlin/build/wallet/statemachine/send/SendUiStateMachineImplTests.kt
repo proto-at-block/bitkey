@@ -28,6 +28,7 @@ import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -525,7 +526,12 @@ class SendUiStateMachineImplTests : FunSpec({
                       text = "Done",
                       onClick = props.onClose
                     ),
-                    eventTrackerScreenId = null
+                    eventTrackerScreenId = null,
+                    errorData = ErrorData(
+                      segment = SendAppSegment,
+                      actionDescription = "Scanning recipient address QR code",
+                      cause = Error("Self-send detected")
+                    )
                   ).asModalScreen()
                 } else {
                   BitcoinQrCodeScanBodyModel(

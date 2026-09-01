@@ -8,7 +8,7 @@ import build.wallet.ui.model.button.ButtonModel
 fun InheritanceMoneyHomeCard(
   onIHaveABitkey: () -> Unit,
   onGetABitkey: () -> Unit,
-) = CardModel(
+) = CardModel.Hero(
   heroImage = Icon.LiteMoneyHomeInheritanceHero,
   title =
     LabelModel.StringWithStyledSubstringModel.from(
@@ -16,8 +16,7 @@ fun InheritanceMoneyHomeCard(
       emptyMap()
     ),
   subtitle = "To accept an inheritance plan, you’ll need your own Bitkey.",
-  content = null,
-  style = CardModel.CardStyle.Outline(surfaceTreatment = CardModel.SurfaceTreatment.Background),
+  surfaceTreatment = CardModel.SurfaceTreatment.Background,
   primaryButton = ButtonModel(
     text = "Accept invite",
     requiresBitkeyInteraction = false,

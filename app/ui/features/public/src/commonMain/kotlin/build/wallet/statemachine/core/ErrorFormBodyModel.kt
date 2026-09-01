@@ -17,6 +17,10 @@ import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.toolbar.ToolbarModel
 
+/**
+ * A generic error screen. [errorData] is required so every error a customer sees is
+ * logged to Datadog with its segment, action description, and cause.
+ */
 fun ErrorFormBodyModel(
   title: String,
   subline: String? = null,
@@ -30,91 +34,6 @@ fun ErrorFormBodyModel(
   eventTrackerShouldTrack: Boolean = true,
   errorData: ErrorData,
   secondaryButtonIcon: Icon? = null,
-) = errorFormBodyModelWithOptionalErrorData(
-  title = title,
-  subline = subline?.let { StringModel(it) },
-  primaryButton = primaryButton,
-  onBack = onBack,
-  toolbar = toolbar,
-  secondaryButton = secondaryButton,
-  renderContext = renderContext,
-  eventTrackerScreenId = eventTrackerScreenId,
-  eventTrackerContext = eventTrackerContext,
-  eventTrackerShouldTrack = eventTrackerShouldTrack,
-  errorData = errorData,
-  secondaryButtonIcon = secondaryButtonIcon
-)
-
-@Deprecated("Specify [errorData] argument")
-fun ErrorFormBodyModel(
-  title: String,
-  subline: String? = null,
-  primaryButton: ButtonDataModel,
-  onBack: (() -> Unit)? = primaryButton.onClick,
-  toolbar: ToolbarModel? = null,
-  secondaryButton: ButtonDataModel? = null,
-  renderContext: RenderContext = Screen,
-  eventTrackerScreenId: EventTrackerScreenId?,
-  eventTrackerContext: EventTrackerContext? = null,
-  eventTrackerShouldTrack: Boolean = true,
-  secondaryButtonIcon: Icon? = null,
-) = errorFormBodyModelWithOptionalErrorData(
-  title = title,
-  subline = subline?.let { StringModel(it) },
-  primaryButton = primaryButton,
-  onBack = onBack,
-  toolbar = toolbar,
-  secondaryButton = secondaryButton,
-  renderContext = renderContext,
-  eventTrackerScreenId = eventTrackerScreenId,
-  eventTrackerContext = eventTrackerContext,
-  eventTrackerShouldTrack = eventTrackerShouldTrack,
-  errorData = null,
-  secondaryButtonIcon = secondaryButtonIcon
-)
-
-@Deprecated("Specify [errorData] argument")
-fun ErrorFormBodyModelWithOptionalErrorData(
-  title: String,
-  subline: LabelModel? = null,
-  primaryButton: ButtonDataModel,
-  onBack: (() -> Unit)? = primaryButton.onClick,
-  toolbar: ToolbarModel? = null,
-  secondaryButton: ButtonDataModel? = null,
-  renderContext: RenderContext = Screen,
-  eventTrackerScreenId: EventTrackerScreenId?,
-  eventTrackerContext: EventTrackerContext? = null,
-  eventTrackerShouldTrack: Boolean = true,
-  errorData: ErrorData?,
-  secondaryButtonIcon: Icon? = null,
-): FormBodyModel = errorFormBodyModelWithOptionalErrorData(
-  title = title,
-  subline = subline,
-  primaryButton = primaryButton,
-  onBack = onBack,
-  toolbar = toolbar,
-  secondaryButton = secondaryButton,
-  renderContext = renderContext,
-  eventTrackerScreenId = eventTrackerScreenId,
-  eventTrackerContext = eventTrackerContext,
-  eventTrackerShouldTrack = eventTrackerShouldTrack,
-  errorData = errorData,
-  secondaryButtonIcon = secondaryButtonIcon
-)
-
-internal fun errorFormBodyModelWithOptionalErrorData(
-  title: String,
-  subline: LabelModel? = null,
-  primaryButton: ButtonDataModel,
-  onBack: (() -> Unit)? = primaryButton.onClick,
-  toolbar: ToolbarModel? = null,
-  secondaryButton: ButtonDataModel? = null,
-  renderContext: RenderContext = Screen,
-  eventTrackerScreenId: EventTrackerScreenId?,
-  eventTrackerContext: EventTrackerContext? = null,
-  eventTrackerShouldTrack: Boolean = true,
-  errorData: ErrorData?,
-  secondaryButtonIcon: Icon? = null,
 ): FormBodyModel {
   return ErrorFormBodyModelImpl(
     id = eventTrackerScreenId,
@@ -125,7 +44,7 @@ internal fun errorFormBodyModelWithOptionalErrorData(
       FormHeaderModel(
         icon = LargeIconWarningFilled,
         headline = title,
-        sublineModel = subline,
+        sublineModel = subline?.let { StringModel(it) },
         alignment =
           when (renderContext) {
             Sheet -> CENTER
@@ -164,7 +83,7 @@ private data class ErrorFormBodyModelImpl(
   override val renderContext: RenderContext,
   override val eventTrackerContext: EventTrackerContext?,
   override val eventTrackerShouldTrack: Boolean,
-  override val errorData: ErrorData?,
+  override val errorData: ErrorData,
 ) : FormBodyModel(
     id = id,
     onBack = onBack,

@@ -14,14 +14,13 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.switch.SwitchCard
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.switch.SwitchCardModel
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
@@ -77,19 +76,19 @@ internal data class TxVerificationPolicyStateModel(
       modifier = modifier,
       onBack = onBack,
       toolbarModel = ToolbarModel(
-        leadingAccessory = ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory(onClick = onBack)
+        leadingAccessory = ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory(onClick = onBack),
+        title = ToolbarTitleModel.Large(title = "Transaction verification")
       ),
       toolbarContent = {
         Toolbar(
           model = ToolbarModel(
             leadingAccessory = ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory(onClick = onBack),
-            middleAccessory = ToolbarMiddleAccessoryModel(
+            title = ToolbarTitleModel.Inline(
               title = "Transaction verification"
             )
           )
         )
       },
-      screenTitle = FormScreenTitleModel(title = "Transaction verification"),
       layout = FormScreenLayoutModel.LargeTitle(
         scrollable = false,
         mainContentVerticalAlignment = FormMainContentVerticalAlignment.BOTTOM

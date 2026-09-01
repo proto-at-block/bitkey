@@ -8,14 +8,13 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.SellBitcoinMaxAmountFeatureFlag
-import build.wallet.feature.flags.SellBitcoinMinAmountFeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnershipSaleService
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransaction
@@ -48,8 +47,7 @@ class PartnershipsSellUiStateMachineImpl(
     PartnershipsSellConfirmationUiStateMachine,
   private val transferAmountEntryUiStateMachine: TransferAmountEntryUiStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
-  private val sellBitcoinMinAmountFeatureFlag: SellBitcoinMinAmountFeatureFlag,
-  private val sellBitcoinMaxAmountFeatureFlag: SellBitcoinMaxAmountFeatureFlag,
+  private val partnershipSaleService: PartnershipSaleService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val exchangeRateService: ExchangeRateService,
   private val deepLinkHandler: DeepLinkHandler,
@@ -75,7 +73,7 @@ class PartnershipsSellUiStateMachineImpl(
       when {
         props.confirmedSale != null -> mutableStateOf(SellConfirmation(props.confirmedSale))
         exchangeRates == null -> mutableStateOf(LoadingExchangeRates)
-        else -> mutableStateOf(EnteringSellAmount)
+        else -> mutableStateOf(LoadingSellLimits)
       }
     }
 
@@ -99,7 +97,7 @@ class PartnershipsSellUiStateMachineImpl(
               // Use the rates returned directly from sync - no race condition with StateFlow
               if (freshRates.isNotEmpty()) {
                 exchangeRates = freshRates.toImmutableList()
-                state = EnteringSellAmount
+                state = LoadingSellLimits
               } else {
                 state = ExchangeRatesUnavailable
               }
@@ -132,6 +130,28 @@ class PartnershipsSellUiStateMachineImpl(
         ).asModalFullScreen()
       }
 
+      is LoadingSellLimits -> {
+        LaunchedEffect("load-sell-limits", exchangeRates) {
+          partnershipSaleService.getSellLimits(exchangeRates ?: error("Exchange rates should be loaded before sell limits"))
+            .onSuccess { sellLimits ->
+              state = EnteringSellAmount(
+                minAmount = sellLimits.minAmount,
+                maxAmount = sellLimits.maxAmount
+              )
+            }
+            .onFailure {
+              state = EnteringSellAmount(
+                minAmount = null,
+                maxAmount = null
+              )
+            }
+        }
+        LoadingBodyModel(
+          id = SellEventTrackerScreenId.LOADING_SELL_LIMITS,
+          onBack = props.onBack
+        ).asModalFullScreen()
+      }
+
       is EnteringSellAmount -> transferAmountEntryUiStateMachine.model(
         props = TransferAmountEntryUiProps(
           onBack = {
@@ -145,15 +165,18 @@ class PartnershipsSellUiStateMachineImpl(
           exchangeRates = exchangeRates,
           flow =
             TransferAmountEntryUiProps.Flow.Sell(
-              minAmount = sellBitcoinMinAmountFeatureFlag.flagValue().value.let { BitcoinMoney.btc(it.value) },
-              maxAmount = sellBitcoinMaxAmountFeatureFlag.flagValue().value.let { BitcoinMoney.btc(it.value) }
+              minAmount = currentState.minAmount,
+              maxAmount = currentState.maxAmount
             ),
           onContinueClick = { continueTransferParams ->
             sellAmount = when (continueTransferParams.sendAmount) {
               is BitcoinTransactionSendAmount.ExactAmount -> continueTransferParams.sendAmount.money
               BitcoinTransactionSendAmount.SendAll -> error("Send all not supported, this shouldn't be possible")
             }
-            state = ListSellPartners
+            state = ListSellPartners(
+              minAmount = currentState.minAmount,
+              maxAmount = currentState.maxAmount
+            )
           }
         )
       )
@@ -163,7 +186,10 @@ class PartnershipsSellUiStateMachineImpl(
             sellAmount = sellAmount,
             exchangeRates = exchangeRates,
             onBack = {
-              state = EnteringSellAmount
+              state = EnteringSellAmount(
+                minAmount = currentState.minAmount,
+                maxAmount = currentState.maxAmount
+              )
             },
             onPartnerRedirected = { method, transaction ->
               metricTrackerService.setVariant(
@@ -209,7 +235,10 @@ class PartnershipsSellUiStateMachineImpl(
                 metricDefinition = PartnershipSellConfirmationMetricDefinition,
                 outcome = MetricOutcome.UserCanceled
               )
-              state = EnteringSellAmount
+              state = when (exchangeRates) {
+                null -> LoadingExchangeRates
+                else -> LoadingSellLimits
+              }
             },
             exchangeRates = emptyImmutableList(),
             onDone = { partnerInfo ->
@@ -306,7 +335,17 @@ sealed interface SellState {
    */
   data object ExchangeRatesUnavailable : SellState
 
-  data object ListSellPartners : SellState
+  data object LoadingSellLimits : SellState
+
+  data class EnteringSellAmount(
+    val minAmount: BitcoinMoney?,
+    val maxAmount: BitcoinMoney?,
+  ) : SellState
+
+  data class ListSellPartners(
+    val minAmount: BitcoinMoney?,
+    val maxAmount: BitcoinMoney?,
+  ) : SellState
 
   /**
    * Indicates that we are displaying an in-app browser for a sell redirect.
@@ -327,5 +366,4 @@ sealed interface SellState {
 
   data class ShowingSellSuccess(val partnerInfo: PartnerInfo?) : SellState
 
-  data object EnteringSellAmount : SellState
 }

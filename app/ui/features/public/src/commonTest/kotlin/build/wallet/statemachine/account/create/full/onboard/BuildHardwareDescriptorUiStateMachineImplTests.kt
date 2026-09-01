@@ -3,6 +3,7 @@ package build.wallet.statemachine.account.create.full.onboard
 import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
@@ -57,6 +58,8 @@ class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
   beforeTest {
     hardwareDescriptorDeliveryService.reset()
     onboardingCompletionService.reset()
+    cloudBackupHealthRepository.reset()
+    keyboxDao.reset()
   }
 
   test("completes onboarding and shows intro screen") {
@@ -102,8 +105,41 @@ class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
         (this as NfcSessionUIStateMachineProps<Any>).onSuccess("fake-hw-signature")
       }
 
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP) {
+        message.shouldBe("Saving your cloud backup…")
+      }
       cloudBackupHealthRepository.performSyncCalls.awaitItem()
       onComplete.awaitItem()
+    }
+  }
+
+  test("calls onError when cloud backup repair fails") {
+    hardwareDescriptorDeliveryService.fetchSignatureAndPrepareNfcSessionResult =
+      Ok { _, _ -> "fake-hw-signature" }
+    cloudBackupHealthRepository.syncResult = cloudBackupHealthRepository.syncResult.copy(
+      appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.PlaceholderSignatureRepairFailed
+    )
+
+    stateMachine.test(props) {
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      awaitBody<PairNewHardwareBodyModel> {
+        primaryButton.onClick()
+      }
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>> {
+        @Suppress("UNCHECKED_CAST")
+        (this as NfcSessionUIStateMachineProps<Any>).onSuccess("fake-hw-signature")
+      }
+
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP) {
+        message.shouldBe("Saving your cloud backup…")
+      }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem()
+      onBackupFailed.awaitItem().message.shouldBe(
+        "Failed to repair cloud backup after updating hardware signature"
+      )
+      onComplete.expectNoEvents()
     }
   }
 

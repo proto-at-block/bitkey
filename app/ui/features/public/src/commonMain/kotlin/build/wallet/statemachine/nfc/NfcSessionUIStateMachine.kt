@@ -90,9 +90,8 @@ data class NfcSessionConfig(
   /** Whether the tapped hardware must match the hardware associated with the account. */
   val hardwareVerification: NfcSessionUIStateMachineProps.HardwareVerification = Required(),
   val shouldLock: Boolean = true,
-  // TODO(BKR-1117): make non-nullable
-  val segment: AppSegment? = null,
-  val actionDescription: String? = null,
+  val segment: AppSegment,
+  val actionDescription: String,
   val screenPresentationStyle: ScreenPresentationStyle,
   val eventTrackerContext: NfcEventTrackerScreenIdContext,
   /** Whether to skip collecting and uploading firmware telemetry after the transaction. */
@@ -150,8 +149,8 @@ class NfcSessionUIStateMachineProps<T>(
   val needsAuthentication: Boolean get() = config.needsAuthentication
   val hardwareVerification: HardwareVerification get() = config.hardwareVerification
   val shouldLock: Boolean get() = config.shouldLock
-  val segment: AppSegment? get() = config.segment
-  val actionDescription: String? get() = config.actionDescription
+  val segment: AppSegment get() = config.segment
+  val actionDescription: String get() = config.actionDescription
   val screenPresentationStyle: ScreenPresentationStyle get() = config.screenPresentationStyle
   val eventTrackerContext: NfcEventTrackerScreenIdContext get() = config.eventTrackerContext
   val skipFirmwareTelemetry: Boolean get() = config.skipFirmwareTelemetry
@@ -174,8 +173,8 @@ class NfcSessionUIStateMachineProps<T>(
     needsAuthentication: Boolean = true,
     hardwareVerification: HardwareVerification = Required(),
     shouldLock: Boolean = true,
-    segment: AppSegment? = null,
-    actionDescription: String? = null,
+    segment: AppSegment,
+    actionDescription: String,
     screenPresentationStyle: ScreenPresentationStyle,
     eventTrackerContext: NfcEventTrackerScreenIdContext,
     skipFirmwareTelemetry: Boolean = false,
@@ -213,8 +212,8 @@ class NfcSessionUIStateMachineProps<T>(
     transaction: NfcTransaction<T>,
     screenPresentationStyle: ScreenPresentationStyle,
     eventTrackerContext: NfcEventTrackerScreenIdContext,
-    segment: AppSegment? = null,
-    actionDescription: String? = null,
+    segment: AppSegment,
+    actionDescription: String,
     hardwareVerification: HardwareVerification = Required(),
     onInauthenticHardware: (Throwable) -> Unit = {},
     onError: (NfcException) -> Boolean = { false },
@@ -256,6 +255,16 @@ class NfcSessionUIStateMachineProps<T>(
        */
       val useRecoveryPubKey: Boolean = false,
     ) : HardwareVerification
+
+    /**
+     * The hardware tapped must report the serial of the currently paired device, checked on
+     * both W1 and W3.
+     *
+     * Only for flows that cannot sign a challenge — specifically fingerprint reset, where the
+     * customer's fingerprint is unusable and W1's `signChallenge` is fingerprint-gated, so
+     * [Required] would fail 100% of the time. Prefer [Required] everywhere else.
+     */
+    data object RequiredSerialOnly : HardwareVerification
   }
 }
 
@@ -540,13 +549,18 @@ class NfcSessionUIStateMachineImpl(
   private suspend fun determineNfcHardwarePairingRequired(
     hardwareVerification: NfcSessionUIStateMachineProps.HardwareVerification,
   ): RequirePairedHardware {
-    if (hardwareVerification !is Required) {
-      return NotRequired
+    val required = when (hardwareVerification) {
+      // Serial-only needs no pubkey or challenge; the interceptor compares against the
+      // paired serial in FirmwareDeviceInfoDao directly.
+      is NfcSessionUIStateMachineProps.HardwareVerification.RequiredSerialOnly ->
+        return RequirePairedHardware.RequiredSerialOnly
+      is NfcSessionUIStateMachineProps.HardwareVerification.NotRequired -> return NotRequired
+      is Required -> hardwareVerification
     }
 
     // Retrieve the hardware pubkey expected to be used; using the recovery pubkey is specified
     // and otherwise the hw auth pubkey associated with the account.
-    val hwPubKey = if (hardwareVerification.useRecoveryPubKey) {
+    val hwPubKey = if (required.useRecoveryPubKey) {
       when (val recoveryStatus = recoveryStatusService.status.first()) {
         is Recovery.StillRecovering -> recoveryStatus.hardwareAuthKey.pubKey
         else -> null
@@ -561,9 +575,10 @@ class NfcSessionUIStateMachineImpl(
       return NotRequired
     }
 
-    // In EEK mode we hardcode the value of the pubkey to EEK_PUBLIC_KEY, which isn't valid, so we
-    // have to fail open.
-    if (hwPubKey.value == EmergencyExitPayloadRestorer.EEK_PUBLIC_KEY) {
+    // In EEK mode we hardcode the value of the pubkey to a sentinel, which isn't valid, so we
+    // have to fail open. Keyboxes restored before the EAK -> EEK rename persist the legacy
+    // sentinel instead (W-17444).
+    if (EmergencyExitPayloadRestorer.isEekSentinelKey(hwPubKey.value)) {
       logInfo { "Bypassing hardware checking due to EEK mode" }
       return NotRequired
     }

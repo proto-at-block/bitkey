@@ -37,7 +37,7 @@ class MoneyAmountEntryStateMachineImplTests : FunSpec({
         MoneyAmountEntryModel(
           primaryAmount = "MoneyInputFormatter.displayText",
           primaryAmountGhostedSubstringRange = null,
-          secondaryAmount = "300,000,000 sats"
+          secondaryAmount = "₿300,000,000"
         )
       )
     }

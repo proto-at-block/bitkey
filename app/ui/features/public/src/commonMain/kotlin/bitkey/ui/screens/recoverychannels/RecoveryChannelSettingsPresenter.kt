@@ -16,7 +16,6 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.PrivilegedActionProof
-import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.notifications.NotificationTouchpointData
 import build.wallet.notifications.NotificationTouchpointService
 import build.wallet.notifications.NotificationTouchpointType
@@ -24,8 +23,6 @@ import build.wallet.platform.permissions.Permission.PushNotifications
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PermissionStatus.*
 import build.wallet.platform.settings.SystemSettingsLauncher
-import build.wallet.platform.settings.TelephonyCountryCodeProvider
-import build.wallet.platform.settings.isCountry
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.account.create.full.onboard.notifications.RECOVERY_INFO_URL
 import build.wallet.statemachine.account.create.full.onboard.notifications.UiErrorHint
@@ -57,14 +54,12 @@ class RecoveryChannelSettingsScreenPresenter(
   private val notificationTouchpointInputAndVerificationUiStateMachine:
     NotificationTouchpointInputAndVerificationUiStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
-  private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider,
   private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val systemSettingsLauncher: SystemSettingsLauncher,
   private val eventTracker: EventTracker,
   private val notificationPermissionRequester: NotificationPermissionRequester,
   private val uiErrorHintsProvider: UiErrorHintsProvider,
   private val notificationTouchpointService: NotificationTouchpointService,
-  private val usSmsFeatureFlag: UsSmsFeatureFlag,
 ) : ScreenPresenter<RecoveryChannelSettingsScreen> {
   @Composable
   override fun model(
@@ -253,15 +248,17 @@ class RecoveryChannelSettingsScreenPresenter(
     setState: (RecoveryState) -> Unit,
     updatedPrefsState: (NotificationPreferences) -> Unit,
   ) {
+    val currentSetState by rememberUpdatedState(setState)
+    val currentUpdatedPrefsState by rememberUpdatedState(updatedPrefsState)
     // Side effect: get prefs from server
     LaunchedEffect("load-notifications-preferences") {
       notificationsPreferencesCachedProvider.getNotificationsPreferences()
         .collect {
           it?.onSuccess { prefs ->
-            updatedPrefsState(prefs)
-            setState(ShowingNotificationsSettingsUiState())
+            currentUpdatedPrefsState(prefs)
+            currentSetState(ShowingNotificationsSettingsUiState())
           }?.onFailure { error ->
-            setState(
+            currentSetState(
               ShowingNotificationsSettingsUiState(
                 overlayState = BottomSheetOverlayState(
                   bottomSheetModel = NetworkingErrorSheetModel(
@@ -291,6 +288,8 @@ class RecoveryChannelSettingsScreenPresenter(
     setState: (RecoveryState) -> Unit,
     updatedPrefsState: (NotificationPreferences) -> Unit,
   ): BodyModel {
+    val currentSetState by rememberUpdatedState(setState)
+    val currentUpdatedPrefsState by rememberUpdatedState(updatedPrefsState)
     // Side effect: send updated preferences to server
     LaunchedEffect("update-notifications-preferences", state) {
       notificationsPreferencesCachedProvider.updateNotificationsPreferences(
@@ -298,14 +297,14 @@ class RecoveryChannelSettingsScreenPresenter(
         preferences = updatedPrefs,
         proof = proof
       ).onSuccess {
-        updatedPrefsState(updatedPrefs)
-        setState(ShowingNotificationsSettingsUiState())
+        currentUpdatedPrefsState(updatedPrefs)
+        currentSetState(ShowingNotificationsSettingsUiState())
       }.onFailure { error ->
-        setState(
+        currentSetState(
           ShowingNotificationsSettingsUiState(
             overlayState = BottomSheetOverlayState(
               bottomSheetModel = NetworkingErrorSheetModel(
-                onClose = { setState(ShowingNotificationsSettingsUiState()) },
+                onClose = { currentSetState(ShowingNotificationsSettingsUiState()) },
                 networkingError = error
               )
             )
@@ -331,15 +330,9 @@ class RecoveryChannelSettingsScreenPresenter(
     updateState: (RecoveryState) -> Unit,
     notificationTouchpointData: NotificationTouchpointData?,
   ): ScreenModel {
-    val usSmsEnabledFlag by remember {
-      usSmsFeatureFlag.flagValue()
-    }.collectAsState()
-
     val isLoading = state.overlayState is LoadingPreferencesOverlayState
     val smsNumber = notificationTouchpointData?.phoneNumber?.formattedDisplayValue
     val emailAddress = notificationTouchpointData?.email?.value
-    val isCountryUS = telephonyCountryCodeProvider.isCountry("us")
-    val usSmsEnabled = usSmsEnabledFlag.value
     val smsRecoveryEnabled = smsNumber != null &&
       notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
     val pushRecoveryEnabled = permissionChecker.getPermissionStatus(
@@ -350,13 +343,7 @@ class RecoveryChannelSettingsScreenPresenter(
 
     val missingRecoveryMethods = listOfNotNull(
       NotificationChannel.Sms.takeIf {
-        /*
-        1. We're not loading
-        2. Either not a US sim card, or US SMS is enabled via feature flag, or the user entered a US number and got NotAvailableInYourCountry
-        3. Sms is not in the list of enabled recovery options
-         */
-        !isLoading && (!isCountryUS || usSmsEnabled || smsNumber != null) &&
-          !notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
+        !isLoading && !notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
       },
       NotificationChannel.Push.takeIf {
         !isLoading && !notificationPreferences.accountSecurity.contains(
@@ -481,25 +468,7 @@ class RecoveryChannelSettingsScreenPresenter(
               )
             )
           } else {
-            if (isCountryUS && !usSmsEnabled) {
-              updateState(
-                ShowingNotificationsSettingsUiState(
-                  overlayState = BottomSheetOverlayState(
-                    bottomSheetModel = SMSNonUSSheetModel(
-                      source = screen.source,
-                      onCancel = {
-                        updateState(ShowingNotificationsSettingsUiState())
-                      },
-                      onContinue = {
-                        updateState(EnteringAndVerifyingPhoneNumberUiState)
-                      }
-                    )
-                  )
-                )
-              )
-            } else {
-              updateState(EnteringAndVerifyingPhoneNumberUiState)
-            }
+            updateState(EnteringAndVerifyingPhoneNumberUiState)
           }
         }.takeIf { !isLoading }
       ),

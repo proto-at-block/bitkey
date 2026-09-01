@@ -61,4 +61,7 @@ sealed interface AtRiskCause {
    * The customer is missing a critical contact method, email or phone number.
    */
   data object MissingContactMethod : AtRiskCause
+
+  /** The W3 app auth key hardware signature needs to be repaired. */
+  data object UnverifiedHardwareSignature : AtRiskCause
 }

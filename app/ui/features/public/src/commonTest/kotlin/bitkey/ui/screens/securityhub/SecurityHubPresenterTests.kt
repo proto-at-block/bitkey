@@ -113,7 +113,7 @@ class SecurityHubPresenterTests : FunSpec({
     ) {}
 
   val recoveryContactCardsUiStateMachine = object : RecoveryContactCardsUiStateMachine,
-    StateMachineMock<RecoveryContactCardsUiProps, LoadableValue<ImmutableList<CardModel>>>(
+    StateMachineMock<RecoveryContactCardsUiProps, LoadableValue<ImmutableList<CardModel.Status>>>(
       initialModel = LoadedValue(immutableListOf())
     ) {}
 
@@ -359,17 +359,93 @@ class SecurityHubPresenterTests : FunSpec({
       allSetPillSessionManager.isAppForegrounded.value = false
       allSetPillSessionManager.foregroundSessionGeneration.value += 1
 
-      awaitBody<SecurityHubBodyModel> {
+      awaitUntilBody<SecurityHubBodyModel>(
+        matching = { !it.autoHideAllSetPillAfterDelay }
+      ) {
         autoHideAllSetPillAfterDelay.shouldBeFalse()
         hideAllSetPillOnEntry.shouldBeFalse()
       }
 
       allSetPillSessionManager.isAppForegrounded.value = true
 
-      awaitBody<SecurityHubBodyModel> {
+      awaitUntilBody<SecurityHubBodyModel>(
+        matching = { it.autoHideAllSetPillAfterDelay }
+      ) {
         autoHideAllSetPillAfterDelay.shouldBeTrue()
         hideAllSetPillOnEntry.shouldBeFalse()
       }
+    }
+  }
+
+  test("clicking provision app key navigates to its own education screen") {
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        onRecommendationClick(PROVISION_APP_KEY_TO_HARDWARE)
+      }
+      it.goToCalls.awaitItem()
+        .shouldBeTypeOf<SecurityHubEducationScreen.ProvisionAppKeyEducation>()
+    }
+  }
+
+  test("exiting app key provisioning routes to a viewing-state security hub") {
+    // The provisioning screen carries initialState = ProvisioningAppKeyState. Destinations
+    // opened from it capture it as their origin, so exiting must replace the route rather
+    // than only resetting local state, or returning would re-launch the NFC flow.
+    listOf<suspend (NfcSessionUIStateMachineProps<Unit>) -> Unit>(
+      { props -> props.onSuccess(Unit) },
+      { props -> props.onCancel() }
+    ).forEach { exit ->
+      val screen = SecurityHubScreen(
+        account = FullAccountMock,
+        initialState = SecurityHubUiState.ProvisioningAppKeyState
+      )
+
+      presenter.test(screen) {
+        lateinit var nfcProps: NfcSessionUIStateMachineProps<Unit>
+        awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session") {
+          @Suppress("UNCHECKED_CAST")
+          nfcProps = this as NfcSessionUIStateMachineProps<Unit>
+        }
+
+        exit(nfcProps)
+
+        it.goToCalls.awaitItem()
+          .shouldBeTypeOf<SecurityHubScreen>()
+          .initialState.shouldBe(SecurityHubUiState.ViewingSecurityHub)
+      }
+    }
+  }
+
+  test("canceling fingerprint reset routes to a viewing-state security hub") {
+    val screen = SecurityHubScreen(
+      account = FullAccountMock,
+      initialState = SecurityHubUiState.FingerprintResetState
+    )
+
+    presenter.test(screen) {
+      awaitBodyMock<FingerprintResetProps>(id = "reset-fingerprints") {
+        onCancel()
+      }
+
+      it.goToCalls.awaitItem()
+        .shouldBeTypeOf<SecurityHubScreen>()
+        .initialState.shouldBe(SecurityHubUiState.ViewingSecurityHub)
+    }
+  }
+
+  test("destinations opened from security hub return to a viewing-state hub") {
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        onRecommendationClick(UPDATE_FIRMWARE)
+      }
+
+      it.goToCalls.awaitItem()
+        .shouldBeTypeOf<FwupScreen>()
+        .onExit?.invoke()
+
+      it.goToCalls.awaitItem()
+        .shouldBeTypeOf<SecurityHubScreen>()
+        .initialState.shouldBe(SecurityHubUiState.ViewingSecurityHub)
     }
   }
 
@@ -508,7 +584,14 @@ class SecurityHubPresenterTests : FunSpec({
         onCancel()
       }
 
+      // Entered by local state change, so the route already equals the viewing-state hub
+      // and the real Navigator.goTo() would no-op. Cancel must still return to the hub
+      // body via local state.
       awaitBody<SecurityHubBodyModel>()
+
+      it.goToCalls.awaitItem()
+        .shouldBeTypeOf<SecurityHubScreen>()
+        .initialState.shouldBe(SecurityHubUiState.ViewingSecurityHub)
     }
   }
 

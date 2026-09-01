@@ -14,7 +14,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,12 +24,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -44,8 +47,12 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.progress.CircularProgressIndicator
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tokens.darkStyleDictionaryColors
+import build.wallet.ui.tokens.lightStyleDictionaryColorsDesignSystemUpdates
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
 import io.github.alexzhirkevich.compottie.rememberLottiePainter
@@ -217,7 +224,7 @@ fun NfcStatusLabel(
   animationLabel: String = "NfcStatusLabelAnimation",
 ) {
   AnimatedContent(
-    modifier = Modifier.fillMaxWidth(),
+    modifier = modifier.fillMaxWidth(),
     targetState = text,
     transitionSpec = {
       fadeIn(animationSpec = tween(durationMillis = 500)) togetherWith
@@ -228,7 +235,6 @@ fun NfcStatusLabel(
   ) { currentText ->
     Label(
       text = currentText,
-      modifier = modifier,
       style =
         WalletTheme.labelStyle(
           type = labelType,
@@ -340,15 +346,37 @@ fun Modifier.nfcIndicatorInProgressBackground() = this
  * Modifier for warning/error indicator background.
  */
 fun Modifier.nfcIndicatorWarningBackground() =
-  composed {
-    clip(CircleShape)
-      .background(
-        Brush.radialGradient(
-          colorStops =
-            arrayOf(
-              0f to WalletTheme.colors.warningForeground.copy(alpha = 0.2F),
-              1f to WalletTheme.colors.background.copy(alpha = 0.2F)
-            )
-        )
+  clip(CircleShape)
+    .then(NfcIndicatorWarningBackgroundElement)
+
+private data object NfcIndicatorWarningBackgroundElement :
+  ModifierNodeElement<NfcIndicatorWarningBackgroundNode>() {
+  override fun create() = NfcIndicatorWarningBackgroundNode()
+
+  override fun update(node: NfcIndicatorWarningBackgroundNode) = Unit
+}
+
+private class NfcIndicatorWarningBackgroundNode :
+  Modifier.Node(),
+  DrawModifierNode,
+  CompositionLocalConsumerModifierNode {
+  override fun ContentDrawScope.draw() {
+    // Resolve theme colors at draw time so theme switches pick up fresh values.
+    // Mirrors `Theme.colors()` in build.wallet.ui.tokens, which is internal to
+    // the ui-framework module and not visible here.
+    val colors = when (currentValueOf(LocalTheme)) {
+      Theme.LIGHT -> lightStyleDictionaryColorsDesignSystemUpdates
+      Theme.DARK -> darkStyleDictionaryColors
+    }
+    drawRect(
+      brush = Brush.radialGradient(
+        colorStops =
+          arrayOf(
+            0f to colors.warningForeground.copy(alpha = 0.2F),
+            1f to colors.background.copy(alpha = 0.2F)
+          )
       )
+    )
+    drawContent()
   }
+}

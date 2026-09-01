@@ -1,6 +1,5 @@
 package build.wallet.statemachine.walletmigration
 
-import bitkey.recovery.DescriptorBackupService.SsekUnsealCheckResult
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.v1.Action.ACTION_APP_PRIVATE_WALLET_MANUAL_UPGRADE
@@ -28,9 +27,7 @@ import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.cloud.backup.csek.SekGeneratorMock
-import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.cloud.backup.csek.SsekFake
-import build.wallet.crypto.SymmetricKey
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -41,7 +38,6 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.platform.web.InAppBrowserNavigatorMock
-import build.wallet.recovery.DescriptorBackupServiceFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.RefreshAuthTokensProps
 import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachine
@@ -54,8 +50,6 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
@@ -72,7 +66,6 @@ import build.wallet.wallet.migration.MigrationServiceFake
 import build.wallet.wallet.migration.MigrationType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -90,9 +83,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
   val nfcSessionUIStateMachine =
     object : NfcSessionUIStateMachine,
       ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc-session") {}
-
-  val nfcConfirmableSessionUiStateMachine =
-    NfcConfirmableSessionUiStateMachineMock("nfc-confirmable-session")
 
   val sweepUiStateMachine =
     object : SweepUiStateMachine,
@@ -148,13 +138,8 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
 
   val accountService = AccountServiceFake()
 
-  val descriptorBackupService = DescriptorBackupServiceFake()
-
-  val ssekDao = SsekDaoFake()
-
   val stateMachine = PrivateWalletMigrationUiStateMachineImpl(
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-    nfcConfirmableSessionUiStateMachine = nfcConfirmableSessionUiStateMachine,
     refreshAuthTokensUiStateMachine = refreshAuthTokensUiStateMachine,
     sweepUiStateMachine = sweepUiStateMachine,
     utxoConsolidationUiStateMachine = utxoConsolidationUiStateMachine,
@@ -169,9 +154,7 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
     utxoMaxConsolidationCountFeatureFlag = utxoMaxConsolidationCountFeatureFlag,
     fullAccountCloudSignInAndBackupUiStateMachine = fullAccountCloudSignInAndBackupUiStateMachine,
     cloudBackupDao = cloudBackupDao,
-    accountService = accountService,
-    descriptorBackupService = descriptorBackupService,
-    ssekDao = ssekDao
+    accountService = accountService
   )
 
   val onMigrationCompleteCalls = turbines.create<FullAccount>("onMigrationComplete calls")
@@ -238,8 +221,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
     migrationService.reset()
     cloudBackupDao.reset()
     accountService.reset()
-    descriptorBackupService.reset()
-    ssekDao.reset()
     utxoMaxConsolidationCountFeatureFlag.setFlagValue(FeatureFlagValue.DoubleFlag(150.0))
   }
 
@@ -320,8 +301,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
           primaryButton.shouldNotBeNull()
           onConfirm()
         }
-
-      awaitBody<LoadingSuccessBodyModel>()
 
       awaitBodyMock<RefreshAuthTokensProps> {
         fullAccountId.shouldBe(FullAccountMock.accountId)
@@ -434,8 +413,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
           onConfirm()
         }
 
-      awaitBody<LoadingSuccessBodyModel>()
-
       awaitBodyMock<RefreshAuthTokensProps> {
         fullAccountId.shouldBe(FullAccountMock.accountId)
         appAuthKey.shouldBe(FullAccountMock.keybox.activeAppKeyBundle.authKey)
@@ -497,39 +474,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("retry unseals a missing existing SSEK before creating another private keyset") {
-    descriptorBackupService.checkSsekUnsealingNeededResult = Ok(
-      SsekUnsealCheckResult.NeedsUnsealing(SealedSsekFake)
-    )
-
-    stateMachine.test(props) {
-      awaitBody<PrivateWalletMigrationIntroBodyModel> {
-        onContinue()
-      }
-
-      awaitItem().bottomSheetModel.shouldNotBeNull()
-        .body.shouldBeInstanceOf<PrivateWalletMigrationFeeEstimateSheetModel>()
-
-      awaitItem().bottomSheetModel.shouldNotBeNull()
-        .body.shouldBeInstanceOf<PrivateWalletMigrationFeeEstimateSheetModel>().apply {
-          feeEstimateData.shouldBeInstanceOf<FeeEstimateData.Loaded>()
-          onConfirm()
-        }
-
-      awaitBody<LoadingSuccessBodyModel>()
-
-      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<SymmetricKey>>(
-        id = "nfc-confirmable-session"
-      ) {
-        onSuccess(SsekFake.key)
-      }
-
-      awaitBodyMock<RefreshAuthTokensProps> {
-        ssekDao.get(SealedSsekFake).get().shouldBe(SsekFake)
-      }
-    }
-  }
-
   test("Back exits flow") {
     stateMachine.test(props) {
       awaitBody<PrivateWalletMigrationIntroBodyModel> {
@@ -562,8 +506,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
           onConfirm()
         }
 
-      awaitBody<LoadingSuccessBodyModel>()
-
       awaitBodyMock<RefreshAuthTokensProps> {
         onBack()
       }
@@ -593,8 +535,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
           primaryButton.shouldNotBeNull()
           onConfirm()
         }
-
-      awaitBody<LoadingSuccessBodyModel>()
 
       awaitBodyMock<RefreshAuthTokensProps> {
         onSuccess(AccountAuthTokensMock)
@@ -811,8 +751,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
           onConfirm()
         }
 
-      awaitBody<LoadingSuccessBodyModel>()
-
       awaitBodyMock<RefreshAuthTokensProps> {
         onSuccess(AccountAuthTokensMock)
       }
@@ -890,8 +828,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
           onConfirm()
         }
 
-      awaitBody<LoadingSuccessBodyModel>()
-
       awaitBodyMock<RefreshAuthTokensProps> {
         onSuccess(AccountAuthTokensMock)
       }
@@ -931,8 +867,6 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
           primaryButton.shouldNotBeNull()
           onConfirm()
         }
-
-      awaitBody<LoadingSuccessBodyModel>()
 
       awaitBodyMock<RefreshAuthTokensProps> {
         onSuccess(AccountAuthTokensMock)

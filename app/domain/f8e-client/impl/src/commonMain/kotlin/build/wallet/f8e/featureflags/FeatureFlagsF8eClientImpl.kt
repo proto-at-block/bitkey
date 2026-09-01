@@ -38,6 +38,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
+private val featureFlagsJson = Json {
+  allowTrailingComma = true
+  ignoreUnknownKeys = true
+}
+
 @BitkeyInject(AppScope::class)
 class FeatureFlagsF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
@@ -112,17 +117,13 @@ class FeatureFlagsF8eClientImpl(
     private var flags: List<JsonObject>,
   ) : RedactedResponseBody {
     fun decodeValidFlags(): List<FeatureFlagsF8eClient.F8eFeatureFlag> {
-      val json = Json {
-        allowTrailingComma = true
-        ignoreUnknownKeys = true
-      }
-
       return flags.mapNotNull { flag ->
         catchingResult {
-          json.decodeFromJsonElement<FeatureFlagsF8eClient.F8eFeatureFlag>(flag)
+          featureFlagsJson.decodeFromJsonElement<FeatureFlagsF8eClient.F8eFeatureFlag>(flag)
         }.get()
       }
     }
+
   }
 
   @Serializable

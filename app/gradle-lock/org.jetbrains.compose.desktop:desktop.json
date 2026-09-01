@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.desktop:desktop",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "desktop-metadata-1.9.1.jar": "089e24417bf9f6c34eec5720eebb2cbcc82ea2855ecef90133eb17e1079d5868"
+                        "desktop-metadata-1.10.0-rc02.jar": "089e24417bf9f6c34eec5720eebb2cbcc82ea2855ecef90133eb17e1079d5868"
                     }
                 }
             ],

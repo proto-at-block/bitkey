@@ -34,6 +34,7 @@ class FeatureFlagServiceImplTests : FunSpec({
   val doubleFlag = DoubleMobileTestFeatureFlag(featureFlagDao = featureFlagDao)
   val service = FeatureFlagServiceImpl(
     featureFlags = listOf(stringFlag, doubleFlag),
+    featureFlagDao = featureFlagDao,
     featureFlagSyncer = featureFlagSyncer
   )
 
@@ -47,6 +48,49 @@ class FeatureFlagServiceImplTests : FunSpec({
 
   test("feature flags are not initialized by default") {
     service.flagsInitialized.value.shouldBeFalse()
+  }
+
+  test("initialization loads persisted values for every flag") {
+    stringFlag.setFlagValue(StringFlag("persisted string"))
+    doubleFlag.setFlagValue(DoubleFlag(2.1))
+
+    val initializedStringFlag = StringFlagMobileTestFeatureFlag(featureFlagDao)
+    val initializedDoubleFlag = DoubleMobileTestFeatureFlag(featureFlagDao)
+    val testService = FeatureFlagServiceImpl(
+      featureFlags = listOf(initializedStringFlag, initializedDoubleFlag),
+      featureFlagDao = featureFlagDao,
+      featureFlagSyncer = featureFlagSyncer
+    )
+
+    createBackgroundScope().launch {
+      testService.executeWork()
+    }
+
+    featureFlagSyncer.initializeSyncLoopCalls.awaitItem()
+    featureFlagSyncer.syncCalls.awaitItem()
+    initializedStringFlag.flagValue().value.shouldBe(StringFlag("persisted string"))
+    initializedDoubleFlag.flagValue().value.shouldBe(DoubleFlag(2.1))
+  }
+
+  test("initialization uses the default for a flag without a persisted value") {
+    stringFlag.setFlagValue(StringFlag("persisted string"))
+
+    val initializedStringFlag = StringFlagMobileTestFeatureFlag(featureFlagDao)
+    val initializedDoubleFlag = DoubleMobileTestFeatureFlag(featureFlagDao)
+    val testService = FeatureFlagServiceImpl(
+      featureFlags = listOf(initializedStringFlag, initializedDoubleFlag),
+      featureFlagDao = featureFlagDao,
+      featureFlagSyncer = featureFlagSyncer
+    )
+
+    createBackgroundScope().launch {
+      testService.executeWork()
+    }
+
+    featureFlagSyncer.initializeSyncLoopCalls.awaitItem()
+    featureFlagSyncer.syncCalls.awaitItem()
+    initializedStringFlag.flagValue().value.shouldBe(StringFlag("persisted string"))
+    initializedDoubleFlag.flagValue().value.shouldBe(DoubleFlag(0.0))
   }
 
   test("feature flags are marked as initialized after sync is kicked off") {
@@ -93,6 +137,7 @@ class FeatureFlagServiceImplTests : FunSpec({
     val updateOnLaunchFlag = UpdateOnLaunchFlag(featureFlagDao)
     val testService = FeatureFlagServiceImpl(
       featureFlags = listOf(updateOnLaunchFlag),
+      featureFlagDao = featureFlagDao,
       featureFlagSyncer = featureFlagSyncer
     )
 

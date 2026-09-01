@@ -25,6 +25,8 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.ContentType.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.atomicfu.locks.ReentrantLock
+import kotlinx.atomicfu.locks.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
@@ -65,11 +67,22 @@ class MempoolHttpClientImpl(
       .logNetworkFailure { "Failed to get mempool fee rates" }
   }
 
+  /**
+   * Cache clients per network type (only the base URL differs) so we reuse
+   * connection pools and TLS sessions instead of building a new client per request.
+   */
+  private val clients = mutableMapOf<BitcoinNetworkType, HttpClient>()
+  private val clientsLock = ReentrantLock()
+
   private fun client(networkType: BitcoinNetworkType): HttpClient {
-    return if (engine == null) {
-      HttpClient { configureClient(this, networkType) }
-    } else {
-      HttpClient(engine) { configureClient(this, networkType) }
+    return clientsLock.withLock {
+      clients.getOrPut(networkType) {
+        if (engine == null) {
+          HttpClient { configureClient(this, networkType) }
+        } else {
+          HttpClient(engine) { configureClient(this, networkType) }
+        }
+      }
     }
   }
 

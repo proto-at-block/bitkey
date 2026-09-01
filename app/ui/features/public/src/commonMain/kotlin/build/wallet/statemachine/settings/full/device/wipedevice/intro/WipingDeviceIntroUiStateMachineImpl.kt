@@ -383,6 +383,8 @@ class WipingDeviceIntroUiStateMachineImpl(
         needsAuthentication = false,
         shouldLock = false,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
+        segment = SettingsAppSegment.Device,
+        actionDescription = "Classifying tapped device before wiping",
         eventTrackerContext = NfcEventTrackerScreenIdContext.WIPE_DEVICE_CLASSIFY_DEVICE,
         showNativeSheetOnIos = false,
         skipFirmwareTelemetry = true
@@ -471,6 +473,8 @@ class WipingDeviceIntroUiStateMachineImpl(
         needsAuthentication = false,
         shouldLock = false,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
+        segment = SettingsAppSegment.Device,
+        actionDescription = "Confirming device presence before wiping",
         eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
       )
     )

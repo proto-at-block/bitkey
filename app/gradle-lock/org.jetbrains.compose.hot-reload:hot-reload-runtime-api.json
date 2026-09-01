@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.hot-reload:hot-reload-runtime-api",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "hot-reload-runtime-api-metadata-1.0.0.jar": "e4ce8d8c1072c9236d5249aef4368f84a33592bf706f5cc3064ec734e6c16adc"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

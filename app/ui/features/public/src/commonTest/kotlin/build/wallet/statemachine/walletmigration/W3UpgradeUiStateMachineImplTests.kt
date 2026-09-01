@@ -1,4 +1,5 @@
 package build.wallet.statemachine.walletmigration
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.Turbine
@@ -64,6 +65,7 @@ import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
+import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.nfc.W3NfcCommandsMock
@@ -221,9 +223,18 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     hardwareType = HardwareType.W3
   )
 
+  suspend fun ReceiveTurbine<ScreenModel>.verifyW1AndContinue() {
+    awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {
+      request.shouldBeTypeOf<Request.HwKeyProof>()
+      requiredHardwareType.shouldBe(HardwareType.W1)
+      (request as Request.HwKeyProof).onSuccess(HwFactorProofOfPossession("w1-proof"))
+    }
+  }
+
   suspend fun ReceiveTurbine<ScreenModel>.pairNewHardwareFromIntro() {
     awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
     cloudBackupHealthRepository.performSyncCalls.awaitItem()
+    verifyW1AndContinue()
     awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
     awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
       .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -423,7 +434,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
           .onSuccess(HwFactorProofOfPossession("w1-proof"))
       }
       awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel> {
-        formScreenTitle?.eyebrow.shouldBe("Step 3 of 4")
+        (toolbar?.title as? ToolbarTitleModel.Large)?.eyebrow.shouldBe("Step 3 of 4")
         onContinue()
       }
       awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<UpgradeRotateAppAuthKeysResult>>(id = "nfc-confirmable") {
@@ -619,6 +630,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         onYes()
       }
@@ -739,6 +751,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -761,6 +774,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -783,8 +797,9 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
-        formScreenTitle?.eyebrow.shouldBe("Step 1 of 4")
+        (toolbar?.title as? ToolbarTitleModel.Large)?.eyebrow.shouldBe("Step 1 of 4")
       }
     }
   }
@@ -798,8 +813,9 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
-        formScreenTitle?.eyebrow.shouldBe("Step 1 of 4")
+        (toolbar?.title as? ToolbarTitleModel.Large)?.eyebrow.shouldBe("Step 1 of 4")
       }
     }
 
@@ -817,7 +833,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel> {
-        formScreenTitle?.eyebrow.shouldBe("Step 2 of 4")
+        (toolbar?.title as? ToolbarTitleModel.Large)?.eyebrow.shouldBe("Step 2 of 4")
       }
     }
 
@@ -833,6 +849,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -857,6 +874,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -879,6 +897,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -911,6 +930,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -930,6 +950,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel>()
     }
   }
@@ -943,6 +964,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel>()
     }
   }
@@ -996,6 +1018,45 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       }
     }
     onExitCalls.awaitItem()
+  }
+
+  test("W1 verification cancellation returns to intro") {
+    migrationService.resumeResult = Ok(MigrationProgress.NotStarted(MigrationType.W3Upgrade))
+
+    stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem()
+      awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {
+        onBack()
+      }
+      awaitUntilBody<W3UpgradeIntroBodyModel>()
+    }
+  }
+
+  test("W1 verification wrong hardware shows error with retry") {
+    migrationService.resumeResult = Ok(MigrationProgress.NotStarted(MigrationType.W3Upgrade))
+
+    stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem()
+      awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {
+        onError(
+          NfcException.WrongHardwareType(
+            expected = HardwareType.W1,
+            actual = HardwareType.W3
+          )
+        ).shouldBe(true)
+      }
+      awaitUntilBody<FormBodyModel>(
+        id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_WRONG_HARDWARE_ERROR
+      ) {
+        primaryButton.shouldNotBeNull().text.shouldBe("Retry")
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {
+        requiredHardwareType.shouldBe(HardwareType.W1)
+      }
+    }
   }
 
   test("cloud-restored placeholder shows intro without a back button") {
@@ -1070,6 +1131,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         onNo()
       }
@@ -1088,6 +1150,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         onBack?.invoke()
       }
@@ -1104,6 +1167,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         onYes()
       }
@@ -1122,6 +1186,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -1227,6 +1292,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -1535,7 +1601,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilScreenWithBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>(
-        matchingBody = { it.formScreenTitle?.eyebrow == "Step 2 of 4" }
+        matchingBody = { (it.toolbar?.title as? ToolbarTitleModel.Large)?.eyebrow == "Step 2 of 4" }
       ) {
         body.shouldBeInstanceOf<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>()
           .onContinue()
@@ -1560,7 +1626,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       }
 
       awaitUntilScreenWithBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>(
-        matchingBody = { it.formScreenTitle?.eyebrow == "Step 2 of 4" }
+        matchingBody = { (it.toolbar?.title as? ToolbarTitleModel.Large)?.eyebrow == "Step 2 of 4" }
       )
     }
   }
@@ -1571,6 +1637,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       // No device info → error on device ready → Yes
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
 
@@ -1626,7 +1693,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
       // After backup saved, it proceeds and loads the fingerprint for sweep
       awaitUntilBody<W3UpgradeOldHardwareInstructionsBodyModel> {
-        formScreenTitle?.eyebrow.shouldBe("Step 4 of 4")
+        (toolbar?.title as? ToolbarTitleModel.Large)?.eyebrow.shouldBe("Step 4 of 4")
         onContinue()
       }
       // Assert the sweep props carry the persisted old-device fingerprint
@@ -2134,6 +2201,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
 
       val pairProps = awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
@@ -2159,6 +2227,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       }
       // Backup health sync runs on Continue click.
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {
         onExit()
@@ -2176,6 +2245,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -2198,6 +2268,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     stateMachine.test(exitProps) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -2231,6 +2302,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     createStateMachine(recordingEventTracker(trackedActions)).test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel>()
     }
     trackedActions.shouldContain(Action.ACTION_APP_W3_UPGRADE_STARTED)
@@ -2244,6 +2316,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     createStateMachine(recordingEventTracker(trackedActions)).test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -2263,6 +2336,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     createStateMachine(recordingEventTracker(trackedActions)).test(exitProps) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -2344,6 +2418,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -2397,6 +2472,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     stateMachine.test(exitProps) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      verifyW1AndContinue()
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()

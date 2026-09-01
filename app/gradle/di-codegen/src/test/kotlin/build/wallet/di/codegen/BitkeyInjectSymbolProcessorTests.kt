@@ -642,15 +642,11 @@ class BitkeyInjectSymbolProcessorTests {
     val compilation = compilation(source, iosSources = true)
     val result = compilation.compile()
 
-    assertEquals(KotlinCompilation.ExitCode.COMPILATION_ERROR, result.exitCode)
+    assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
-    // This error means the annotation was correctly applied, but the compiler
-    // refused the source because it's compiling for JVM.
-    val lastLogLine = result.messages
-      .trimEnd()
-      .substringAfterLast("\n")
-    assertTrue(
-      lastLogLine.endsWith("Declaration annotated with '@OptionalExpectation' can only be used in common module sources")
-    )
+    val generatedFile = assertNotNull(compilation.getKspGeneratedFiles().single())
+    val generatedSource = generatedFile.readText()
+    assertTrue(generatedSource.contains("import kotlin.native.HiddenFromObjC"))
+    assertTrue(generatedSource.contains("@HiddenFromObjC"))
   }
 }

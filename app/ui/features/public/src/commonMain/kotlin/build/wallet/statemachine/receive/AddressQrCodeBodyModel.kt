@@ -13,7 +13,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.collections.immutable.ImmutableList
@@ -93,7 +93,7 @@ data class AddressQrCodeBodyModel(
     toolbarModel =
       ToolbarModel(
         leadingAccessory = CloseAccessory(onClick = onBack),
-        middleAccessory = ToolbarMiddleAccessoryModel("Receive"),
+        title = ToolbarTitleModel.Inline("Receive"),
         trailingAccessory = onRefreshClick?.let {
           ToolbarAccessoryModel.IconAccessory(
             model =

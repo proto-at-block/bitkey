@@ -8,9 +8,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.emergencyexitkit.EmergencyExitKitAssociation.EekBuild
 import build.wallet.emergencyexitkit.EmergencyExitKitDataProvider
 import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
-import build.wallet.feature.flags.PublicCustomerSupportFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
-import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
@@ -59,9 +57,7 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val orphanedKeyRecoveryFeatureFlag: OrphanedKeyRecoveryFeatureFlag,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val feedbackUiStateMachine: FeedbackUiStateMachine,
-  private val publicCustomerSupportFeatureFlag: PublicCustomerSupportFeatureFlag,
   private val wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
-  private val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
   private val wipingDeviceUiStateMachine: WipingDeviceUiStateMachine,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val dateTimeFormatter: DateTimeFormatter,
@@ -89,14 +85,6 @@ class ChooseAccountAccessUiStateMachineImpl(
 
     val orphanedKeyRecoveryFlag by remember {
       orphanedKeyRecoveryFeatureFlag.flagValue()
-    }.collectAsState()
-
-    val customerSupportFlag by remember {
-      publicCustomerSupportFeatureFlag.flagValue()
-    }.collectAsState()
-
-    val w3OnboardingFlag by remember {
-      w3OnboardingFeatureFlag.flagValue()
     }.collectAsState()
 
     LaunchedEffect(orphanedKeyRecoveryFlag.value) {
@@ -144,8 +132,7 @@ class ChooseAccountAccessUiStateMachineImpl(
           },
           onMoreOptionsClick = { state = ShowingAccountAccessMoreOptions },
           onTermsOfServiceClick = { state = ShowingLegalBrowser(TERMS_OF_SERVICE_URL) },
-          onPrivacyNoticeClick = { state = ShowingLegalBrowser(PRIVACY_NOTICE_URL) },
-          showW3Video = w3OnboardingFlag.value
+          onPrivacyNoticeClick = { state = ShowingLegalBrowser(PRIVACY_NOTICE_URL) }
         ).asRootFullScreen(
           alertModel = alert,
           theme = Theme.DARK
@@ -180,7 +167,6 @@ class ChooseAccountAccessUiStateMachineImpl(
             } else {
               null
             },
-            canShowCustomerSupport = customerSupportFlag.value,
             onCustomerSupportClick = { state = ShowingCustomerSupport }
           ).asRootScreen()
         }
@@ -256,6 +242,8 @@ class ChooseAccountAccessUiStateMachineImpl(
     onAccountsDiscovered: (ImmutableList<RecoverableAccount>) -> Unit,
     onError: () -> Unit,
   ): ScreenModel {
+    val currentOnAccountsDiscovered by rememberUpdatedState(onAccountsDiscovered)
+    val currentOnError by rememberUpdatedState(onError)
     LaunchedEffect("discover orphaned accounts") {
       val recoverableAccountsResult = orphanedKeyRecoveryService
         .discoverRecoverableAccounts()
@@ -264,13 +252,13 @@ class ChooseAccountAccessUiStateMachineImpl(
         when {
           accounts.isEmpty() -> {
             logWarn { "$LOG_TAG No recoverable accounts found despite having valid keys" }
-            onError()
+            currentOnError()
           }
-          else -> onAccountsDiscovered(accounts.toImmutableList())
+          else -> currentOnAccountsDiscovered(accounts.toImmutableList())
         }
       }.onFailure { error ->
         logWarn { "$LOG_TAG Failed to discover recoverable accounts: $error" }
-        onError()
+        currentOnError()
       }
     }
 
@@ -322,6 +310,7 @@ class ChooseAccountAccessUiStateMachineImpl(
     recoverableAccount: RecoverableAccount,
     onSuccess: () -> Unit,
   ): ScreenModel {
+    val currentOnSuccess by rememberUpdatedState(onSuccess)
     var uiState by remember {
       mutableStateOf<OrphanedKeyRecoveryUiState>(OrphanedKeyRecoveryUiState.Recovering)
     }
@@ -349,7 +338,7 @@ class ChooseAccountAccessUiStateMachineImpl(
 
     LaunchedEffect("recovery-success", uiState) {
       if (uiState == OrphanedKeyRecoveryUiState.Success) {
-        onSuccess()
+        currentOnSuccess()
       }
     }
 

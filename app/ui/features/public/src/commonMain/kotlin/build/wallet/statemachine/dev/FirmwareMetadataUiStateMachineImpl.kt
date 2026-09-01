@@ -123,6 +123,8 @@ class FirmwareMetadataUiStateMachineImpl(
             needsAuthentication = false,
             skipFirmwareTelemetry = true,
             screenPresentationStyle = Modal,
+            segment = DebugAppSegment,
+            actionDescription = "Reading firmware metadata from debug menu",
             eventTrackerContext = METADATA
           )
         )

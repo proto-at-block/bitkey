@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.moshi:moshi",
     "components": [
         {
-            "version": "1.15.1",
+            "version": "1.15.2",
             "variants": [
                 {
                     "artifacts": {
-                        "moshi-1.15.1.jar": "46a1118fe1fc12723a575c94133fc8936dcc78d3f8873c0e70a055de9e5861a6"
+                        "moshi-1.15.2.jar": "767f7592c6c61eb693549a26d333c121f5383826bd287b899867aa326dae55e4"
                     }
                 }
             ],

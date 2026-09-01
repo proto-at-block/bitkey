@@ -38,13 +38,24 @@ You'll need:
 
 ### Prep work
 
-1. Clone the bitkey repository
-  
+1. Clone the bitkey repository and check out the release you're verifying
+
     ```sh
     git clone https://github.com/proto-at-block/bitkey.git
     cd bitkey
+    git checkout app/<version>
     git submodule update --init --recursive
     ```
+
+    Replace `<version>` with the version of the Bitkey app installed on your phone,
+    e.g. `git checkout app/2026.30.0`.
+    All release tags are listed on the [releases page](https://github.com/proto-at-block/bitkey/releases).
+
+> [!IMPORTANT]
+> Always build from the `app/<version>` tag matching the APK you're verifying.
+> The `main` branch may contain source published after that release
+> (for example server or firmware updates)
+> and is not expected to reproduce the released APK.
 
 2. Activate Hermit
 
@@ -62,7 +73,7 @@ You'll need:
 4. Export AAPT2
 
     ```sh
-    export AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+    export AAPT2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
     ```
 
 5. Connect your phone using USB and make sure it's authorized for USB debugging

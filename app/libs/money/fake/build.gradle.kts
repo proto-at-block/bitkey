@@ -22,9 +22,6 @@ kotlin {
         implementation(projects.libs.moneyImpl) {
           because("Depends on MoneyDisplayFormatterImpl and MoneyFormatterDefinitionsImpl.")
         }
-        implementation(projects.domain.featureFlagFake) {
-          because("MoneyDisplayFormatterFake needs Bip177FeatureFlag with FeatureFlagDaoFake.")
-        }
       }
     }
 

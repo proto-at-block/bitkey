@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.dev.FirmwareMetadataBodyModel
 import build.wallet.ui.components.button.Button
-import build.wallet.ui.components.card.Card
+import build.wallet.ui.components.card.CardContainer
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.toolbar.Toolbar
@@ -21,7 +21,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
@@ -44,7 +44,7 @@ fun FirmwareMetadataScreen(
       model =
         ToolbarModel(
           leadingAccessory = BackAccessory(onClick = model.onBack),
-          middleAccessory = ToolbarMiddleAccessoryModel(title = "Firmware Metadata")
+          title = ToolbarTitleModel.Inline(title = "Firmware Metadata")
         )
     )
 
@@ -59,7 +59,7 @@ fun FirmwareMetadataScreen(
 
     model.firmwareMetadataModel?.let { metadata ->
       Spacer(Modifier.height(24.dp))
-      Card {
+      CardContainer {
         ListItem(
           title = "Active Slot",
           sideText = metadata.activeSlot
@@ -110,7 +110,7 @@ fun FirmwareMetadataScreen(
 
       if (metadata.mcuInfo.isNotEmpty()) {
         Spacer(Modifier.height(24.dp))
-        Card {
+        CardContainer {
           metadata.mcuInfo.forEachIndexed { index, mcu ->
             if (index > 0) {
               Divider()

@@ -92,7 +92,7 @@ class FingerprintResetStatusCardUiStateMachineImpl(
       FingerprintResetCardModel(
         title = "Fingerprint reset in progress",
         subtitle = remainingDelayInWords,
-        backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
+        inverse = true,
         onClick = { props.onClick(action.id) }
       )
     }

@@ -24,6 +24,7 @@ const val SWEEP_TRANSACTION_TYPE_STRING = "Recovery Sweep"
  * inbound transaction.
  * @property transactionType – Type of transaction. We currently support showing "Incoming",
  * "Outgoing", and "Self Send"
+ * @property note – Customer-authored transaction note, if one exists.
  */
 data class ExportTransactionRow(
   val txid: BitcoinTransactionId,
@@ -31,6 +32,7 @@ data class ExportTransactionRow(
   val amount: BitcoinMoney,
   val fees: BitcoinMoney?,
   val transactionType: ExportTransactionType,
+  val note: String? = null,
 ) {
   /**
    * A sealed interface representing the supported transaction types that we render in our transaction

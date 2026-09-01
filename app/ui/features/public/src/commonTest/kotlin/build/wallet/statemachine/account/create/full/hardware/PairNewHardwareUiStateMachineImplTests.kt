@@ -13,9 +13,6 @@ import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockMethod
 import build.wallet.nfc.transaction.PairingTransactionProviderFake
@@ -67,8 +64,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   val deviceInfoProvider = DeviceInfoProviderMock()
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
 
-  val featureFlagDao = FeatureFlagDaoFake()
-  val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
   val accountConfigService = AccountConfigServiceFake()
 
   fun createStateMachine() =
@@ -80,7 +75,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       appSessionManager = appSessionManager,
       deviceInfoProvider = deviceInfoProvider,
       hardwareUnlockInfoService = hardwareUnlockInfoService,
-      w3OnboardingFeatureFlag = w3OnboardingFeatureFlag,
       accountConfigService = accountConfigService,
     )
 
@@ -111,6 +105,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     onExit = {
       onExitCalls += Unit
     },
+    segment = build.wallet.statemachine.account.create.full.OnboardingAppSegment.FullAccount,
     eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION,
     pairingContext = PairingContext.Onboarding
   )
@@ -139,7 +134,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     appSessionManager.currentSessionId = "session-id"
     deviceInfoProvider.reset()
     hardwareUnlockInfoService.clear()
-    featureFlagDao.reset()
     pairingTransactionProvider.reset()
   }
 
@@ -153,14 +147,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
         primaryButton.onClick()
       }
 
@@ -200,14 +187,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
         primaryButton.onClick()
       }
 
@@ -232,14 +212,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
         primaryButton.onClick()
       }
 
@@ -295,14 +268,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
         primaryButton.onClick()
       }
 
@@ -358,14 +324,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
         primaryButton.onClick()
       }
 
@@ -421,14 +380,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
         primaryButton.onClick()
       }
 
@@ -484,14 +436,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
         primaryButton.onClick()
       }
 
@@ -518,81 +463,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("pairing new wallet ui -- cancel start fingerprint enrollment") {
-    stateMachine.test(props) {
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
-
-      awaitBodyMock<NfcSessionUIStateMachineProps<Boolean>>(
-        id = nfcSessionUIStateMachine.id
-      ) {
-        onCancel()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
-      }
-    }
-  }
-
-  test("pairing new wallet ui -- back from showing fingerprint enrollment instructions") {
-    stateMachine.test(props) {
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
-        onBack.shouldNotBeNull().invoke()
-      }
-
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-      }
-    }
-  }
-
-  test("pairing new wallet ui -- back from showing activation instructions") {
-    stateMachine.test(props) {
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        onBack.shouldNotBeNull().invoke()
-      }
-
-      onExitCalls.awaitItem()
-    }
-  }
-
   test("pairing W1 hardware -- second tap carries W1 hardwareTypeOverride") {
     stateMachine.test(props) {
-      awaitBody<PairNewHardwareBodyModel> {
-        primaryButton.onClick()
-      }
-
       awaitBody<PairNewHardwareBodyModel> {
         primaryButton.onClick()
       }
@@ -627,8 +499,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
   // W3 Onboarding Flow Tests
 
-  test("W3 onboarding -- shows activation instructions V2 screen when flag is enabled") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+  test("W3 onboarding -- shows activation instructions V2 screen") {
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -650,7 +521,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- tapping continue goes directly to NFC") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -676,7 +546,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- activation instructions V2 does not show legacy no-screen button") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -690,7 +559,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- back from activation instructions V2 exits") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -706,7 +574,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- cancel start fingerprint enrollment returns to activation instructions V2") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -736,24 +603,10 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("W3 onboarding -- flag disabled shows legacy activation instructions") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-    val legacyStateMachine = createStateMachine()
-
-    legacyStateMachine.test(props) {
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-      }
-    }
-  }
-
   test("lost hardware recovery -- second tap passes shouldLockHardware") {
     val lostHwProps = props.copy(pairingContext = PairingContext.LostHardware)
 
     stateMachine.test(lostHwProps) {
-      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
       awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
@@ -790,7 +643,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(lostHwProps) {
       awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
-      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
@@ -812,7 +664,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
   test("onboarding -- second tap does not lock hardware") {
     stateMachine.test(props) {
-      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
       awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))

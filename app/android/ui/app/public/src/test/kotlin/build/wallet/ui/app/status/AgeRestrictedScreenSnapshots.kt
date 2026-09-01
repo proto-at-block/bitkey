@@ -14,7 +14,9 @@ class AgeRestrictedScreenSnapshots : FunSpec({
     paparazzi.snapshot {
       FormScreen(
         model = AgeRestrictedBodyModel(
-          devicePlatform = DevicePlatform.Android
+          devicePlatform = DevicePlatform.Android,
+          onLearnMore = {},
+          onRetry = {}
         )
       )
     }
@@ -24,7 +26,9 @@ class AgeRestrictedScreenSnapshots : FunSpec({
     paparazzi.snapshot {
       FormScreen(
         model = AgeRestrictedBodyModel(
-          devicePlatform = DevicePlatform.IOS
+          devicePlatform = DevicePlatform.IOS,
+          onLearnMore = {},
+          onRetry = {}
         )
       )
     }

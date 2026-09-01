@@ -4,6 +4,8 @@ import build.wallet.account.AccountService
 import build.wallet.account.getAccount
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitcoin.export.ExportTransactionRow.ExportTransactionType.*
+import build.wallet.bitcoin.metadata.TransactionNote
+import build.wallet.bitcoin.metadata.TransactionNoteService
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransactionId
@@ -18,11 +20,13 @@ import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
 import build.wallet.logging.logNetworkFailure
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.getOr
 import kotlinx.coroutines.flow.first
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
@@ -37,12 +41,23 @@ class ExportTransactionsServiceImpl(
   private val exportTransactionsAsCsvSerializer: ExportTransactionsAsCsvSerializer,
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val uuidGenerator: UuidGenerator,
+  private val transactionNoteService: TransactionNoteService,
 ) : ExportTransactionsService {
   override suspend fun export(): Result<ExportedTransactions, Throwable> =
     coroutineBinding {
-      val descriptors = getAllDescriptors().bind()
+      val account = accountService.getAccount<FullAccount>().bind()
+      val descriptors = getAllDescriptors(account).bind()
+      // Notes are optional local metadata — a read *error* must not block exporting
+      // the transaction history itself. Having zero notes is a successful (Ok) read
+      // and doesn't log; only an Err from the notes store falls back here.
+      val transactionNotesById = transactionNoteService.notes().first()
+        .logFailure { "Failed to load transaction notes for export. Exporting without notes." }
+        .getOr(emptyMap())
 
-      val confirmedTransactionRows = fetchConfirmedTransactionRows(descriptors).bind()
+      val confirmedTransactionRows = fetchConfirmedTransactionRows(
+        descriptors = descriptors,
+        transactionNotesById = transactionNotesById
+      ).bind()
       val flattenedTransactionRows = flattenSweepTransactions(confirmedTransactionRows)
 
       ExportedTransactions(aggregateToCsv(flattenedTransactionRows))
@@ -61,7 +76,15 @@ class ExportTransactionsServiceImpl(
         val amounts = txGroup.map { it.amount }.toSet()
         if (amounts.size == 1) {
           // Amounts and fees are the same, flatten to a single "Self Send" transaction
-          listOf(txGroup.first().copy(transactionType = Sweep))
+          listOf(
+            txGroup.first().copy(
+              transactionType = Sweep,
+              // Prefix the customer's note so it's clear in the exported CSV that the
+              // note belongs to a recovery sweep rather than a regular send/receive.
+              note = txGroup.firstNotNullOfOrNull { it.note }
+                ?.let { "SWEEP: $it" }
+            )
+          )
         } else {
           // Amounts or fees differ, do not flatten
           txGroup
@@ -73,7 +96,10 @@ class ExportTransactionsServiceImpl(
     }
   }
 
-  private suspend fun fetchConfirmedTransactionRows(descriptors: List<WatchingWalletDescriptor>) =
+  private suspend fun fetchConfirmedTransactionRows(
+    descriptors: List<WatchingWalletDescriptor>,
+    transactionNotesById: Map<BitcoinTransactionId, TransactionNote>,
+  ) =
     coroutineBinding {
       descriptors.flatMap { descriptor ->
         val wallet = if (bdk2FeatureFlag.isEnabled()) {
@@ -86,16 +112,16 @@ class ExportTransactionsServiceImpl(
           .first()
           .filter { it.confirmationStatus is Confirmed }
       }.sortedByDescending { it.confirmationTime() }
-        .map { it.toExportTransactionRow() }
+        .map { transaction -> transaction.toExportTransactionRow(transactionNotesById) }
     }
 
   private suspend fun aggregateToCsv(transactionRows: List<ExportTransactionRow>): ByteString =
     exportTransactionsAsCsvSerializer.toCsvString(rows = transactionRows).encodeUtf8()
 
-  private suspend fun getAllDescriptors(): Result<List<WatchingWalletDescriptor>, Error> =
+  private suspend fun getAllDescriptors(
+    account: FullAccount,
+  ): Result<List<WatchingWalletDescriptor>, Error> =
     coroutineBinding {
-      val account = accountService.getAccount<FullAccount>().bind()
-
       // Use local keysets if available and authoritative, otherwise fetch from F8e
       val allKeysets = if (account.keybox.canUseKeyboxKeysets) {
         logInfo { "Using local keysets for exporting transaction history." }
@@ -137,12 +163,15 @@ class ExportTransactionsServiceImpl(
     }
 }
 
-private fun BitcoinTransaction.toExportTransactionRow(): ExportTransactionRow {
+private fun BitcoinTransaction.toExportTransactionRow(
+  transactionNotesById: Map<BitcoinTransactionId, TransactionNote>,
+): ExportTransactionRow {
   return ExportTransactionRow(
     txid = BitcoinTransactionId(value = id),
     confirmationTime = (confirmationStatus as Confirmed).blockTime.timestamp,
     amount = subtotal,
     fees = fee,
-    transactionType = transactionType.toExportTransactionType()
+    transactionType = transactionType.toExportTransactionType(),
+    note = transactionNotesById[BitcoinTransactionId(id)]?.note
   )
 }

@@ -1,0 +1,151 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "url": "../../trailblaze-quickjs-tools/2026.06.01/trailblaze-quickjs-tools-2026.06.01.module",
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-quickjs-tools",
+    "version": "2026.06.01",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "jvmApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-quickjs-tools-jvm-2026.06.01.jar",
+          "url": "trailblaze-quickjs-tools-jvm-2026.06.01.jar",
+          "size": 135673,
+          "sha512": "10ed756f3f0d4a4b5e21b1ad6e8a7a92174e6d7a3022cf5d758bdfa561cd8c31d844b2bdc95ca297b834f3ac3bbfecc34381583f02a48c6143cbfcf68c9bb8d6",
+          "sha256": "047a14821b77eda1e8302f9dea46a667a85969f2e2aefda439a6c438e42a47ad",
+          "sha1": "97a2a45034507905f75333d58917a44d9db6a249",
+          "md5": "e42cbe42cda1b1ea911486b5af987d5f"
+        }
+      ]
+    },
+    {
+      "name": "jvmRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "io.github.dokar3",
+          "module": "quickjs-kt",
+          "version": {
+            "requires": "1.0.5"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.10.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-quickjs-tools-jvm-2026.06.01.jar",
+          "url": "trailblaze-quickjs-tools-jvm-2026.06.01.jar",
+          "size": 135673,
+          "sha512": "10ed756f3f0d4a4b5e21b1ad6e8a7a92174e6d7a3022cf5d758bdfa561cd8c31d844b2bdc95ca297b834f3ac3bbfecc34381583f02a48c6143cbfcf68c9bb8d6",
+          "sha256": "047a14821b77eda1e8302f9dea46a667a85969f2e2aefda439a6c438e42a47ad",
+          "sha1": "97a2a45034507905f75333d58917a44d9db6a249",
+          "md5": "e42cbe42cda1b1ea911486b5af987d5f"
+        }
+      ]
+    },
+    {
+      "name": "jvmSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "files": [
+        {
+          "name": "trailblaze-quickjs-tools-jvm-2026.06.01-sources.jar",
+          "url": "trailblaze-quickjs-tools-jvm-2026.06.01-sources.jar",
+          "size": 33440,
+          "sha512": "7ffb4033ef267c94b9360d8a36dbd669459d43c9f163ddad8ed888c92c691b02a82f36e76be32e694466214a1587ca32f105cdad52d5f6fd6ccf32a00b727ed9",
+          "sha256": "6b5d0116d5b92bdb201dd816e82ee314f38b53045ab920352d45ddf3074920ab",
+          "sha1": "6d2c79eb1ca2aa69c5c07581cc15de0d3ea5e466",
+          "md5": "4db274a984621afb3658813cbfcf91d2"
+        }
+      ]
+    }
+  ]
+}

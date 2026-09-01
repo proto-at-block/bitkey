@@ -11,6 +11,8 @@
 
 # Gradle
 .gradle
+# Project cache dir used by the Xcode-driven Gradle build (see ios/project.yml)
+.gradle-xcode
 _build
 local.properties
 **/reports/configuration-cache/

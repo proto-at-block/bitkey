@@ -57,11 +57,7 @@ fun SwitchCard(
         }
 
         Box(modifier = Modifier.align(Alignment.CenterEnd)) {
-          Switch(
-            checked = model.switchModel.checked,
-            enabled = model.switchModel.enabled,
-            onCheckedChange = model.switchModel.onCheckedChange
-          )
+          Switch(model = model.switchModel)
         }
       }
 

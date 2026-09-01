@@ -1,4 +1,5 @@
 package build.wallet.statemachine.sweep
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 
 import app.cash.turbine.plusAssign
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
@@ -159,8 +160,8 @@ class SweepUiStateMachineImplTests : FunSpec({
       awaitBody<FormBodyModel> {
         id shouldBe WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_ZERO_BALANCE
         header.shouldNotBeNull().headline.shouldBeNull()
-        formScreenTitle.shouldNotBeNull().eyebrow.shouldBe("Step 4 of 4")
-        formScreenTitle.shouldNotBeNull().title.shouldBe("No funds found")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().eyebrow.shouldBe("Step 4 of 4")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("No funds found")
       }
     }
   }

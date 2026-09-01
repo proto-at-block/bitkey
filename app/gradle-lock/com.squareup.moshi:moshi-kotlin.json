@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.moshi:moshi-kotlin",
     "components": [
         {
-            "version": "1.15.1",
+            "version": "1.15.2",
             "variants": [
                 {
                     "artifacts": {
-                        "moshi-kotlin-1.15.1.jar": "3c5a577200fc49a696647a52b1a97598a56d8d6f00e343ffed09d88b4007cdd0"
+                        "moshi-kotlin-1.15.2.jar": "5c39cd77e83b111af9c54708173af96a89fd3b09d15019a11da355e83e97d75a"
                     }
                 }
             ],

@@ -19,6 +19,7 @@ class SpendingWalletV2ProviderImpl(
   private val accountConfigService: AccountConfigService,
   private val bdkTransactionMapperV2: BdkTransactionMapperV2,
   private val bdkWalletSyncerV2: BdkWalletSyncerV2,
+  private val bdk2InitialSyncCompletionDao: Bdk2InitialSyncCompletionDao,
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
 ) : SpendingWalletV2Provider {
   override fun getWallet(walletDescriptor: WalletDescriptor): Result<SpendingWallet, Throwable> {
@@ -42,6 +43,7 @@ class SpendingWalletV2ProviderImpl(
           appSessionManager = appSessionManager,
           bdkTransactionMapperV2 = bdkTransactionMapperV2,
           bdkWalletSyncerV2 = bdkWalletSyncerV2,
+          bdk2InitialSyncCompletionDao = bdk2InitialSyncCompletionDao,
           bitcoinFeeRateEstimator = bitcoinFeeRateEstimator
         )
       }

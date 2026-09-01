@@ -16,6 +16,21 @@ import com.github.michaelbull.result.Result
 interface EmergencyExitPayloadRestorer {
   companion object {
     const val EEK_PUBLIC_KEY = "EEK Recovery: Invalid key"
+
+    /**
+     * Sentinel written by builds prior to the Emergency Access Kit -> Emergency Exit Kit rename.
+     * Keyboxes restored on those builds persist this value in their key bundles, so any check
+     * for [EEK_PUBLIC_KEY] must also accept this legacy value.
+     */
+    const val LEGACY_EAK_PUBLIC_KEY = "EAK Recovery: Invalid key"
+
+    /**
+     * Whether [value] is a sentinel persisted in place of a real auth key by an EEK restore
+     * (current or pre-rename). Sentinel keys cannot be used for signature verification, so
+     * hardware pairing checks must fail open for them.
+     */
+    fun isEekSentinelKey(value: String): Boolean =
+      value == EEK_PUBLIC_KEY || value == LEGACY_EAK_PUBLIC_KEY
   }
 
   /**

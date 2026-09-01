@@ -7,6 +7,8 @@ import kotlin.reflect.KClass
 class FeatureFlagDaoFake : FeatureFlagDao {
   private val flags = mutableMapOf<String, FeatureFlagValue>()
 
+  override suspend fun getFlags(): Result<Map<String, FeatureFlagValue>, Error> = Ok(flags.toMap())
+
   override suspend fun <T : FeatureFlagValue> getFlag(
     featureFlagId: String,
     kClass: KClass<T>,

@@ -90,8 +90,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
       // of "Wallets you're Protecting" card (which is the first card)
       awaitBody<LiteMoneyHomeBodyModel> {
         cardsModel.cards.first()
-          .content.shouldNotBeNull()
-          .shouldBeTypeOf<CardModel.CardContent.DrillList>()
+          .shouldBeTypeOf<CardModel.DrillList>()
           .items.first().onClick.shouldNotBeNull().invoke()
       }
 
@@ -109,8 +108,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
       // of "Wallets you're Protecting" card (which is the first card)
       awaitBody<LiteMoneyHomeBodyModel> {
         cardsModel.cards.first()
-          .content.shouldNotBeNull()
-          .shouldBeTypeOf<CardModel.CardContent.DrillList>()
+          .shouldBeTypeOf<CardModel.DrillList>()
           .items.last()
           .leadingAccessory.shouldNotBeNull().shouldBeTypeOf<ButtonAccessory>()
           .model.onClick()
@@ -125,7 +123,9 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
       // Showing Money Home, tap on "Buy Your Own Bitkey" card
       // (which is the first card when there's no protected customers)
       awaitBody<LiteMoneyHomeBodyModel> {
-        cardsModel.cards.last().onClick.shouldNotBeNull().invoke()
+        cardsModel.cards.last()
+          .shouldBeTypeOf<CardModel.Hero>()
+          .onClick.shouldNotBeNull().invoke()
       }
 
       awaitBody<InAppBrowserModel> {

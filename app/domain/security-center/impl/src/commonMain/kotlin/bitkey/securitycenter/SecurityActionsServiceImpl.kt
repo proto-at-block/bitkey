@@ -26,6 +26,7 @@ class SecurityActionsServiceImpl(
   private val hardwareDeviceActionFactory: HardwareDeviceActionFactory,
   private val txVerificationActionFactory: TxVerificationActionFactory,
   private val keysetSyncActionFactory: KeysetSyncActionFactory,
+  private val delayNotifyPeriodActionFactory: DelayNotifyPeriodActionFactory,
   private val eventTracker: EventTracker,
   private val metricTrackerService: MetricTrackerService,
   private val securityRecommendationInteractionDao: SecurityRecommendationInteractionDao,
@@ -44,7 +45,8 @@ class SecurityActionsServiceImpl(
     SecurityActionType.FINGERPRINTS to fingerprintsActionFactory::create,
     SecurityActionType.BIOMETRIC to biometricActionFactory::create,
     SecurityActionType.TRANSACTION_VERIFICATION to txVerificationActionFactory::create,
-    SecurityActionType.KEYSET_SYNC to keysetSyncActionFactory::create
+    SecurityActionType.KEYSET_SYNC to keysetSyncActionFactory::create,
+    SecurityActionType.DELAY_NOTIFY_PERIOD to delayNotifyPeriodActionFactory::create
   )
 
   override val securityActionsWithRecommendations = MutableStateFlow<SecurityActionsWithRecommendations?>(null)

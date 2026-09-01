@@ -1,4 +1,5 @@
 package build.wallet.statemachine.recovery.socrec.list.full
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 
 import bitkey.relationships.Relationships
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -122,7 +123,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
   test("no trusted contacts") {
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
-        formScreenTitle?.title.shouldBe("Recovery Contacts")
+        (toolbar?.title as? ToolbarTitleModel.Large)?.title.shouldBe("Recovery Contacts")
         header?.headline.shouldBeNull()
         mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
         mainContentList[0].shouldBeInstanceOf<ListGroup>()
@@ -156,7 +157,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
 
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
-        formScreenTitle?.title.shouldBe("Recovery Contacts")
+        (toolbar?.title as? ToolbarTitleModel.Large)?.title.shouldBe("Recovery Contacts")
         mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
           .first()
           .shouldBeInstanceOf<ListGroup>()
@@ -187,7 +188,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
 
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
-        formScreenTitle?.title.shouldBe("Recovery Contacts")
+        (toolbar?.title as? ToolbarTitleModel.Large)?.title.shouldBe("Recovery Contacts")
         mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
           .first()
           .shouldBeInstanceOf<ListGroup>()
@@ -213,7 +214,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
 
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
-        formScreenTitle?.title.shouldBe("Recovery Contacts")
+        (toolbar?.title as? ToolbarTitleModel.Large)?.title.shouldBe("Recovery Contacts")
         mainContentList.shouldHaveSize(2)
           .first()
           .shouldBeInstanceOf<ListGroup>()

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:abi-tools",
+    "components": [
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "abi-tools-2.2.20.jar": "a5a637ab821704991cf70616b64e02b9a4f820c82019f93c0d26f0cdfb226633"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

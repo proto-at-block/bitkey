@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.PURCH
 import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.address.BitcoinAddressServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.setFlagValue
@@ -16,15 +17,23 @@ import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.nfc.NfcCommandsMock
+import build.wallet.nfc.NfcException
 import build.wallet.partnerships.*
+import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.nfc.DescriptorRepairUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineFake
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseQuotesUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseQuotesUiStateMachineImpl
+import build.wallet.statemachine.receive.AddressVerificationPromptBodyModel
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.ui.model.list.ListItemModel
 import com.github.michaelbull.result.Ok
@@ -67,7 +76,30 @@ class PartnershipsPurchaseQuotesUiStateMachineImplTests : FunSpec({
     bitcoinAddressService = BitcoinAddressServiceFake(),
     nfcSessionUIStateMachine = NfcSessionUIStateMachineFake(
       nfcCommands = NfcCommandsMock(turbines::create)
-    )
+    ),
+    descriptorRepairUiStateMachine = object :
+      DescriptorRepairUiStateMachine,
+      ScreenStateMachineMock<DescriptorRepairUiProps>("descriptor-repair") {}
+  )
+
+  // Variant with a mocked NFC session state machine so tests can drive
+  // the session's onError callback directly (e.g. DescriptorNotLoaded).
+  val stateMachineWithNfcMock = PartnershipsPurchaseQuotesUiStateMachineImpl(
+    moneyDisplayFormatter = MoneyDisplayFormatterFake,
+    partnershipPurchaseService = partnershipPurchaseService,
+    partnershipTransactionsService = partnershipTransactionsService,
+    eventTracker = eventTracker,
+    currencyConverter = currencyConverter,
+    exchangeRateService = ExchangeRateServiceFake(),
+    cashAppFeePromotionFeatureFlag = cashAppFeePromotionFeatureFlag,
+    accountService = accountService,
+    bitcoinAddressService = BitcoinAddressServiceFake(),
+    nfcSessionUIStateMachine = object :
+      NfcSessionUIStateMachine,
+      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc-session-mock") {},
+    descriptorRepairUiStateMachine = object :
+      DescriptorRepairUiStateMachine,
+      ScreenStateMachineMock<DescriptorRepairUiProps>("descriptor-repair-mock") {}
   )
 
   fun props(purchaseAmount: FiatMoney = FiatMoney.usd(100.0)) =
@@ -99,7 +131,7 @@ class PartnershipsPurchaseQuotesUiStateMachineImplTests : FunSpec({
         listItems[0].shouldBeTypeOf<ListItemModel>().apply {
           title.shouldBe("partner")
           sideText.shouldBe("$0.01")
-          secondarySideText.shouldBe("195,701 sats")
+          secondarySideText.shouldBe("₿195,701")
         }
       }
 
@@ -279,7 +311,7 @@ class PartnershipsPurchaseQuotesUiStateMachineImplTests : FunSpec({
         val listItems = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         listItems[0].shouldBeTypeOf<ListItemModel>().apply {
           title.shouldBe("partner")
-          sideText.shouldBe("195,701 sats")
+          sideText.shouldBe("₿195,701")
           secondarySideText.shouldBeNull()
         }
       }
@@ -355,6 +387,87 @@ class PartnershipsPurchaseQuotesUiStateMachineImplTests : FunSpec({
       }
 
       eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE)
+    }
+  }
+
+  test("W3 descriptor not loaded during verification triggers repair flow and retries") {
+    accountService.setActiveAccount(FullAccountW3Mock)
+
+    stateMachineWithNfcMock.test(props()) {
+      // load purchase quotes
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // show purchase quotes; tap the quote
+      awaitBody<FormBodyModel> {
+        id.shouldBe(PARTNER_QUOTES_LIST)
+        mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items[0]
+          .shouldBeTypeOf<ListItemModel>()
+          .onClick.shouldNotBeNull().invoke()
+      }
+
+      eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE)
+
+      // generating address for W3 verification
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // address verification prompt; tap verify
+      awaitBody<AddressVerificationPromptBodyModel> {
+        onVerify()
+      }
+
+      // NFC session shown; simulate DescriptorNotLoaded error
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session-mock") {
+        onError(NfcException.DescriptorNotLoaded()).shouldBe(true)
+      }
+
+      // descriptor repair flow shown; simulate successful repair
+      awaitBodyMock<DescriptorRepairUiProps>(id = "descriptor-repair-mock") {
+        fullAccount.shouldBe(FullAccountW3Mock)
+        onRepairComplete()
+      }
+
+      // back to NFC verification after repair
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session-mock") {}
+    }
+  }
+
+  test("W3 descriptor repair cancelled returns to verification prompt") {
+    accountService.setActiveAccount(FullAccountW3Mock)
+
+    stateMachineWithNfcMock.test(props()) {
+      // load purchase quotes
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // show purchase quotes; tap the quote
+      awaitBody<FormBodyModel> {
+        id.shouldBe(PARTNER_QUOTES_LIST)
+        mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items[0]
+          .shouldBeTypeOf<ListItemModel>()
+          .onClick.shouldNotBeNull().invoke()
+      }
+
+      eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE)
+
+      // generating address for W3 verification
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // address verification prompt; tap verify
+      awaitBody<AddressVerificationPromptBodyModel> {
+        onVerify()
+      }
+
+      // NFC session shown; simulate DescriptorNotLoaded error
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session-mock") {
+        onError(NfcException.DescriptorNotLoaded()).shouldBe(true)
+      }
+
+      // descriptor repair flow shown; cancel it
+      awaitBodyMock<DescriptorRepairUiProps>(id = "descriptor-repair-mock") {
+        onBack()
+      }
+
+      // back to the verification prompt
+      awaitBody<AddressVerificationPromptBodyModel>()
     }
   }
 

@@ -29,7 +29,6 @@ impl Mnemonic {
     /// Generate a mnemonic given a word count.
     #[uniffi::constructor]
     pub fn new(word_count: WordCount) -> Self {
-        // TODO 4: I DON'T KNOW IF THIS IS A DECENT WAY TO GENERATE ENTROPY PLEASE CONFIRM
         let mut rng = rand::thread_rng();
         let mut entropy = [0u8; 32];
         rng.fill(&mut entropy);
@@ -47,9 +46,10 @@ impl Mnemonic {
             .map_err(Bip39Error::from)
     }
 
-    /// Construct a mnemonic given an array of bytes. Note that using weak entropy will result in a loss
-    /// of funds. To ensure the entropy is generated properly, read about your operating
-    /// system specific ways to generate secure random numbers.
+    /// Construct a mnemonic from caller-provided entropy.
+    ///
+    /// This function does not generate entropy. Callers must provide cryptographically secure
+    /// entropy; weak entropy can result in loss of funds.
     #[uniffi::constructor]
     pub fn from_entropy(entropy: Vec<u8>) -> Result<Self, Bip39Error> {
         BdkMnemonic::from_entropy(entropy.as_slice())

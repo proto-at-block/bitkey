@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerBodyModel
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.alertdialog.AlertDialog
@@ -27,9 +27,9 @@ fun CustomElectrumServerScreen(
     modifier = modifier,
     onBack = onBack,
     toolbarModel = ToolbarModel(
-      leadingAccessory = BackAccessory(onClick = onBack)
+      leadingAccessory = BackAccessory(onClick = onBack),
+      title = ToolbarTitleModel.Large(title = "Custom Electrum Server")
     ),
-    screenTitle = FormScreenTitleModel(title = "Custom Electrum Server"),
     layout = FormScreenLayoutModel.LargeTitle(
       scrollable = false,
       mainContentVerticalAlignment = FormMainContentVerticalAlignment.TOP

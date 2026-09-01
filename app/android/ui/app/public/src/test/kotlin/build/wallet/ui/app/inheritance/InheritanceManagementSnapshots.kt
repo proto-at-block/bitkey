@@ -159,18 +159,14 @@ class InheritanceManagementSnapshots : FunSpec({
         benefactors = benefactors,
         beneficiaries = beneficiaries,
         claimCallouts = immutableListOf(
-          CardModel(
-            title = null,
-            content = CardModel.CardContent.PendingClaim(
-              title = "Inheritance claim pending",
-              subtitle = "Funds available Apr 14, 2026.",
-              isPendingClaim = true,
-              timeRemaining = 1.days,
-              progress = Progress.Half,
-              onClick = null,
-              useMonochromeStyle = true
-            ),
-            style = CardModel.CardStyle.Plain
+          CardModel.PendingClaim(
+            id = "snapshot",
+            title = "Inheritance claim pending",
+            subtitle = "Funds available Apr 14, 2026.",
+            state = CardModel.PendingClaim.State.Pending,
+            timeRemaining = 1.days,
+            progress = Progress.Half,
+            onClick = null,
           )
         )
       ).render(modifier = Modifier)

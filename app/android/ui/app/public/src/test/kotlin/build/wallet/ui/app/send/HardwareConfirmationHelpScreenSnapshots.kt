@@ -85,7 +85,7 @@ class HardwareConfirmationHelpScreenSnapshots : FunSpec({
           content = HardwareConfirmationContent.SendTransaction.copy(
             recipientAddress = BitcoinAddress("bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc")
           ),
-          isHardwareFake = true
+          footerRevealed = true
         )
       )
     }

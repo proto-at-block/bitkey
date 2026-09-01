@@ -20,6 +20,7 @@ import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.f8e.relationships.endorseTrustedContacts
 import build.wallet.f8e.relationships.getRelationships
+import build.wallet.relationships.syncAndVerifyRelationships
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.statemachine.account.create.full.hardware.CompleteTwoTapBodyModel
@@ -1016,6 +1017,12 @@ suspend fun TestScope.shouldSucceedSocialRestore(
     challengeCode = startSocialChallenge(model)
     cancelAndIgnoreRemainingEvents()
   }
+
+  // TC: Sync relationships so the ProtectedCustomer reflects the customer's endorsement
+  // (relationshipStatus = ENDORSED). Without this, the "Help with Recovery" primary button
+  // in ProtectedCustomerBottomSheetModel is hidden because workers are disabled and the DB
+  // still holds the pre-endorsement state captured at TC enrollment time.
+  tcApp.relationshipsService.syncAndVerifyRelationships(tcApp.getActiveAccount())
 
   // TC: Enter the challenge code and upload ciphertext
   tcApp.appUiStateMachine.test(

@@ -245,6 +245,8 @@ class FeeSelectionUiStateMachineImpl(
       EstimatedTransactionPriority,
     ) -> Unit,
   ) {
+    val currentOnFeesLoadFailed by rememberUpdatedState(onFeesLoadFailed)
+    val currentOnFeesLoaded by rememberUpdatedState(onFeesLoaded)
     LaunchedEffect("fetching-fee-options") {
       val bitcoinBalance = bitcoinWalletService.getTransactionData().balance
 
@@ -253,7 +255,7 @@ class FeeSelectionUiStateMachineImpl(
         logError {
           "No active full account found, when fetching fee options. Found account: $account."
         }
-        onFeesLoadFailed(NoActiveAccountError)
+        currentOnFeesLoadFailed(NoActiveAccountError)
         return@LaunchedEffect
       }
 
@@ -264,7 +266,7 @@ class FeeSelectionUiStateMachineImpl(
         recipientAddress = props.recipientAddress,
         amount = props.sendAmount
       )
-        .onFailure { onFeesLoadFailed(it) }
+        .onFailure { currentOnFeesLoadFailed(it) }
         .onSuccess {
           val fees = it.toImmutableMap()
 
@@ -280,7 +282,7 @@ class FeeSelectionUiStateMachineImpl(
               // If the base transaction amount required is greater than the balance, show insufficient
               // funds screen.
               if (minimumTransactionAmount > bitcoinBalance.total) {
-                onFeesLoadFailed(FeeEstimationError.InsufficientFundsError)
+                currentOnFeesLoadFailed(FeeEstimationError.InsufficientFundsError)
                 return@LaunchedEffect
               }
             }
@@ -288,7 +290,7 @@ class FeeSelectionUiStateMachineImpl(
               // If the base transaction amount required is negative, the customer's available funds
               // will not be enough to cover the fees to create the Send All transaction.
               if (minimumTransactionAmount.isNegative) {
-                onFeesLoadFailed(FeeEstimationError.InsufficientFundsError)
+                currentOnFeesLoadFailed(FeeEstimationError.InsufficientFundsError)
                 return@LaunchedEffect
               }
             }
@@ -309,7 +311,6 @@ class FeeSelectionUiStateMachineImpl(
 
           if (fees.isEmpty()) {
             // when empty, we will continue with the default priority
-            @Suppress("DEPRECATION")
             props.onContinue(selectedPriority, immutableMapOf())
           } else {
             // otherwise we will display the fees
@@ -321,7 +322,7 @@ class FeeSelectionUiStateMachineImpl(
               SendAll -> minimumTransactionAmount
               is ExactAmount -> props.sendAmount.money
             }
-            onFeesLoaded(transactionAmount, fees, selectedPriority)
+            currentOnFeesLoaded(transactionAmount, fees, selectedPriority)
           }
         }
     }

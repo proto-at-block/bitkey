@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-metadata-jvm",
+    "components": [
+        {
+            "version": "2.2.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-metadata-jvm-2.2.20.jar": "8524eac90f7e8e0f1366883f2c6c820c93bfa61df3d76857c8d3e803cf67315d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

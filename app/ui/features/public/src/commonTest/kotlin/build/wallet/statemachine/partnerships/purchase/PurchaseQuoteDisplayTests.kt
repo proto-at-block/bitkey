@@ -38,7 +38,7 @@ class PurchaseQuoteDisplayTests : FunSpec({
     )
 
     quoteDisplay.quote.shouldBe(quote)
-    quoteDisplay.bitcoinDisplayAmount.shouldBe("195,701 sats")
+    quoteDisplay.bitcoinDisplayAmount.shouldBe("₿195,701")
     quoteDisplay.fiatDisplayAmount.shouldBe("$0.01")
   }
 
@@ -69,7 +69,7 @@ class PurchaseQuoteDisplayTests : FunSpec({
     )
 
     quoteDisplay.quote.shouldBe(quote)
-    quoteDisplay.bitcoinDisplayAmount.shouldBe("195,701 sats")
+    quoteDisplay.bitcoinDisplayAmount.shouldBe("₿195,701")
     quoteDisplay.fiatDisplayAmount.shouldBeNull()
   }
 })

@@ -6,7 +6,7 @@ import build.wallet.platform.device.DevicePlatform
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.CustomContent
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.persistentListOf
@@ -24,9 +24,9 @@ open class HardwareConfirmationHelpBodyModel(
     eventTrackerShouldTrack = eventTrackerShouldTrackOverride ?: content.eventTrackerShouldTrack,
     onBack = onBack,
     toolbar = ToolbarModel(
-      leadingAccessory = BackAccessory(onClick = onBack)
+      leadingAccessory = BackAccessory(onClick = onBack),
+      title = ToolbarTitleModel.Large(title = content.headline)
     ),
-    formScreenTitle = FormScreenTitleModel(title = content.headline),
     formScreenLayout = FormScreenLayoutModel.LargeTitle(),
     header = null,
     mainContentList = persistentListOf(

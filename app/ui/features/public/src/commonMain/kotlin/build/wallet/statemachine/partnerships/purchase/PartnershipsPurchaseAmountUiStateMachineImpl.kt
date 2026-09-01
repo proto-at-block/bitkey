@@ -20,13 +20,12 @@ import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize.MIN40
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.DotLoader
+import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.statemachine.partnerships.PartnershipsSegment
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.flow.map
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
@@ -213,7 +212,7 @@ private data class AmountLoadingBodyModel(
     onBack = {},
     toolbar = null,
     header = null,
-    mainContentList = immutableListOf(DotLoader),
+    mainContentList = immutableListOf(Loader),
     primaryButton = null,
     renderContext = Sheet
   )

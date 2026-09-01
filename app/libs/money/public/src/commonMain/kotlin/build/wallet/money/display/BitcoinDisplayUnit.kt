@@ -6,8 +6,7 @@ import kotlinx.serialization.Serializable
 /**
  * Display unit for Bitcoin amounts
  *
- * Use [displayText] and [appearanceLabel] with [isBip177Enabled] to get the appropriate
- * text based on whether the BIP 177 feature flag is enabled.
+ * Use [displayText] and [appearanceLabel] to get the appropriate display text.
  */
 @Serializable
 enum class BitcoinDisplayUnit {
@@ -22,22 +21,22 @@ enum class BitcoinDisplayUnit {
 
 /**
  * Returns the display text for the unit selection sheet.
- * When BIP 177 is enabled, Satoshi shows "₿ (formerly sats)", otherwise "sats".
+ * Satoshi shows "₿ (formerly sats)" per BIP 177.
  *
  * TODO: W-15176 remove "(formerly sats)" once BIP 177 rollout is complete and we stop surfacing the legacy name.
  */
-fun BitcoinDisplayUnit.displayText(isBip177Enabled: Boolean): String =
+fun BitcoinDisplayUnit.displayText(): String =
   when (this) {
-    BitcoinDisplayUnit.Satoshi -> if (isBip177Enabled) "₿ (formerly sats)" else "sats"
+    BitcoinDisplayUnit.Satoshi -> "₿ (formerly sats)"
     BitcoinDisplayUnit.Bitcoin -> "BTC"
   }
 
 /**
  * Returns the label shown in the appearance preference screen.
- * When BIP 177 is enabled, Satoshi shows "₿", otherwise "sats".
+ * Satoshi shows "₿" per BIP 177.
  */
-fun BitcoinDisplayUnit.appearanceLabel(isBip177Enabled: Boolean): String =
+fun BitcoinDisplayUnit.appearanceLabel(): String =
   when (this) {
-    BitcoinDisplayUnit.Satoshi -> if (isBip177Enabled) "₿" else "sats"
+    BitcoinDisplayUnit.Satoshi -> "₿"
     BitcoinDisplayUnit.Bitcoin -> "BTC"
   }

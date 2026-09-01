@@ -20,10 +20,6 @@ import build.wallet.home.GettingStartedTaskDao
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayService
 import build.wallet.logging.logFailure
-import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet
-import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Height
-import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Scale
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
@@ -41,17 +37,13 @@ class GettingStartedCardUiStateMachineImpl(
   private val mobilePayService: MobilePayService,
 ) : GettingStartedCardUiStateMachine {
   @Composable
-  override fun model(props: GettingStartedCardUiProps): CardModel? {
+  override fun model(props: GettingStartedCardUiProps): GettingStartedSectionModel? {
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
     var uiState by remember { mutableStateOf(UiState(activeTasks = emptyImmutableList())) }
 
     LaunchedEffect("set-state-based-on-tasks") {
       gettingStartedTaskDao.tasks().collectLatest { activeTasks ->
-        uiState =
-          uiState.copy(
-            activeTasks = activeTasks.toImmutableList(),
-            animations = uiState.animations?.takeIf { activeTasks.isNotEmpty() }
-          )
+        uiState = uiState.copy(activeTasks = activeTasks.toImmutableList())
       }
     }
 
@@ -90,36 +82,8 @@ class GettingStartedCardUiStateMachineImpl(
     // Clear tasks when all are complete
     if (uiState.activeTasks.isNotEmpty() && uiState.activeTasks.all { it.state == Complete }) {
       LaunchedEffect("clear-tasks", props.showUpdateFirmwareTile) {
-        // First, pause for 1 second to show the completed state.
+        // Pause briefly to show the completed state before clearing.
         delay(1.seconds)
-        if (!props.showUpdateFirmwareTile) {
-          // Then, animate the card if there is nothing left to show afterwards.
-          val emphasisAnimationDurationInSeconds = 0.55
-          val disappearAnimationDurationInSeconds = 0.55
-          uiState =
-            uiState.copy(
-              animations =
-                immutableListOf(
-                  AnimationSet(
-                    animations = setOf(Scale(1.05f)),
-                    durationInSeconds = emphasisAnimationDurationInSeconds
-                  ),
-                  AnimationSet(
-                    animations =
-                      setOf(
-                        Scale(0.001f), // iOS can't animate all the way to 0
-                        Height(0f)
-                      ),
-                    durationInSeconds = disappearAnimationDurationInSeconds
-                  )
-                )
-            )
-          // Finally, clear the cards, making sure to first give enough
-          // time for animations to complete.
-          val totalAnimationDurationInSeconds =
-            emphasisAnimationDurationInSeconds + disappearAnimationDurationInSeconds
-          delay(totalAnimationDurationInSeconds.seconds)
-        }
         gettingStartedTaskDao.clearTasks()
           .onSuccess {
             eventTracker.track(ACTION_APP_GETTINGSTARTED_COMPLETED)
@@ -130,7 +94,6 @@ class GettingStartedCardUiStateMachineImpl(
 
     return if (uiState.activeTasks.isNotEmpty() || props.showUpdateFirmwareTile) {
       GettingStartedCardModel(
-        animations = uiState.animations,
         firmwareUpdateTile =
           props.showUpdateFirmwareTile.takeIf { it }
             ?.let { FirmwareUpdateGettingStartedTileModel(onClick = props.onUpdateFirmware) },
@@ -181,6 +144,5 @@ class GettingStartedCardUiStateMachineImpl(
 
   private data class UiState(
     val activeTasks: ImmutableList<GettingStartedTask>,
-    val animations: ImmutableList<AnimationSet>? = null,
   )
 }

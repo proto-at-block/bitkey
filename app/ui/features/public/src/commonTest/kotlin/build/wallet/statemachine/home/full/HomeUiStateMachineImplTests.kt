@@ -25,6 +25,8 @@ import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiStateMachine
+import build.wallet.statemachine.nfc.DescriptorRepairUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
 import build.wallet.statemachine.partnerships.expected.ExpectedTransactionNoticeProps
 import build.wallet.statemachine.partnerships.expected.ExpectedTransactionNoticeUiStateMachine
 import build.wallet.statemachine.settings.full.SettingsHomeUiProps
@@ -119,6 +121,10 @@ class HomeUiStateMachineImplTests : FunSpec({
       repairCloudBackupStateMachine = object : RepairCloudBackupStateMachine,
         ScreenStateMachineMock<RepairAppKeyBackupProps>(
           "repair-cloud-backup"
+        ) {},
+      descriptorRepairUiStateMachine = object : DescriptorRepairUiStateMachine,
+        ScreenStateMachineMock<DescriptorRepairUiProps>(
+          "descriptor-repair"
         ) {}
     )
 
@@ -164,15 +170,11 @@ class HomeUiStateMachineImplTests : FunSpec({
       inAppBrowserNavigator.onCloseCalls.awaitItem()
 
       awaitBodyMock<MoneyHomeUiProps> {
-        origin.shouldBe(
-          MoneyHomeUiProps.Origin.PartnershipTransferLink(
-            PartnerTransferLinkRequest(
-              partner = "MoonPay",
-              event = "transaction_created",
-              eventId = "transfer-link-id"
-            )
-          )
-        )
+        origin.shouldBeTypeOf<MoneyHomeUiProps.Origin.PartnershipTransferLink>().run {
+          request.partner.shouldBe("MoonPay")
+          request.event.shouldBe("transaction_created")
+          request.eventId.shouldBe("transfer-link-id")
+        }
         onSettings()
       }
 

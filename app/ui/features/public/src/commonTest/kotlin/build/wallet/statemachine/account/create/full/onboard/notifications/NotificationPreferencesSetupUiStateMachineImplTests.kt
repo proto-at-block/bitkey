@@ -11,14 +11,10 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.email.Email
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.UsSmsFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.notifications.NotificationTouchpointData
 import build.wallet.notifications.NotificationTouchpointServiceFake
 import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
-import build.wallet.platform.settings.TelephonyCountryCodeProviderMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.Completed
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.NotCompleted
@@ -46,10 +42,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
   val notificationPermissionRequester = NotificationPermissionRequesterMock(turbines::create)
   val notificationTouchpointService = NotificationTouchpointServiceFake()
   val onboardingKeyboxStepStateDao = OnboardingKeyboxStepStateDaoMock(turbines::create)
-  val telephonyCountryCodeProvider = TelephonyCountryCodeProviderMock()
-
-  val featureFlagDao = FeatureFlagDaoFake()
-  val usSmsFeatureFlag = UsSmsFeatureFlag(featureFlagDao)
 
   // Whether push permission is denied (simulates Denied vs NotDetermined)
   var pushPermissionDenied = false
@@ -126,9 +118,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
       notificationPreferencesUiStateMachine = notificationPreferencesStateMachine,
       onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
       notificationTouchpointInputAndVerificationUiStateMachine = notificationTouchpointInputStateMachine,
-      pushItemModelProvider = pushItemModelProvider,
-      telephonyCountryCodeProvider = telephonyCountryCodeProvider,
-      usSmsFeatureFlag = usSmsFeatureFlag
+      pushItemModelProvider = pushItemModelProvider
     )
 
   val props = NotificationPreferencesSetupUiProps(
@@ -141,8 +131,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     accountServiceFake.reset()
     notificationTouchpointService.reset()
     notificationPermissionRequester.reset()
-    telephonyCountryCodeProvider.mockCountryCode = ""
-    usSmsFeatureFlag.setFlagValue(false)
     initialPushItemState = NotCompleted
     pushItemModelFlow.value = null
     lastOnShowAlert = null
@@ -151,7 +139,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
 
   context("Sequential flow always starts with email") {
     test("always starts at email screen") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
@@ -162,9 +149,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
       }
     }
 
-    test("email success advances to SMS when SMS is shown") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA" // Non-US, SMS shown
-
+    test("email success advances to SMS") {
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
@@ -178,27 +163,10 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
         cancelAndIgnoreRemainingEvents()
       }
     }
-
-    test("email success skips SMS and shows push page when SMS is hidden") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US" // US, SMS hidden
-
-      val stateMachine = createStateMachine()
-      stateMachine.test(props) {
-        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
-          touchpointType.shouldBe(NotificationTouchpointType.Email)
-          onSuccess()
-        }
-
-        awaitUntilBody<RecoveryNotificationsSetupFormBodyModel>()
-        cancelAndIgnoreRemainingEvents()
-      }
-    }
   }
 
   context("SMS navigation") {
     test("SMS entryPoint.onSkip is always present in sequential flow") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
@@ -218,7 +186,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("SMS success shows push notification setup page when push not completed") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
@@ -238,7 +205,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("SMS success goes to transactions when push already completed") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
       initialPushItemState = Completed
       simulateEmailCompleted()
 
@@ -261,7 +227,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("SMS skip advances to push page when push not completed") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
@@ -282,7 +247,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("SMS skip goes to transactions when email and push completed") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
       initialPushItemState = Completed
       simulateEmailCompleted()
 
@@ -306,7 +270,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("SMS close (back) returns to email") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
@@ -331,7 +294,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
 
   context("Push notification setup screen") {
     test("push back button returns to SMS when SMS is shown") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA" // Non-US, SMS shown
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
@@ -357,38 +319,17 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
       }
     }
 
-    test("push back button returns to email when SMS is hidden") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US" // SMS hidden
-
-      val stateMachine = createStateMachine()
-      stateMachine.test(props) {
-        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
-          touchpointType.shouldBe(NotificationTouchpointType.Email)
-          onSuccess()
-        }
-
-        awaitUntilBody<RecoveryNotificationsSetupFormBodyModel> {
-          onNavigateBack()
-        }
-
-        // Should go back to email
-        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
-          touchpointType.shouldBe(NotificationTouchpointType.Email)
-        }
-        cancelAndIgnoreRemainingEvents()
-      }
-    }
-
     test("push skip advances to transactions when email completed") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US"
-
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
           touchpointType.shouldBe(NotificationTouchpointType.Email)
           simulateEmailCompleted()
+          onSuccess()
+        }
+
+        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
+          touchpointType.shouldBe(NotificationTouchpointType.PhoneNumber)
           onSuccess()
         }
 
@@ -406,13 +347,15 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("push skip advances to transactions when email success has not emitted touchpoint data") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US"
-
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
           touchpointType.shouldBe(NotificationTouchpointType.Email)
+          onSuccess()
+        }
+
+        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
+          touchpointType.shouldBe(NotificationTouchpointType.PhoneNumber)
           onSuccess()
         }
 
@@ -430,14 +373,17 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("push allow shows system prompt when permission not determined") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US"
       pushPermissionDenied = false
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
           touchpointType.shouldBe(NotificationTouchpointType.Email)
+          onSuccess()
+        }
+
+        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
+          touchpointType.shouldBe(NotificationTouchpointType.PhoneNumber)
           onSuccess()
         }
 
@@ -452,14 +398,17 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("push allow shows open settings alert when permission denied") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US"
       pushPermissionDenied = true
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
           touchpointType.shouldBe(NotificationTouchpointType.Email)
+          onSuccess()
+        }
+
+        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
+          touchpointType.shouldBe(NotificationTouchpointType.PhoneNumber)
           onSuccess()
         }
 
@@ -474,8 +423,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("auto-advances to transactions when returning from OS settings with push enabled") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US"
       pushPermissionDenied = true // Start with denied so goes to settings
 
       val stateMachine = createStateMachine()
@@ -483,6 +430,11 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
           touchpointType.shouldBe(NotificationTouchpointType.Email)
           simulateEmailCompleted()
+          onSuccess()
+        }
+
+        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
+          touchpointType.shouldBe(NotificationTouchpointType.PhoneNumber)
           onSuccess()
         }
 
@@ -509,14 +461,17 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
 
   context("Transactions screen navigation") {
     test("transactions back button returns to push setup screen") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US"
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
           touchpointType.shouldBe(NotificationTouchpointType.Email)
           simulateEmailCompleted()
+          onSuccess()
+        }
+
+        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
+          touchpointType.shouldBe(NotificationTouchpointType.PhoneNumber)
           onSuccess()
         }
 
@@ -541,7 +496,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     // always has null. We verify the entry point type only; integration tests cover fullAccount.
 
     test("W3 entry point is OnboardingAndRecovery on email screen") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
       accountServiceFake.accountState.value = Ok(AccountStatus.OnboardingAccount(FullAccountW3Mock))
 
       val stateMachine = createStateMachine()
@@ -555,7 +509,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("W1 entry point is OnboardingAndRecovery on email screen") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
       accountServiceFake.accountState.value = Ok(AccountStatus.OnboardingAccount(FullAccountMock))
 
       val stateMachine = createStateMachine()
@@ -569,7 +522,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("null fullAccount when no account in AccountService") {
-      telephonyCountryCodeProvider.mockCountryCode = "CA"
       // accountServiceFake defaults to NoAccount
 
       val stateMachine = createStateMachine()
@@ -592,8 +544,6 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
 
   context("US with US-SMS feature flag enabled") {
     test("SMS is included in sequential flow for US users when flag enabled") {
-      usSmsFeatureFlag.setFlagValue(true)
-      telephonyCountryCodeProvider.mockCountryCode = "US"
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
@@ -613,13 +563,16 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
 
   context("Push permission analytics") {
     test("allow button triggers push alert state for non-denied permission") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US"
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
           touchpointType.shouldBe(NotificationTouchpointType.Email)
+          onSuccess()
+        }
+
+        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
+          touchpointType.shouldBe(NotificationTouchpointType.PhoneNumber)
           onSuccess()
         }
 
@@ -634,14 +587,17 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
     }
 
     test("push skip tracks disabled event") {
-      usSmsFeatureFlag.setFlagValue(false)
-      telephonyCountryCodeProvider.mockCountryCode = "US"
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
           touchpointType.shouldBe(NotificationTouchpointType.Email)
           simulateEmailCompleted()
+          onSuccess()
+        }
+
+        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
+          touchpointType.shouldBe(NotificationTouchpointType.PhoneNumber)
           onSuccess()
         }
 

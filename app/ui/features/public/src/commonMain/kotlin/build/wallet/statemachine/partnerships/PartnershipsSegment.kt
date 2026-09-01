@@ -11,4 +11,6 @@ object PartnershipsSegment : AppSegment {
 
     object TransferConfirmation : AppSegment by Sell.childSegment("TransferConfirmation")
   }
+
+  object Purchase : AppSegment by PartnershipsSegment.childSegment("Purchase")
 }

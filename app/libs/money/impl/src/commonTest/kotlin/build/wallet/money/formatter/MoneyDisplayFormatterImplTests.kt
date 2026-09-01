@@ -1,9 +1,6 @@
 package build.wallet.money.formatter
 
 import build.wallet.amount.DoubleFormatterImpl
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.money.*
 import build.wallet.money.currency.EUR
 import build.wallet.money.currency.GBP
@@ -19,18 +16,15 @@ class MoneyDisplayFormatterImplTests : FunSpec({
 
   val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock()
   val localeProvider = LocaleProviderFake()
-  val bip177FeatureFlag = Bip177FeatureFlag(FeatureFlagDaoFake())
   val formatter = MoneyDisplayFormatterImpl(
     bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
     moneyFormatterDefinitions = MoneyFormatterDefinitionsImpl(
       doubleFormatter = DoubleFormatterImpl(localeProvider)
-    ),
-    bip177FeatureFlag = bip177FeatureFlag
+    )
   )
 
   beforeTest {
     bitcoinDisplayPreferenceRepository.reset()
-    bip177FeatureFlag.reset()
   }
 
   test("Format standard fiat") {
@@ -62,16 +56,8 @@ class MoneyDisplayFormatterImplTests : FunSpec({
     formatter.format(BitcoinMoney.btc(value)).shouldBe("1 BTC")
   }
 
-  test("Format satoshis when BIP 177 disabled uses sats suffix") {
+  test("Format satoshis uses symbol prefix") {
     val value = 1.toBigDecimal()
-    bip177FeatureFlag.setFlagValue(false)
-    bitcoinDisplayPreferenceRepository.internalBitcoinDisplayUnit.emit(BitcoinDisplayUnit.Satoshi)
-    formatter.format(BitcoinMoney.btc(value)).shouldBe("100,000,000 sats")
-  }
-
-  test("Format satoshis when BIP 177 enabled uses symbol prefix") {
-    val value = 1.toBigDecimal()
-    bip177FeatureFlag.setFlagValue(true)
     bitcoinDisplayPreferenceRepository.internalBitcoinDisplayUnit.emit(BitcoinDisplayUnit.Satoshi)
     formatter.format(BitcoinMoney.btc(value)).shouldBe("₿100,000,000")
   }
@@ -129,19 +115,9 @@ class MoneyDisplayFormatterImplTests : FunSpec({
       .shouldBe("1 BTC")
   }
 
-  test("formatWithUnit formats as sats when BIP 177 disabled") {
+  test("formatWithUnit formats with BIP 177 symbol") {
     // User prefers BTC, but we explicitly request satoshi format
     bitcoinDisplayPreferenceRepository.internalBitcoinDisplayUnit.emit(BitcoinDisplayUnit.Bitcoin)
-    bip177FeatureFlag.setFlagValue(false)
-
-    formatter.formatWithUnit(BitcoinMoney.btc(1.0), BitcoinDisplayUnit.Satoshi)
-      .shouldBe("100,000,000 sats")
-  }
-
-  test("formatWithUnit formats with BIP 177 symbol when enabled") {
-    // User prefers BTC, but we explicitly request satoshi format with BIP 177
-    bitcoinDisplayPreferenceRepository.internalBitcoinDisplayUnit.emit(BitcoinDisplayUnit.Bitcoin)
-    bip177FeatureFlag.setFlagValue(true)
 
     formatter.formatWithUnit(BitcoinMoney.btc(1.0), BitcoinDisplayUnit.Satoshi)
       .shouldBe("₿100,000,000")

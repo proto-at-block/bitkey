@@ -22,7 +22,6 @@ kotlin {
         api(libs.kmp.kotlin.serialization.json)
         api(libs.kmp.okio)
         implementation(libs.kmp.big.number)
-        implementation(libs.kmp.matthewnelson.encoding)
       }
     }
 

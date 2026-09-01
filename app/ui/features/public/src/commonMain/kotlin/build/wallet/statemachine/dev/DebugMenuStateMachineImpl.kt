@@ -422,6 +422,8 @@ class DebugMenuScreenPresenter(
         },
         onCancel = onCancel,
         screenPresentationStyle = Modal,
+        segment = DebugAppSegment,
+        actionDescription = "Wiping device from debug menu",
         eventTrackerContext = DEBUG,
         shouldLock = false,
         confirmationContent = HardwareConfirmationContent.WipeDevice,
@@ -452,6 +454,7 @@ class DebugMenuScreenPresenter(
     var verifyState: VerifyMetadataSubState by remember {
       mutableStateOf(VerifyMetadataSubState.ClearingStaleData)
     }
+    val currentOnContinue by rememberUpdatedState(onContinue)
 
     return when (val current = verifyState) {
       is VerifyMetadataSubState.ClearingStaleData -> {
@@ -501,6 +504,8 @@ class DebugMenuScreenPresenter(
             needsAuthentication = false,
             skipFirmwareTelemetry = true,
             screenPresentationStyle = Modal,
+            segment = DebugAppSegment,
+            actionDescription = "Reading firmware metadata to verify against expected values",
             eventTrackerContext = METADATA,
             showNativeSheetOnIos = false
           )
@@ -519,7 +524,7 @@ class DebugMenuScreenPresenter(
             .logFailure { "Failed to sync firmware data from memfault" }
 
           // Go straight to MCU selection — it reactively reads the StateFlow
-          onContinue()
+          currentOnContinue()
         }
         LoadingBodyModel(
           title = "Downloading latest firmware from Memfault...",

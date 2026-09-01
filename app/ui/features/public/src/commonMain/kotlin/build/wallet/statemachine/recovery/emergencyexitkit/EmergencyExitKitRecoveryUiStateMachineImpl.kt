@@ -28,6 +28,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.platform.permissions.PermissionUiProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachine
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineImpl.State.*
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineImpl.State.EntrySource.ManualEntry
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineImpl.State.EntrySource.QrEntry
@@ -182,6 +183,8 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
             },
             onCancel = { state = currentState.onBack(props) },
             screenPresentationStyle = ScreenPresentationStyle.Root,
+            segment = RecoverySegment.EmergencyExit,
+            actionDescription = "Detecting hardware type for Emergency Exit Kit recovery",
             eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP,
             hardwareVerification = NotRequired
           )
@@ -209,6 +212,8 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
             },
             onCancel = { state = currentState.onBack(props) },
             screenPresentationStyle = ScreenPresentationStyle.Root,
+            segment = RecoverySegment.EmergencyExit,
+            actionDescription = "Unsealing backup encryption key for Emergency Exit Kit recovery",
             eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP,
             hardwareVerification = NotRequired, // EEK recovery happens without an active account
             confirmationContent = HardwareConfirmationContent.EekRestorationUnseal,

@@ -30,9 +30,6 @@ import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
 import build.wallet.f8e.recovery.RemoteKeyset
 import build.wallet.f8e.recovery.toSpendingKeysets
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
-import build.wallet.feature.flags.DescriptorBackupFailsafeFeatureFlag
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.DescriptorBackupVerificationDaoFake
@@ -45,6 +42,7 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldBeNull
@@ -63,8 +61,6 @@ class DescriptorBackupServiceImplTests : FunSpec({
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val updateDescriptorBackupsF8eClient = UpdateDescriptorBackupsF8eClientFake()
   val accountService = AccountServiceFake()
-  val featureFlagDao = FeatureFlagDaoFake()
-  val descriptorBackupFailsafeFeatureFlag = DescriptorBackupFailsafeFeatureFlag(featureFlagDao)
   val descriptorBackupVerificationDao = DescriptorBackupVerificationDaoFake()
   val bitcoinWalletService = BitcoinWalletServiceFake()
 
@@ -77,7 +73,6 @@ class DescriptorBackupServiceImplTests : FunSpec({
     listKeysetsF8eClient = listKeysetsF8eClient,
     updateDescriptorBackupsF8eClient = updateDescriptorBackupsF8eClient,
     accountService = accountService,
-    descriptorBackupFailsafeFeatureFlag = descriptorBackupFailsafeFeatureFlag,
     descriptorBackupVerificationDao = descriptorBackupVerificationDao,
     bitcoinWalletService = bitcoinWalletService
   )
@@ -92,7 +87,6 @@ class DescriptorBackupServiceImplTests : FunSpec({
     listKeysetsF8eClient.reset()
     updateDescriptorBackupsF8eClient.reset()
     accountService.reset()
-    featureFlagDao.reset()
     descriptorBackupVerificationDao.reset()
     bitcoinWalletService.reset()
   }
@@ -1023,20 +1017,17 @@ class DescriptorBackupServiceImplTests : FunSpec({
       .shouldNotBeNull()
   }
 
-  test("executeWork does not add to cache when F8e call fails and no cache exists") {
+  test("executeWork throws when F8e call fails so worker retries") {
     val activeKeysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
 
     accountService.accountState.value = Ok(ActiveAccount(privateAccount))
-
-    // No cached verification
     descriptorBackupVerificationDao.clear()
-
-    // F8e call fails
     listKeysetsF8eClient.result = Err(NetworkError(cause = Exception("Network error")))
 
-    service.executeWork()
+    shouldThrow<NetworkError> {
+      service.executeWork()
+    }
 
-    // Cache should remain empty
     descriptorBackupVerificationDao.getVerifiedBackup(activeKeysetId)
       .get()
       .shouldBeNull()
@@ -1292,17 +1283,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
       .shouldContainExactly(listOf("legacy-keyset-1", "legacy-keyset-2", "new-keyset"))
   }
 
-  test("checkBackupForPrivateKeyset returns Ok when feature flag is disabled") {
-    descriptorBackupFailsafeFeatureFlag.setFlagValue(BooleanFlag(false))
-    val privateKeyset = PrivateSpendingKeysetMock
-
-    val result = service.checkBackupForPrivateKeyset(privateKeyset.f8eSpendingKeyset.keysetId)
-
-    result.shouldBeOk()
-  }
-
   test("checkBackupForPrivateKeyset returns Ok when backup exists in cache") {
-    descriptorBackupFailsafeFeatureFlag.setFlagValue(BooleanFlag(true))
     val privateKeyset = PrivateSpendingKeysetMock
     val keysetId = privateKeyset.f8eSpendingKeyset.keysetId
 
@@ -1316,16 +1297,46 @@ class DescriptorBackupServiceImplTests : FunSpec({
     result.shouldBeOk()
   }
 
-  test("checkBackupForPrivateKeyset returns error when private keyset has no backup in cache") {
-    descriptorBackupFailsafeFeatureFlag.setFlagValue(BooleanFlag(true))
-    val privateKeyset = PrivateSpendingKeysetMock
-
-    // Cache is empty, no backup exists
+  test("checkBackupForPrivateKeyset refreshes cache from F8e on cache miss") {
+    val keysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+    accountService.accountState.value = Ok(ActiveAccount(privateAccount))
     descriptorBackupVerificationDao.clear()
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = emptyList(),
+        descriptorBackups = listOf(DescriptorBackup(keysetId, XCiphertext("encrypted"), null)),
+        wrappedSsek = null,
+        activeKeysetId = keysetId
+      )
+    )
 
-    val result = service.checkBackupForPrivateKeyset(privateKeyset.f8eSpendingKeyset.keysetId)
+    service.checkBackupForPrivateKeyset(keysetId).shouldBeOk()
+    descriptorBackupVerificationDao.getVerifiedBackup(keysetId).get().shouldNotBeNull()
+  }
 
-    result.shouldBeErrOfType<IllegalStateException>()
+  test("checkBackupForPrivateKeyset returns error after F8e confirms backup is missing") {
+    val keysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+    accountService.accountState.value = Ok(ActiveAccount(privateAccount))
+    descriptorBackupVerificationDao.clear()
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = emptyList(),
+        descriptorBackups = emptyList(),
+        wrappedSsek = null,
+        activeKeysetId = keysetId
+      )
+    )
+
+    service.checkBackupForPrivateKeyset(keysetId).shouldBeErrOfType<IllegalStateException>()
+  }
+
+  test("checkBackupForPrivateKeyset propagates F8e failure on cache miss") {
+    val keysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+    accountService.accountState.value = Ok(ActiveAccount(privateAccount))
+    descriptorBackupVerificationDao.clear()
+    listKeysetsF8eClient.result = Err(NetworkError(cause = Exception("Network error")))
+
+    service.checkBackupForPrivateKeyset(keysetId).shouldBeErrOfType<NetworkError>()
   }
 
   // checkSsekUnsealingNeeded tests

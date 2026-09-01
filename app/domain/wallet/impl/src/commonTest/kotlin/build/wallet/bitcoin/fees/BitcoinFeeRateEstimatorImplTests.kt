@@ -10,9 +10,6 @@ import build.wallet.bitcoin.bdk.BdkBlockchainProviderMock
 import build.wallet.bitcoin.sync.chainHash
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.AugurFeesEstimationFeatureFlag
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -31,21 +28,16 @@ class BitcoinFeeRateEstimatorImplTests : FunSpec({
     blockchainResult = BdkResult.Ok(bdkBlockchainMock)
   )
 
-  val featureFlagDao = FeatureFlagDaoFake()
-  val augurFeesEstimationFeatureFlag = AugurFeesEstimationFeatureFlag(featureFlagDao)
   val mempoolHttpClientMock = MempoolHttpClientMock()
   val augurFeesHttpClientMock = AugurFeesHttpClientMock()
 
   val feeRateEstimator = BitcoinFeeRateEstimatorImpl(
     mempoolHttpClient = mempoolHttpClientMock,
     augurFeesHttpClient = augurFeesHttpClientMock,
-    bdkBlockchainProvider = bdkBlockchainProvider,
-    augurFeesEstimationFeatureFlag = augurFeesEstimationFeatureFlag
+    bdkBlockchainProvider = bdkBlockchainProvider
   )
 
   beforeTest {
-    featureFlagDao.reset()
-    augurFeesEstimationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     bdkBlockchainProvider.reset()
     bdkBlockchainProvider.blockchainResult = BdkResult.Ok(bdkBlockchainMock)
     mempoolHttpClientMock.reset()
@@ -111,40 +103,6 @@ class BitcoinFeeRateEstimatorImplTests : FunSpec({
     val feeRates = feeRateEstimator.getEstimatedFeeRates(BitcoinNetworkType.BITCOIN).getOrThrow()
 
     // Should use mempool values
-    feeRates.fastestFeeRate.satsPerVByte.shouldBe(5.0f)
-    feeRates.halfHourFeeRate.satsPerVByte.shouldBe(3.0f)
-    feeRates.hourFeeRate.satsPerVByte.shouldBe(2.0f)
-  }
-
-  test("Should use mempool when AugurFees is disabled") {
-    augurFeesEstimationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-
-    // Test FASTEST
-    val fastestFeeRate = feeRateEstimator.estimatedFeeRateForTransaction(
-      networkType = BitcoinNetworkType.BITCOIN,
-      estimatedTransactionPriority = FASTEST
-    )
-    fastestFeeRate.satsPerVByte.shouldBe(5.0f)
-
-    // Test THIRTY_MINUTES
-    val thirtyMinFeeRate = feeRateEstimator.estimatedFeeRateForTransaction(
-      networkType = BitcoinNetworkType.BITCOIN,
-      estimatedTransactionPriority = THIRTY_MINUTES
-    )
-    thirtyMinFeeRate.satsPerVByte.shouldBe(3.0f)
-
-    // Test SIXTY_MINUTES
-    val sixtyMinFeeRate = feeRateEstimator.estimatedFeeRateForTransaction(
-      networkType = BitcoinNetworkType.BITCOIN,
-      estimatedTransactionPriority = SIXTY_MINUTES
-    )
-    sixtyMinFeeRate.satsPerVByte.shouldBe(2.0f)
-  }
-
-  test("Should get all fee rates from mempool when AugurFees is disabled") {
-    augurFeesEstimationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-    val feeRates = feeRateEstimator.getEstimatedFeeRates(BitcoinNetworkType.BITCOIN).getOrThrow()
-
     feeRates.fastestFeeRate.satsPerVByte.shouldBe(5.0f)
     feeRates.halfHourFeeRate.satsPerVByte.shouldBe(3.0f)
     feeRates.hourFeeRate.satsPerVByte.shouldBe(2.0f)

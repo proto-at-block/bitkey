@@ -15,7 +15,7 @@ data class FingerprintResetDelayAndNotifyProgressBodyModel(
 ) {
   fun toScreenModel(
     headline: String = "Fingerprint reset in progress...",
-    delayInfoText: String = "You'll be able to add new fingerprints at the end of the 7-day security period.",
+    delayInfoText: String = "You'll be able to add new fingerprints at the end of the security period.",
     cancelWarningText: String = "To continue using your current fingerprints, cancel the reset process.",
     cancelText: String = "Cancel reset",
     progress: build.wallet.Progress,

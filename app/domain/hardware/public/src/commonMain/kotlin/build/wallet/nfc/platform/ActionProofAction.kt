@@ -34,6 +34,7 @@ enum class ActionProofAction {
   SEND_RECOVERY_VERIFICATION_CODE,
   VERIFY_RECOVERY_VERIFICATION_CODE,
   ROTATE_APP_AUTH_KEYS,
+  SET_DELAY_NOTIFY_PERIOD,
   ;
 
   /** Converts to the canonical PascalCase string for the firmware protocol. */
@@ -66,6 +67,7 @@ enum class ActionProofAction {
       SEND_RECOVERY_VERIFICATION_CODE -> "SendRecoveryVerificationCode"
       VERIFY_RECOVERY_VERIFICATION_CODE -> "VerifyRecoveryVerificationCode"
       ROTATE_APP_AUTH_KEYS -> "RotateAppAuthKeys"
+      SET_DELAY_NOTIFY_PERIOD -> "SetDelayNotifyPeriod"
     }
 
   companion object {
@@ -99,6 +101,7 @@ enum class ActionProofAction {
         Action.SEND_RECOVERY_VERIFICATION_CODE -> SEND_RECOVERY_VERIFICATION_CODE
         Action.VERIFY_RECOVERY_VERIFICATION_CODE -> VERIFY_RECOVERY_VERIFICATION_CODE
         Action.ROTATE_APP_AUTH_KEYS -> ROTATE_APP_AUTH_KEYS
+        Action.SET_DELAY_NOTIFY_PERIOD -> SET_DELAY_NOTIFY_PERIOD
       }
   }
 }

@@ -3,6 +3,7 @@ package build.wallet.statemachine.send.hardwareconfirmation
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.form.FooterRevealAware
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
@@ -10,7 +11,6 @@ import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.SMAL
 import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.formWaitingRevealDelayMillis
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -24,8 +24,15 @@ data class HardwareConfirmationScreenModel(
   val onConfirm: () -> Unit,
   val onHelpClick: (() -> Unit)? = null,
   val content: HardwareConfirmationContent = HardwareConfirmationContent.SignTransaction,
-  val isHardwareFake: Boolean = false,
-) : FormBodyModel(
+  /**
+   * Whether the confirm / cancel buttons in the footer should be revealed. The hosting state
+   * machine is responsible for flipping this to `true` after the hardware-interaction reveal
+   * delay has elapsed; the [FormScreen] will then fade and slide the buttons in. The buttons
+   * are always emitted on the model so the footer slot can reserve its final height from the
+   * first composition.
+   */
+  override val footerRevealed: Boolean = true,
+) : FooterRevealAware, FormBodyModel(
     id = content.screenId,
     onBack = onBack,
     toolbar = ToolbarModel(
@@ -66,7 +73,6 @@ data class HardwareConfirmationScreenModel(
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onCancel)
     ),
-    footerRevealDelayMillis = formWaitingRevealDelayMillis(isHardwareFake),
     preFooterContentList = buildImmutableList {
       content.recipientAddress?.let { address ->
         add(

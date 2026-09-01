@@ -11,20 +11,8 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[bitkey]"
-            ]
-        },
-        {
-            "version": "8.4.2-11315950",
-            "variants": [
-                {
-                    "artifacts": {
-                        "aapt2-proto-8.4.2-11315950.jar": "66a589c25b2aa3d9b3daa96f07f262e3a157e43e50024234ff419b0578439645"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
             ]
         }
     ]

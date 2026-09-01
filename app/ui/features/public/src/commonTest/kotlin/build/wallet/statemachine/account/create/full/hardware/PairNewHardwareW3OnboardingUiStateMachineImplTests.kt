@@ -1,4 +1,5 @@
 package build.wallet.statemachine.account.create.full.hardware
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 
 import app.cash.turbine.plusAssign
 import bitkey.account.AccountConfigServiceFake
@@ -12,9 +13,6 @@ import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.W3OnboardingFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.nfc.transaction.PairingTransactionProviderFake
 import build.wallet.nfc.transaction.PairingTransactionResponse
@@ -78,8 +76,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   val deviceInfoProvider = DeviceInfoProviderMock()
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
 
-  val featureFlagDao = FeatureFlagDaoFake()
-  val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
   val accountConfigService = AccountConfigServiceFake()
 
   fun createStateMachine() =
@@ -91,7 +87,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
       appSessionManager = appSessionManager,
       deviceInfoProvider = deviceInfoProvider,
       hardwareUnlockInfoService = hardwareUnlockInfoService,
-      w3OnboardingFeatureFlag = w3OnboardingFeatureFlag,
       accountConfigService = accountConfigService,
     )
 
@@ -120,6 +115,7 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
     onExit = {
       onExitCalls += Unit
     },
+    segment = build.wallet.statemachine.account.create.full.OnboardingAppSegment.FullAccount,
     eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION,
     pairingContext = PairingContext.Onboarding
   )
@@ -130,14 +126,12 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
     appSessionManager.currentSessionId = "session-id"
     deviceInfoProvider.reset()
     hardwareUnlockInfoService.clear()
-    featureFlagDao.reset()
     pairingTransactionProvider.reset()
   }
 
   // W3 Onboarding Flow Tests
 
-  test("W3 onboarding -- shows activation instructions V2 screen when flag enabled and hardware is W3") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
+  test("W3 onboarding -- shows activation instructions V2 screen") {
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -160,7 +154,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- tap intro sheet shows on Set up your Bitkey screen") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     accountConfigService.setHardwareType(HardwareType.W3)
     val w3StateMachine = createStateMachine()
 
@@ -174,7 +167,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- tap intro sheet shows before hardware type is known") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -187,7 +179,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3Upgrade context -- tap intro sheet does not show legacy no-screen fallback") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     val w3UpgradeProps = props.copy(pairingContext = PairingContext.W3Upgrade)
@@ -203,7 +194,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- tap intro sheet only shows once per onboarding session") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     accountConfigService.setHardwareType(HardwareType.W3)
     val w3StateMachine = createStateMachine()
 
@@ -225,7 +215,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- tap intro sheet shows again in a new app session") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     accountConfigService.setHardwareType(HardwareType.W3)
     val w3StateMachine = createStateMachine()
 
@@ -248,7 +237,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- learn more from tap intro sheet shows full setup how it works help") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     accountConfigService.setHardwareType(HardwareType.W3)
     deviceInfoProvider.devicePlatformValue = DevicePlatform.IOS
     val w3StateMachine = createStateMachine()
@@ -263,7 +251,7 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
       }
 
       awaitUntilBody<FingerprintEnrollmentHelpBodyModel> {
-        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("How it works")
         onBack.shouldNotBeNull().invoke()
       }
 
@@ -275,7 +263,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- no screen from tap intro sheet shows legacy activation flow and marks sheet seen") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     accountConfigService.setHardwareType(HardwareType.W3)
     val w3StateMachine = createStateMachine()
 
@@ -321,7 +308,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- tapping continue goes directly to NFC with hardwareType W3") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -348,7 +334,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- activation instructions V2 does not show legacy no-screen button") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -362,7 +347,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- back from activation instructions V2 exits") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -377,22 +361,7 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("W3 onboarding -- flag disabled shows legacy activation instructions") {
-    w3OnboardingFeatureFlag.setFlagValue(false)
-    val legacyStateMachine = createStateMachine()
-
-    legacyStateMachine.test(props) {
-      // Should show legacy flow even with W3 hardware when flag is off
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-      }
-    }
-  }
-
   test("W3 onboarding -- cancel from NFC returns to activation instructions V2") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -423,7 +392,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   // W3 Two-Tap Flow Tests
 
   test("W3 onboarding -- first NFC tap with FingerprintEnrollmentStarted shows Finished On Your Device screen") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -475,7 +443,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- two-tap flow completes fingerprint enrollment") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -522,7 +489,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- back from Finished On Your Device exits onboarding") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -557,7 +523,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- FingerprintNotEnrolled shows Finished On Your Device screen") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -588,49 +553,9 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("Legacy flow -- FingerprintEnrollmentStarted shows legacy fingerprint instructions") {
-    w3OnboardingFeatureFlag.setFlagValue(false)
-    val legacyStateMachine = createStateMachine()
-
-    legacyStateMachine.test(props) {
-      // Start at activation instructions
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      // Pair instructions screen
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
-
-      // First NFC tap - returns FingerprintEnrollmentStarted
-      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
-        id = nfcSessionUIStateMachine.id
-      ) {
-        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
-      }
-
-      // Should show legacy fingerprint instructions (not "Have you completed?")
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS)
-      }
-    }
-  }
-
   // W3 How To Add Your Fingerprint Help Screen Tests
 
   test("W3 onboarding -- help button from Set up your Bitkey shows How To Add Fingerprint screen") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -645,13 +570,12 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_FINGERPRINT_ENROLLMENT_HELP)
-        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("How it works")
       }
     }
   }
 
   test("W3 onboarding -- back from How To Add Fingerprint returns to Set up your Bitkey screen") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -678,7 +602,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- can continue flow after viewing How To Add Fingerprint help") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -734,7 +657,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- How To Add Fingerprint screen has back button in toolbar that returns to setup screen") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -761,7 +683,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 onboarding -- help button from Finished On Your Device shows NFC troubleshooting help") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -786,13 +707,12 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_FINGERPRINT_ENROLLMENT_HELP)
         eventTrackerShouldTrack.shouldBe(true)
-        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("How it works")
       }
     }
   }
 
   test("W3 onboarding -- back from Finished On Your Device help returns to review screen") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -825,7 +745,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   // Hardware Type Detection Tests
 
   test("expected W3 hardware type but detected W1 -- silently switches to legacy flow") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -872,68 +791,9 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("expected W1 hardware type but detected W3 -- silently switches to W3 two-tap flow") {
-    w3OnboardingFeatureFlag.setFlagValue(false)
-    val legacyStateMachine = createStateMachine()
-
-    val fingerprintEnrolledW3 = fingerprintEnrolled.copy(hardwareType = HardwareType.W3)
-
-    legacyStateMachine.test(props) {
-      // Start with legacy W1 activation instructions (expected hardware type is W1)
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      // Legacy W1 flow shows fingerprint enrollment instructions screen
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
-        primaryButton.onClick()
-      }
-
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
-
-      // First NFC tap with expected type W1, but device firmware reports W3
-      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
-        id = nfcSessionUIStateMachine.id
-      ) {
-        // The device reports it's actually W3 hardware
-        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W3))
-      }
-
-      // Should silently switch to W3 flow - show "Finished on your device?" screen
-      awaitBody<CompleteTwoTapBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP)
-        header.shouldBeNull()
-        onContinue()
-      }
-
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
-
-      // Second NFC tap should use detected W3 hardware type
-      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
-        id = nfcSessionUIStateMachine.id
-      ) {
-        onSuccess(fingerprintEnrolledW3)
-      }
-
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_FINGERPRINT_COMPLETE))
-
-      // Flow completes successfully with W3 hardware
-      onSuccessCalls.awaitItem().shouldBe(fingerprintEnrolledW3)
-    }
-  }
-
   // W3 Upgrade Hardware Type Enforcement Tests
 
   test("W3Upgrade context -- first tap detects W1 instead of W3 shows wrong hardware error with retry") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     val w3UpgradeProps = props.copy(pairingContext = PairingContext.W3Upgrade)
@@ -979,7 +839,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3Upgrade context -- second tap detects W1 instead of W3 shows wrong hardware error with retry") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     val w3UpgradeProps = props.copy(pairingContext = PairingContext.W3Upgrade)
@@ -1031,7 +890,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("W3Upgrade context -- first tap detects W3 proceeds normally") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     val fingerprintEnrolledW3 = fingerprintEnrolled.copy(hardwareType = HardwareType.W3)
@@ -1059,7 +917,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   }
 
   test("Onboarding context -- first tap detects W1 silently switches (not blocked like W3Upgrade)") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     // Uses Onboarding context, not W3Upgrade — should silently switch, not error

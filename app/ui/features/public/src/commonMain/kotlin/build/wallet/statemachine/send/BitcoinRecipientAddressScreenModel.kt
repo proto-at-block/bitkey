@@ -24,7 +24,7 @@ import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Default
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import dev.zacsweers.redacted.annotations.Redacted
 
@@ -60,7 +60,7 @@ data class BitcoinRecipientAddressScreenModel(
       } else {
         hiddenToolbarIconAccessory(icon = Icon.X)
       },
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Recipient"),
+      title = ToolbarTitleModel.Inline(title = "Recipient"),
       trailingAccessory = if (showToolbarIcons) {
         IconAccessory(
           model = IconButtonModel(

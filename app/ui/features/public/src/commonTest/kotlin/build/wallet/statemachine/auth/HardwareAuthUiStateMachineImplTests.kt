@@ -32,8 +32,10 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import uniffi.actionproof.Action
@@ -124,8 +126,45 @@ class HardwareAuthUiStateMachineImplTests : FunSpec({
       }
 
       onSuccess.awaitItem().shouldBe(
-        HwKeyProof(HwFactorProofOfPossession("signed-token"))
+        HwKeyProof(
+          HwFactorProofOfPossession(
+            hwSignedToken = "signed-token",
+            accessToken = "test-access-token"
+          )
+        )
       )
+    }
+
+    test("W1: hardware-signature-only proof signs existing tokens without refreshing app auth") {
+      stateMachine.test(
+        w1Props.copy(
+          actionProofType = CancelLostAppRecovery,
+          authTokens = testTokens
+        )
+      ) {
+        awaitBodyMock<NfcSessionUIStateMachineProps<String>>(id = "nfc-session") {
+          onSuccess("signed-token")
+        }
+      }
+
+      onSuccess.awaitItem().shouldBe(
+        HwKeyProof(
+          HwFactorProofOfPossession(
+            hwSignedToken = "signed-token",
+            accessToken = "test-access-token"
+          )
+        )
+      )
+    }
+
+    test("W1: hardware-signature-only proof does not fall back to app auth without tokens") {
+      stateMachine.test(
+        w1Props.copy(actionProofType = CancelLostAppRecovery)
+      ) {
+        awaitUntilBody<FormBodyModel> {
+          header?.headline.shouldBe("We couldn’t verify this action")
+        }
+      }
     }
   }
 
@@ -177,6 +216,26 @@ class HardwareAuthUiStateMachineImplTests : FunSpec({
         awaitBody<LoadingSuccessBodyModel>()
         awaitUntilBody<FormBodyModel> {
           this.onBack?.invoke()
+        }
+      }
+
+      onBack.awaitItem()
+    }
+
+    test("W3: close accessory on error screen calls onBack") {
+      actionProofService.buildAppSignedPayloadResult =
+        Err(ActionProofError.InternalError(RuntimeException("build failed")))
+
+      stateMachine.test(w3Props) {
+        awaitBodyMock<RefreshAuthTokensProps>(id = "refresh-auth-tokens") {
+          onSuccess(testTokens)
+        }
+        awaitBody<LoadingSuccessBodyModel>()
+        awaitUntilBody<FormBodyModel> {
+          toolbar.shouldNotBeNull()
+            .leadingAccessory
+            .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
+            .model.onClick.invoke()
         }
       }
 
@@ -321,7 +380,7 @@ class HardwareAuthUiStateMachineImplTests : FunSpec({
     }
   }
 
-  context("W3 account - hwSignatureOnly (CancelLostAppRecovery)") {
+  context("lost-app cancellation action proof") {
     val hwOnlyProps = HardwareAuthUiProps(
       fullAccountId = FullAccountW3Mock.accountId,
       hardwareType = FullAccountW3Mock.config.hardwareType,
@@ -334,11 +393,8 @@ class HardwareAuthUiStateMachineImplTests : FunSpec({
       onBack = { onBack += Unit }
     )
 
-    test("W3 hwSignatureOnly: skips app signing and includes only HW signature in header") {
+    test("hardware-signature-only proof skips token refresh and app signing") {
       stateMachine.test(hwOnlyProps) {
-        awaitBodyMock<RefreshAuthTokensProps>(id = "refresh-auth-tokens") {
-          onSuccess(testTokens)
-        }
         awaitBody<LoadingSuccessBodyModel>()
         awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<String>>(id = "nfc-confirmable-session") {
           config.showNativeSheetOnIos.shouldBe(true)
@@ -348,6 +404,7 @@ class HardwareAuthUiStateMachineImplTests : FunSpec({
 
       // Should NOT have called buildAppSignedPayload
       actionProofService.buildAppSignedPayloadCalls.shouldBe(emptyList())
+      actionProofService.buildBindingsCalls.first().accountId.shouldBe(FullAccountW3Mock.accountId)
 
       onSuccess.awaitItem().shouldBe(
         HwSignedAction(
@@ -360,14 +417,11 @@ class HardwareAuthUiStateMachineImplTests : FunSpec({
       )
     }
 
-    test("W3 hwSignatureOnly: shows error when buildBindings fails") {
+    test("hardware-signature-only proof shows error when buildBindings fails") {
       actionProofService.buildBindingsResult =
         Err(ActionProofError.InternalError(RuntimeException("bindings failed")))
 
       stateMachine.test(hwOnlyProps) {
-        awaitBodyMock<RefreshAuthTokensProps>(id = "refresh-auth-tokens") {
-          onSuccess(testTokens)
-        }
         awaitBody<LoadingSuccessBodyModel>()
 
         awaitBody<FormBodyModel>(

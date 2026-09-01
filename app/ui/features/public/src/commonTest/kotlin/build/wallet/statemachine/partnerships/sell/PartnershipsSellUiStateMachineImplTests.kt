@@ -7,9 +7,6 @@ import bitkey.metrics.TrackedMetric
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.SellBitcoinMaxAmountFeatureFlag
-import build.wallet.feature.flags.SellBitcoinMinAmountFeatureFlag
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.code.IsoCurrencyTextCode
@@ -46,9 +43,8 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
   // turbines
   val onBack = turbines.create<Unit>("on back calls")
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
-  val sellBitcoinMinAmountFeatureFlag = SellBitcoinMinAmountFeatureFlag(FeatureFlagDaoFake())
-  val sellBitcoinMaxAmountFeatureFlag = SellBitcoinMaxAmountFeatureFlag(FeatureFlagDaoFake())
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+  val partnershipSaleService = PartnershipSaleServiceFake()
   val metricTrackerService = MetricTrackerServiceFake()
   val deepLinkCalls = turbines.create<String>("Deep Links")
   val deepLinkHandler = object : DeepLinkHandler {
@@ -76,8 +72,7 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
           "transfer-amount-entry"
         ) {},
       inAppBrowserNavigator = inAppBrowserNavigator,
-      sellBitcoinMinAmountFeatureFlag = sellBitcoinMinAmountFeatureFlag,
-      sellBitcoinMaxAmountFeatureFlag = sellBitcoinMaxAmountFeatureFlag,
+      partnershipSaleService = partnershipSaleService,
       exchangeRateService = exchangeRateService,
       deepLinkHandler = deepLinkHandler,
       metricTrackerService = metricTrackerService
@@ -117,6 +112,68 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
   beforeTest {
     metricTrackerService.reset()
     exchangeRateService.reset()
+    partnershipSaleService.reset()
+  }
+
+  test("sell amount entry uses server-driven min and max") {
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBodyMock<TransferAmountEntryUiProps>(id = "transfer-amount-entry") {
+        flow.shouldBe(
+          TransferAmountEntryUiProps.Flow.Sell(
+            minAmount = BitcoinMoney.btc(0.0005),
+            maxAmount = BitcoinMoney.btc(1.0)
+          )
+        )
+      }
+    }
+  }
+
+
+  test("sell amount entry allows continuing without limits when sell limits are unavailable") {
+    partnershipSaleService.sellLimits = Err(Error("no limits"))
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state shouldBe LoadingSuccessBodyModel.State.Loading
+      }
+      awaitBodyMock<TransferAmountEntryUiProps>(id = "transfer-amount-entry") {
+        flow.shouldBe(
+          TransferAmountEntryUiProps.Flow.Sell(
+            minAmount = null,
+            maxAmount = null
+          )
+        )
+      }
+    }
+  }
+
+
+  test("back from sell offers reuses loaded sell limits") {
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBodyMock<TransferAmountEntryUiProps>(id = "transfer-amount-entry") {
+        onContinueClick(
+          ContinueTransferParams(
+            BitcoinTransactionSendAmount.ExactAmount(BitcoinMoney.zero())
+          )
+        )
+      }
+
+      partnershipSaleService.sellLimits = Err(Error("limits should not reload"))
+      awaitBodyMock<PartnershipsSellOptionsUiProps>(id = "partnerships sell options") {
+        onBack()
+      }
+
+      awaitBodyMock<TransferAmountEntryUiProps>(id = "transfer-amount-entry") {
+        flow.shouldBe(
+          TransferAmountEntryUiProps.Flow.Sell(
+            minAmount = BitcoinMoney.btc(0.0005),
+            maxAmount = BitcoinMoney.btc(1.0)
+          )
+        )
+      }
+    }
   }
 
   test("happy path") {
@@ -132,6 +189,7 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
         )
       }
 
+      awaitBody<LoadingSuccessBodyModel>()
       awaitBodyMock<TransferAmountEntryUiProps>(id = "transfer-amount-entry") {
         onContinueClick(
           ContinueTransferParams(
@@ -221,6 +279,41 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("back from confirmed sell loads exchange rates before sell limits") {
+    exchangeRateService.exchangeRates.value = emptyList()
+    val freshRates = listOf(
+      ExchangeRate(
+        fromCurrency = IsoCurrencyTextCode("BTC"),
+        toCurrency = IsoCurrencyTextCode("USD"),
+        rate = 50000.0,
+        timeRetrieved = Clock.System.now()
+      )
+    )
+    exchangeRateService.syncRatesResult = Ok(freshRates)
+
+    stateMachine.test(
+      props.copy(
+        confirmedSale = ConfirmedPartnerSale(
+          partner = PartnerId("test-partner"),
+          event = PartnershipEvent.TransactionCreated,
+          partnerTransactionId = PartnershipTransactionId("test-id")
+        )
+      )
+    ) {
+      awaitBodyMock<PartnershipsSellConfirmationProps> {
+        onBack()
+      }
+
+      awaitBody<LoadingSuccessBodyModel> {
+        state shouldBe LoadingSuccessBodyModel.State.Loading
+      }
+      awaitBody<LoadingSuccessBodyModel> {
+        state shouldBe LoadingSuccessBodyModel.State.Loading
+      }
+      awaitBodyMock<TransferAmountEntryUiProps>(id = "transfer-amount-entry")
+    }
+  }
+
   test("shows loading when exchange rates are stale, then proceeds after sync") {
     // Set up stale rates by clearing them (mostRecentRatesSinceDurationForCurrency returns null)
     exchangeRateService.exchangeRates.value = emptyList()
@@ -241,7 +334,10 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
         state shouldBe LoadingSuccessBodyModel.State.Loading
       }
 
-      // After sync completes with fresh rates, should proceed to amount entry
+      // After sync completes with fresh rates, should load sell limits, then proceed to amount entry
+      awaitBody<LoadingSuccessBodyModel> {
+        state shouldBe LoadingSuccessBodyModel.State.Loading
+      }
       awaitBodyMock<TransferAmountEntryUiProps>(id = "transfer-amount-entry")
     }
   }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.skiko:skiko-awt-runtime-linux-arm64",
+    "components": [
+        {
+            "version": "0.9.37.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "skiko-awt-runtime-linux-arm64-0.9.37.3.jar": "7270c086018ae77b2a4532f0a21c52a3e11ce8da991b09d587d348b817be81a9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

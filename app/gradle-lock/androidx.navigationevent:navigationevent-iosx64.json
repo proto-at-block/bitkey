@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.navigationevent:navigationevent-iosx64",
+    "components": [
+        {
+            "version": "1.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "navigationevent-iosX64Main-1.0.1.klib": "0a62032e54d459f63b93b4b57134e48cda17776a6aae4cdc34b324ea49409678"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "navigationevent-iosx64-1.0.1-metadata.jar": "9ec7dc8f5a063c606a6be1633768e1e2b1270da9471917084a5f47c15a9de480"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

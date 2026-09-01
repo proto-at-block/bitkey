@@ -42,7 +42,7 @@ class MoneyAmountStateMachineImplTests : FunSpec({
           primaryAmount = "$1.00",
           primaryAmountValue = 100L,
           primaryAmountAnimationKey = FiatMoney.usd(1.0).toAnimatedAmountAnimationKey(),
-          secondaryAmount = "300,000,000 sats"
+          secondaryAmount = "₿300,000,000"
         )
       )
     }
@@ -58,7 +58,7 @@ class MoneyAmountStateMachineImplTests : FunSpec({
     ) {
       awaitItem().shouldBe(
         MoneyAmountModel(
-          primaryAmount = "1,000,000 sats",
+          primaryAmount = "₿1,000,000",
           primaryAmountValue = 1_000_000L,
           primaryAmountAnimationKey = BitcoinMoney.btc(0.01).toAnimatedAmountAnimationKey(),
           secondaryAmount = "~~"
@@ -66,7 +66,7 @@ class MoneyAmountStateMachineImplTests : FunSpec({
       )
       awaitItem().shouldBe(
         MoneyAmountModel(
-          primaryAmount = "1,000,000 sats",
+          primaryAmount = "₿1,000,000",
           primaryAmountValue = 1_000_000L,
           primaryAmountAnimationKey = BitcoinMoney.btc(0.01).toAnimatedAmountAnimationKey(),
           secondaryAmount = "$0.03"

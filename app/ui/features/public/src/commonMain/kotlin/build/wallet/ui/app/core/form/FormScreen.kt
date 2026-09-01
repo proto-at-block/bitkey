@@ -18,14 +18,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.components.label.Label
+import build.wallet.ui.components.toolbar.CollapsibleToolbar
+import build.wallet.ui.components.toolbar.CollapsibleToolbarReservedHeight
+import build.wallet.ui.components.toolbar.CollapsibleToolbarTitleCollapseRange
 import build.wallet.ui.components.toolbar.EmptyToolbar
-import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.model.toolbar.largeTitle
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -44,7 +46,6 @@ fun FormScreen(
   headerToMainContentSpacing: Int = 16,
   background: Color = WalletTheme.colors.background,
   toolbarModel: ToolbarModel? = null,
-  screenTitle: FormScreenTitleModel? = null,
   layout: FormScreenLayoutModel = FormScreenLayoutModel.Legacy,
   toolbarContent: @Composable (() -> Unit)? = null,
   headerContent: @Composable (() -> Unit)? = null,
@@ -56,18 +57,9 @@ fun FormScreen(
     BackHandler(onBack = it)
   }
 
-  val resolvedLayout = when {
-    layout != FormScreenLayoutModel.Legacy -> layout
-    screenTitle != null -> FormScreenLayoutModel.LargeTitle()
-    else -> FormScreenLayoutModel.Legacy
-  }
-  val largeTitleLayout = resolvedLayout as? FormScreenLayoutModel.LargeTitle
+  val largeTitleLayout = layout as? FormScreenLayoutModel.LargeTitle
 
   if (largeTitleLayout != null) {
-    require(screenTitle?.title == null || toolbarModel?.middleAccessory == null) {
-      "FormScreen with a large title manages its own centered toolbar title."
-    }
-
     FormScreenLargeTitle(
       modifier = modifier,
       isFullScreen = isFullScreen,
@@ -75,8 +67,6 @@ fun FormScreen(
       horizontalPadding = horizontalPadding.dp,
       headerToMainContentSpacing = headerToMainContentSpacing.dp,
       toolbarModel = toolbarModel,
-      eyebrow = screenTitle?.eyebrow,
-      title = screenTitle?.title,
       contentSpacing = largeTitleLayout.contentSpacing.dp,
       isScrollable = largeTitleLayout.scrollable ||
         largeTitleLayout.mainContentVerticalAlignment == FormMainContentVerticalAlignment.TOP,
@@ -178,8 +168,6 @@ private fun FormScreenLargeTitle(
   horizontalPadding: Dp,
   headerToMainContentSpacing: Dp,
   toolbarModel: ToolbarModel?,
-  eyebrow: String?,
-  title: String?,
   contentSpacing: Dp,
   isScrollable: Boolean,
   mainContentAlignment: FormMainContentVerticalAlignment,
@@ -187,6 +175,9 @@ private fun FormScreenLargeTitle(
   mainContent: @Composable (ColumnScope.() -> Unit)?,
   footerContent: @Composable (ColumnScope.() -> Unit)?,
 ) {
+  val largeTitle = toolbarModel?.largeTitle
+  val eyebrow = largeTitle?.eyebrow
+  val title = largeTitle?.title
   Column(
     modifier =
       modifier
@@ -207,8 +198,6 @@ private fun FormScreenLargeTitle(
           horizontalPadding = horizontalPadding,
           headerToMainContentSpacing = headerToMainContentSpacing,
           toolbarModel = toolbarModel,
-          eyebrow = eyebrow,
-          title = title,
           contentSpacing = contentSpacing,
           headerContent = headerContent,
           mainContent = mainContent
@@ -223,7 +212,7 @@ private fun FormScreenLargeTitle(
             modifier = Modifier
               .fillMaxSize()
           ) {
-            Spacer(modifier = Modifier.height(FormScreenToolbarReservedHeight))
+            Spacer(modifier = Modifier.height(CollapsibleToolbarReservedHeight))
             FormScreenLargeTitleBlock(
               eyebrow = eyebrow,
               title = title
@@ -265,8 +254,7 @@ private fun FormScreenLargeTitle(
           }
         }
 
-        FormScreenDesignSystemToolbar(
-          title = title,
+        CollapsibleToolbar(
           toolbarModel = toolbarModel,
           collapseProgress = 0f,
           horizontalPadding = horizontalPadding,
@@ -296,14 +284,15 @@ private fun BoxScope.FormScreenLargeTitleScrollable(
   horizontalPadding: Dp,
   headerToMainContentSpacing: Dp,
   toolbarModel: ToolbarModel?,
-  eyebrow: String?,
-  title: String?,
   contentSpacing: Dp,
   headerContent: @Composable (() -> Unit)?,
   mainContent: @Composable (ColumnScope.() -> Unit)?,
 ) {
+  val largeTitle = toolbarModel?.largeTitle
+  val eyebrow = largeTitle?.eyebrow
+  val title = largeTitle?.title
   val scrollState = rememberScrollState()
-  val collapseRangePx = with(LocalDensity.current) { FormScreenTitleCollapseRange.toPx() }
+  val collapseRangePx = with(LocalDensity.current) { CollapsibleToolbarTitleCollapseRange.toPx() }
   val collapseProgress by remember(scrollState, collapseRangePx) {
     derivedStateOf {
       if (collapseRangePx <= 0f) {
@@ -323,7 +312,7 @@ private fun BoxScope.FormScreenLargeTitleScrollable(
       .padding(bottom = contentShadowHeight)
       .padding(horizontal = horizontalPadding)
   ) {
-    Spacer(modifier = Modifier.height(FormScreenToolbarReservedHeight))
+    Spacer(modifier = Modifier.height(CollapsibleToolbarReservedHeight))
     Column {
       FormScreenLargeTitleBlock(
         eyebrow = eyebrow,
@@ -362,8 +351,7 @@ private fun BoxScope.FormScreenLargeTitleScrollable(
         )
   ) {}
 
-  FormScreenDesignSystemToolbar(
-    title = title,
+  CollapsibleToolbar(
     toolbarModel = toolbarModel,
     collapseProgress = collapseProgress,
     horizontalPadding = horizontalPadding,
@@ -377,106 +365,23 @@ private fun FormScreenLargeTitleBlock(
   title: String?,
   collapseProgress: Float = 0f,
 ) {
-  eyebrow?.let {
-    Label(
-      modifier = Modifier
-        .padding(top = FormScreenLargeTitleTopSpacing)
-        .alpha(formScreenExpandedTitleAlpha(collapseProgress)),
-      text = it,
-      type = LabelType.Body2Mono
-    )
-  }
-  title?.let {
-    Label(
-      modifier = Modifier
-        .padding(top = if (eyebrow != null) FormScreenEyebrowToTitleSpacing else FormScreenLargeTitleTopSpacing)
-        .alpha(formScreenExpandedTitleAlpha(collapseProgress)),
-      text = it,
-      type = LabelType.Display3
-    )
-  }
-}
-
-@Composable
-private fun BoxScope.FormScreenDesignSystemToolbar(
-  title: String?,
-  toolbarModel: ToolbarModel?,
-  collapseProgress: Float,
-  horizontalPadding: Dp,
-  background: Color = WalletTheme.colors.background,
-  backgroundAlpha: Float = 1f,
-) {
-  Box(
-    modifier = Modifier
-      .fillMaxWidth()
-      .height(
-        FormScreenToolbarTopPadding +
-          FormScreenToolbarHeight +
-          FormScreenToolbarBottomPadding +
-          FormScreenToolbarBottomGradientHeight
+  Column {
+    eyebrow?.let {
+      Label(
+        modifier = Modifier
+          .padding(top = FormScreenLargeTitleTopSpacing)
+          .alpha(formScreenExpandedTitleAlpha(collapseProgress)),
+        text = it,
+        type = LabelType.Body2Mono
       )
-  ) {
-    Box(
-      modifier = Modifier
-        .fillMaxWidth()
-        .height(FormScreenToolbarTopPadding + FormScreenToolbarHeight + FormScreenToolbarBottomPadding)
-        .thenIf(backgroundAlpha > 0f) {
-          Modifier.background(background.copy(alpha = background.alpha * backgroundAlpha))
-        }
-    ) {
-      Box(
-        modifier = Modifier
-          .padding(
-            top = FormScreenToolbarTopPadding,
-            start = horizontalPadding,
-            end = horizontalPadding
-          )
-          .fillMaxWidth()
-          .height(FormScreenToolbarHeight)
-      ) {
-        Toolbar(
-          model = ToolbarModel(
-            leadingAccessory = toolbarModel?.leadingAccessory,
-            middleAccessory = null,
-            trailingAccessory = toolbarModel?.trailingAccessory
-          ),
-          showDesignSystemChrome = false
-        )
-
-        title?.let {
-          Label(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(
-                start = if (toolbarModel?.leadingAccessory != null) FormScreenInlineTitleStartPadding else 0.dp,
-                end = FormScreenInlineTitleEndPadding
-              )
-              .align(Alignment.CenterStart)
-              .alpha(formScreenInlineTitleAlpha(collapseProgress)),
-            text = it,
-            type = LabelType.Title2
-          )
-        }
-      }
     }
-
-    if (backgroundAlpha > 0f) {
-      Box(
+    title?.let {
+      Label(
         modifier = Modifier
-          .fillMaxWidth()
-          .height(FormScreenToolbarBottomGradientHeight)
-          .align(Alignment.BottomCenter)
-          .background(
-            brush =
-              Brush.verticalGradient(
-                colors =
-                  listOf(
-                    background.copy(alpha = background.alpha * backgroundAlpha),
-                    background.copy(alpha = background.alpha * backgroundAlpha * 0.65f),
-                    Color.Transparent
-                  )
-              )
-          )
+          .padding(top = if (eyebrow != null) FormScreenEyebrowToTitleSpacing else FormScreenLargeTitleTopSpacing)
+          .alpha(formScreenExpandedTitleAlpha(collapseProgress)),
+        text = it,
+        type = LabelType.Display3
       )
     }
   }
@@ -485,25 +390,6 @@ private fun BoxScope.FormScreenDesignSystemToolbar(
 private fun formScreenExpandedTitleAlpha(collapseProgress: Float): Float =
   (1f - collapseProgress).coerceIn(0f, 1f)
 
-private fun formScreenInlineTitleAlpha(collapseProgress: Float): Float =
-  (
-    (collapseProgress - FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS) /
-      (1f - FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS)
-  ).coerceIn(0f, 1f)
-
-private val FormScreenToolbarTopPadding = 8.dp
-private val FormScreenToolbarHeight = 48.dp
-private val FormScreenToolbarBottomPadding = 8.dp
-private val FormScreenToolbarBottomGradientHeight = 20.dp
-private val FormScreenToolbarReservedHeight =
-  FormScreenToolbarTopPadding +
-    FormScreenToolbarHeight +
-    FormScreenToolbarBottomPadding +
-    FormScreenToolbarBottomGradientHeight
 private val FormScreenLargeTitleTopSpacing = 24.dp
 private val FormScreenEyebrowToTitleSpacing = 8.dp
-private val FormScreenInlineTitleStartPadding = 56.dp
-private val FormScreenInlineTitleEndPadding = 56.dp
-private const val FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS = 0.95f
-private val FormScreenTitleCollapseRange = 120.dp
 private val FormScreenBottomContentPadding = 24.dp

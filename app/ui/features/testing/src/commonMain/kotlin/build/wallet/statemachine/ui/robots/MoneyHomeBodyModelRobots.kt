@@ -3,9 +3,9 @@ package build.wallet.statemachine.ui.robots
 import build.wallet.statemachine.moneyhome.BaseMoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.statemachine.moneyhome.card.cardOnClick
+import build.wallet.statemachine.moneyhome.card.titleString
 import build.wallet.statemachine.moneyhome.lite.card.WALLETS_YOURE_PROTECTING_MESSAGE
-import build.wallet.statemachine.ui.matchers.shouldBeEnabled
-import build.wallet.statemachine.ui.matchers.shouldNotBeLoading
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -19,15 +19,13 @@ fun MoneyHomeBodyModel.clickSettings() {
 }
 
 fun BaseMoneyHomeBodyModel.protectedCustomersCard(): CardModel? {
-  return cardsModel.cards.find { it.title?.string == WALLETS_YOURE_PROTECTING_MESSAGE }
+  return cardsModel.cards.find { it.titleString == WALLETS_YOURE_PROTECTING_MESSAGE }
 }
 
 fun BaseMoneyHomeBodyModel.selectProtectedCustomer(protectedCustomer: String) {
   protectedCustomersCard()
     .shouldNotBeNull()
-    .content
-    .shouldNotBeNull()
-    .shouldBeTypeOf<CardModel.CardContent.DrillList>()
+    .shouldBeTypeOf<CardModel.DrillList>()
     .items
     .single { it.title == protectedCustomer }
     .onClick
@@ -36,13 +34,6 @@ fun BaseMoneyHomeBodyModel.selectProtectedCustomer(protectedCustomer: String) {
 }
 
 fun CardModel.click() =
-  onClick
+  cardOnClick
     .shouldNotBeNull()
     .invoke()
-
-fun CardModel.clickTrailingButton() =
-  trailingButton
-    .shouldNotBeNull()
-    .shouldBeEnabled()
-    .shouldNotBeLoading()
-    .onClick()

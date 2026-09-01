@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.runtime:runtime-desktop",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-desktop-1.9.3.jar": "b5639b2df04087287b5886d47db1ef791c279c1074ee628481726ed90cff03e7"
+                        "runtime-desktop-1.10.0.jar": "b195860542f612de0512b54a75353e0f6d58815f0c9530a03bc5b0e734474829"
                     }
                 }
             ],

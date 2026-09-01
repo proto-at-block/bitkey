@@ -1,5 +1,11 @@
 package build.wallet.ui.app.moneyhome
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,8 +31,9 @@ import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.home.full.HomeTab
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
+import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedSectionModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
-import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
+import build.wallet.ui.app.moneyhome.card.Card
 import build.wallet.ui.components.amount.HeroAmount
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.button.ButtonContentsList
@@ -50,6 +57,8 @@ import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun MoneyHomeScreen(
@@ -58,6 +67,7 @@ fun MoneyHomeScreen(
 ) {
   val localDensity = LocalDensity.current
   val listState = rememberLazyListState()
+  val animatedSection = rememberAnimatedSection(model.gettingStartedSection)
   val collapseRangePx = with(localDensity) { MONEY_HOME_TITLE_COLLAPSE_RANGE.toPx() }
   var coachmarkOffset by remember {
     mutableStateOf(Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY))
@@ -66,7 +76,7 @@ fun MoneyHomeScreen(
     mutableStateOf(0.dp)
   }
   var moneyHomeYInRoot by remember {
-    mutableStateOf(0f)
+    mutableFloatStateOf(0f)
   }
 
   // Different coachmarks have different heights (e.g., Security Hub has no button,
@@ -181,8 +191,13 @@ fun MoneyHomeScreen(
         Spacer(Modifier.height(40.dp))
       }
 
-      // No UI between the action buttons and the tx list so show a divider
-      if (model.cardsModel.cards.isEmpty() && model.transactionsModel != null) {
+      // No UI between the action buttons and the tx list so show a divider.
+      // Use the retained animatedSection so the divider doesn't pop in while the
+      // Getting Started section is still animating out.
+      if (model.cardsModel.cards.isEmpty() &&
+        animatedSection == null &&
+        model.transactionsModel != null
+      ) {
         item {
           Divider(
             modifier = Modifier
@@ -193,13 +208,30 @@ fun MoneyHomeScreen(
       }
 
       // Cards
-      items(model.cardsModel.cards) { cardModel ->
-        MoneyHomeCard(
-          modifier = Modifier
-            .padding(horizontal = 20.dp),
+      items(items = model.cardsModel.cards, key = { it.key }) { cardModel ->
+        Card(
+          modifier = Modifier.padding(horizontal = 20.dp),
           model = cardModel
         )
         Spacer(modifier = Modifier.height(24.dp))
+      }
+
+      // Getting Started section (not a card — its own chrome), animated in/out.
+      animatedSection?.let { (section, visible) ->
+        item(key = "getting-started-section") {
+          AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = tween(SECTION_ANIM_DURATION_MS)) +
+              expandVertically(animationSpec = tween(SECTION_ANIM_DURATION_MS)),
+            exit = fadeOut(animationSpec = tween(SECTION_ANIM_DURATION_MS)) +
+              shrinkVertically(animationSpec = tween(SECTION_ANIM_DURATION_MS))
+          ) {
+            Column {
+              section.render(modifier = Modifier.padding(horizontal = 20.dp))
+              Spacer(modifier = Modifier.height(24.dp))
+            }
+          }
+        }
       }
 
       model.transactionsModel?.let { transactionsModel ->
@@ -284,9 +316,7 @@ private fun BoxScope.MoneyHomeOverlayToolbar(
 }
 
 @Composable
-private fun RowScope.MoneyHomeTabs(
-  tabs: ImmutableList<HomeTab>,
-) {
+private fun RowScope.MoneyHomeTabs(tabs: ImmutableList<HomeTab>) {
   tabs.forEachIndexed { index, tab ->
     Box(
       modifier = Modifier.weight(1f),
@@ -297,6 +327,7 @@ private fun RowScope.MoneyHomeTabs(
         onClick = tab.onSelected,
         icon = tab.icon,
         badged = tab.badged,
+        contentDescription = tab.label,
         modifier = Modifier.offset(x = if (index == 0) 3.dp else (-3).dp)
       )
     }
@@ -416,9 +447,9 @@ fun LiteMoneyHomeScreen(
         }
 
         // Cards
-        items(model.cardsModel.cards) { cardModel ->
+        items(items = model.cardsModel.cards, key = { it.key }) { cardModel ->
           Spacer(Modifier.height(40.dp))
-          MoneyHomeCard(
+          Card(
             modifier = Modifier.padding(horizontal = 20.dp),
             model = cardModel
           )
@@ -447,6 +478,48 @@ private val MONEY_HOME_TITLE_COLLAPSE_RANGE = 120.dp
 @Composable
 private fun MoneyHomeLeadingHeader() {
   Label(text = "Wallet", type = LabelType.Title2)
+}
+
+/**
+ * Snapshot of the Getting Started section and its visibility state. When the section transitions
+ * to `null`, the last non-null model is retained with `visible = false` long enough to play the
+ * shrink + fade-out animation before being cleared.
+ */
+private data class AnimatedSection(
+  val model: GettingStartedSectionModel,
+  val visible: Boolean,
+)
+
+private const val SECTION_ANIM_DURATION_MS = 300
+
+/**
+ * Tracks the Getting Started section so it can animate in when it appears and animate out
+ * (shrink + fade) when it goes away.
+ */
+@Composable
+private fun rememberAnimatedSection(
+  section: GettingStartedSectionModel?,
+): AnimatedSection? {
+  var entry by remember { mutableStateOf<AnimatedSection?>(null) }
+
+  LaunchedEffect(section) {
+    entry = when {
+      section != null -> AnimatedSection(model = section, visible = true)
+      entry != null -> entry?.copy(visible = false)
+      else -> null
+    }
+  }
+
+  // Purge after the exit animation has had time to play.
+  val isExiting = entry?.visible == false
+  LaunchedEffect(isExiting) {
+    if (isExiting) {
+      delay(SECTION_ANIM_DURATION_MS.milliseconds)
+      entry = null
+    }
+  }
+
+  return entry
 }
 
 private fun ToolbarAccessoryModel.withCircleBackground(): ToolbarAccessoryModel {

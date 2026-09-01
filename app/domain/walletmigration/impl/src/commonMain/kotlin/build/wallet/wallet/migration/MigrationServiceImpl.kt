@@ -1255,7 +1255,8 @@ class MigrationServiceImpl(
         oldHwAuthKey = oldHwAuthPublicKey,
         newAppGlobalAuthKey = newAppAuthKeys.appGlobalAuthPublicKey,
         newAppGlobalAuthKeyHwSignature = newAppAuthKeys.appGlobalAuthKeyHwSignature,
-        newHwAuthKey = newHwAuthPublicKey
+        newHwAuthKey = newHwAuthPublicKey,
+        allowW3OnboardingPlaceholder = true
       ).bind()
 
       relationshipsService.syncAndVerifyRelationships(rotatedAccount).bind()
@@ -1408,6 +1409,29 @@ class MigrationServiceImpl(
       .map { it.toMigrationStatus() }
       .mapError { it.toMigrationError() }
   }
+
+  override suspend fun hasPersistedMigrationState(
+    type: MigrationType,
+  ): Result<Boolean, MigrationError> =
+    coroutineBinding {
+      val hasEntity = when (type) {
+        MigrationType.PrivateWalletMigration ->
+          privateWalletMigrationDao.currentState()
+            .first()
+            .mapError { MigrationError.StatePersistenceFailed(it) }
+            .bind() != null
+        MigrationType.W3Upgrade ->
+          w3UpgradeDao.currentState()
+            .first()
+            .mapError { MigrationError.StatePersistenceFailed(it) }
+            .bind() != null
+      }
+      if (!hasEntity) return@coroutineBinding false
+
+      // A persisted row can also represent a finished migration (all checkpoints complete) or a
+      // stale placeholder; defer to [resume] to classify those as Completed.
+      resume(type).bind() !is MigrationProgress.Completed
+    }
 
   override suspend fun clearMigration(type: MigrationType) {
     when (type) {

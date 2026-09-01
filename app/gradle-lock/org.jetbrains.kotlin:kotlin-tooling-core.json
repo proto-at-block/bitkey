@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-tooling-core",
     "components": [
         {
-            "version": "2.1.20",
+            "version": "2.2.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-tooling-core-2.1.20.jar": "b4fbb523e8662d4a8451b9a36a9e7fd43f637cb0cd6a9b9e3681719665dabd8d"
+                        "kotlin-tooling-core-2.2.20.jar": "74014ec4f3ef78ce7da7e3e6964f2c526a3121d5c58fef8ca2979e5f344582f4"
                     }
                 }
             ],

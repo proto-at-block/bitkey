@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.foundation:foundation",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-metadata-1.9.3.jar": "60bd800a8ea375412ad069088d1d55ba344c73a174e2ae4a06d22a18e4b0cfdd"
+                        "foundation-metadata-1.10.0.jar": "7fef47f4260d3adff9a3ab4d0730be2a31f4dc92628e30ae586e1666ea3630a7"
                     }
                 }
             ],

@@ -14,7 +14,8 @@ class HardwareReplacementInstructionsFormScreenSnapshots : FunSpec({
         model =
           HardwareReplacementInstructionsModel(
             onClose = {},
-            onContinue = {}
+            onContinue = {},
+            delayPeriodDays = 7
           )
       )
     }

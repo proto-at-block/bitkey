@@ -26,14 +26,13 @@ import kotlinx.collections.immutable.toImmutableList
 internal fun bitcoinDisplayUnitSelectionSheetModel(
   selectedUnit: BitcoinDisplayUnit,
   balance: BitcoinMoney,
-  isBip177Enabled: Boolean,
   moneyDisplayFormatter: MoneyDisplayFormatter,
   onSelectUnit: (BitcoinDisplayUnit) -> Unit,
   onExit: () -> Unit,
 ): SheetModel {
   val items = BitcoinDisplayUnit.entries.map { unit ->
     ListItemModel(
-      title = unit.displayText(isBip177Enabled),
+      title = unit.displayText(),
       secondaryText = moneyDisplayFormatter.formatWithUnit(balance, unit),
       treatment = ListItemTreatment.PRIMARY,
       onClick = { onSelectUnit(unit) },
@@ -55,7 +54,6 @@ internal fun bitcoinDisplayUnitSelectionSheetModel(
   return SheetModel(
     body = BitcoinDisplayUnitSelectionBodyModel(
       items = items,
-      isBip177Enabled = isBip177Enabled,
       onSelectUnit = onSelectUnit
     ),
     onClosed = onExit,
@@ -65,13 +63,12 @@ internal fun bitcoinDisplayUnitSelectionSheetModel(
 
 data class BitcoinDisplayUnitSelectionBodyModel(
   val items: ImmutableList<ListItemModel>,
-  val isBip177Enabled: Boolean,
   val onSelectUnit: (BitcoinDisplayUnit) -> Unit,
 ) : FormBodyModel(
     id = AppearanceEventTrackerScreenId.BITCOIN_DISPLAY_UNIT_SELECTION,
     header = FormHeaderModel(
       headline = "Bitcoin display unit",
-      subline = if (isBip177Enabled) "1 BTC = ₿100,000,000" else "1 BTC = 100,000,000 sats",
+      subline = "1 BTC = ₿100,000,000",
       sublineTreatment = SublineTreatment.SMALL
     ),
     onBack = {},
@@ -93,34 +90,24 @@ data class BitcoinDisplayUnitSelectionBodyModel(
 @Snapshot
 val SnapshotHost.bitcoinDisplayUnitSelectionBitcoinSelected
   get() = bitcoinDisplayUnitSnapshotModel(
-    selectedUnit = BitcoinDisplayUnit.Bitcoin,
-    isBip177Enabled = true
+    selectedUnit = BitcoinDisplayUnit.Bitcoin
   )
 
 @Snapshot
 val SnapshotHost.bitcoinDisplayUnitSelectionSatoshiSelected
   get() = bitcoinDisplayUnitSnapshotModel(
-    selectedUnit = BitcoinDisplayUnit.Satoshi,
-    isBip177Enabled = true
-  )
-
-@Snapshot
-val SnapshotHost.bitcoinDisplayUnitSelectionSatoshiSelectedLegacy
-  get() = bitcoinDisplayUnitSnapshotModel(
-    selectedUnit = BitcoinDisplayUnit.Satoshi,
-    isBip177Enabled = false
+    selectedUnit = BitcoinDisplayUnit.Satoshi
   )
 
 private fun bitcoinDisplayUnitSnapshotModel(
   selectedUnit: BitcoinDisplayUnit,
-  isBip177Enabled: Boolean,
 ) = BitcoinDisplayUnitSelectionBodyModel(
   items = BitcoinDisplayUnit.entries.map { unit ->
     ListItemModel(
-      title = unit.displayText(isBip177Enabled = isBip177Enabled),
+      title = unit.displayText(),
       secondaryText = when (unit) {
         BitcoinDisplayUnit.Bitcoin -> "0.001 BTC"
-        BitcoinDisplayUnit.Satoshi -> if (isBip177Enabled) "₿100,000" else "100,000 sats"
+        BitcoinDisplayUnit.Satoshi -> "₿100,000"
       },
       treatment = ListItemTreatment.PRIMARY,
       onClick = {},
@@ -138,6 +125,5 @@ private fun bitcoinDisplayUnitSnapshotModel(
       }
     )
   }.toImmutableList(),
-  isBip177Enabled = isBip177Enabled,
   onSelectUnit = {}
 )

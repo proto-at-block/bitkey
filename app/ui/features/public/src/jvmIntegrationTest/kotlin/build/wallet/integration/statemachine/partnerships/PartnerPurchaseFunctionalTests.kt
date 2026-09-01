@@ -1,4 +1,5 @@
 package build.wallet.integration.statemachine.partnerships
+import build.wallet.ui.model.toolbar.inlineTitle
 
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.coroutines.turbine.awaitUntil
@@ -55,7 +56,10 @@ class PartnerPurchaseFunctionalTests : FunSpec({
         }
 
         val body = sheetModel.body.shouldBeInstanceOf<FormBodyModel>()
-        assertEquals("Choose an amount", body.header?.headline ?: body.toolbar?.middleAccessory?.title)
+        assertEquals(
+          "Choose an amount",
+          body.header?.headline ?: body.toolbar?.inlineTitle?.title
+        )
 
         val items = body.mainContentList.first()
           .shouldBeTypeOf<FormMainContentModel.ListGroup>()

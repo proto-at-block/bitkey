@@ -29,7 +29,10 @@ import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
+import build.wallet.feature.flags.SweepKeysetReconciliationFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.ktor.result.HttpError
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.keybox.wallet.KeysetWalletProviderMock
 import build.wallet.money.BitcoinMoney
@@ -203,6 +206,7 @@ class SweepGeneratorImplTests : FunSpec({
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val featureFlagDao = FeatureFlagDaoFake()
   val bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao)
+  val sweepKeysetReconciliationFeatureFlag = SweepKeysetReconciliationFeatureFlag(featureFlagDao)
   val appSpendingWalletProvider = AppSpendingWalletProviderMock(wallets.getValue(activeKeyset.localId))
   val processorMock = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
   val registerWatchAddressProcessor = object :
@@ -221,7 +225,8 @@ class SweepGeneratorImplTests : FunSpec({
     chaincodeDelegationTweakService = chaincodeDelegationTweakService,
     descriptorBackupService = descriptorBackupService,
     appSpendingWalletProvider = appSpendingWalletProvider,
-    bdk2FeatureFlag = bdk2FeatureFlag
+    bdk2FeatureFlag = bdk2FeatureFlag,
+    sweepKeysetReconciliationFeatureFlag = sweepKeysetReconciliationFeatureFlag
   )
 
   beforeEach {
@@ -230,6 +235,9 @@ class SweepGeneratorImplTests : FunSpec({
     chaincodeDelegationTweakService.reset()
     descriptorBackupService.reset()
     featureFlagDao.reset()
+    // Resetting the dao does not clear a flag's in-memory value, so reset explicitly to stop
+    // flag state leaking into subsequent tests.
+    sweepKeysetReconciliationFeatureFlag.setFlagValue(false)
 
     appPrivateKeyDao.reset()
     appPrivateKeyDao.appSpendingKeys[lostHwKeyset1.appKey] = AppSpendingPrivateKey(
@@ -401,6 +409,138 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostHwKeyset2.localId).syncCalls.awaitItem()
   }
 
+  test("backfills legacy keysets missing from an authoritative local keybox") {
+    // Regression: a recovery can write an authoritative keybox that omits a previously active
+    // keyset. Funds left on it were invisible to sweep detection, so no transfer prompt appeared.
+    sweepKeysetReconciliationFeatureFlag.setFlagValue(true)
+    val keyboxMissingLegacyKeyset = activeKeybox.copy(
+      canUseKeyboxKeysets = true,
+      keysets = listOf(activeKeyset)
+    )
+
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = listOf(
+          LegacyRemoteKeyset(
+            keysetId = lostAppKeyset2.f8eSpendingKeyset.keysetId,
+            networkType = lostAppKeyset2.networkType.name,
+            appDescriptor = lostAppKeyset2.appKey.key.dpub,
+            hardwareDescriptor = lostAppKeyset2.hardwareKey.key.dpub,
+            serverDescriptor = lostAppKeyset2.f8eSpendingKeyset.spendingPublicKey.key.dpub
+          )
+        ),
+        wrappedSsek = null,
+        descriptorBackups = emptyList(),
+        activeKeysetId = activeKeyset.f8eSpendingKeyset.keysetId
+      )
+    )
+    wallets.getValue(lostAppKeyset2.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator
+      .generateSweep(keyboxMissingLegacyKeyset, sweepContext = SweepContext.InactiveWallet)
+      .shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.single().sourceKeyset.f8eSpendingKeyset.keysetId
+      .shouldBe(lostAppKeyset2.f8eSpendingKeyset.keysetId)
+
+    processorMock.processBatchCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset2.localId).syncCalls.awaitItem()
+  }
+
+  test("does not backfill the server active keyset when local and server active ids disagree") {
+    // Candidate selection only excludes the *local* active keyset. If the server active keyset were
+    // backfilled while the two disagree, it would be treated as inactive and swept -- moving funds
+    // out of the real active wallet into the stale local one.
+    sweepKeysetReconciliationFeatureFlag.setFlagValue(true)
+    val keyboxWithStaleActive = activeKeybox.copy(
+      canUseKeyboxKeysets = true,
+      keysets = listOf(activeKeyset)
+    )
+
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = listOf(
+          LegacyRemoteKeyset(
+            keysetId = lostAppKeyset2.f8eSpendingKeyset.keysetId,
+            networkType = lostAppKeyset2.networkType.name,
+            appDescriptor = lostAppKeyset2.appKey.key.dpub,
+            hardwareDescriptor = lostAppKeyset2.hardwareKey.key.dpub,
+            serverDescriptor = lostAppKeyset2.f8eSpendingKeyset.spendingPublicKey.key.dpub
+          )
+        ),
+        wrappedSsek = null,
+        descriptorBackups = emptyList(),
+        // Server considers the missing keyset active; local still points at activeKeyset.
+        activeKeysetId = lostAppKeyset2.f8eSpendingKeyset.keysetId
+      )
+    )
+
+    val result = sweepGenerator
+      .generateSweep(keyboxWithStaleActive, sweepContext = SweepContext.InactiveWallet)
+      .shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldBeEmpty()
+  }
+
+  test("falls back to local keysets when f8e reconciliation fails") {
+    // Backfill is best-effort: a listKeysets failure must not break sweep generation for the
+    // local keysets we can already sign for.
+    sweepKeysetReconciliationFeatureFlag.setFlagValue(true)
+    val keyboxWithLostHwKeyset = activeKeybox.copy(
+      canUseKeyboxKeysets = true,
+      keysets = listOf(activeKeyset, lostHwKeyset1)
+    )
+    listKeysetsF8eClient.result = Err(HttpError.NetworkError(Throwable("no network")))
+    wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator
+      .generateSweep(keyboxWithLostHwKeyset, sweepContext = SweepContext.InactiveWallet)
+      .shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.single().sourceKeyset.f8eSpendingKeyset.keysetId
+      .shouldBe(lostHwKeyset1.f8eSpendingKeyset.keysetId)
+
+    processorMock.processBatchCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+  }
+
+  test("does not backfill private keysets missing from local keybox") {
+    // Private keysets cannot be rebuilt from server data (the chaincode never leaves the client),
+    // so they must not be fabricated into the sweep list -- only reported.
+    sweepKeysetReconciliationFeatureFlag.setFlagValue(true)
+    val keyboxMissingPrivateKeyset = activeKeybox.copy(
+      canUseKeyboxKeysets = true,
+      keysets = listOf(activeKeyset)
+    )
+
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = listOf(
+          PrivateMultisigRemoteKeyset(
+            keysetId = "missing-private-keyset",
+            networkType = "SIGNET",
+            appPublicKey = lostAppKeyset2.appKey.key.dpub,
+            hardwarePublicKey = lostAppKeyset2.hardwareKey.key.dpub,
+            serverPublicKey = lostAppKeyset2.f8eSpendingKeyset.spendingPublicKey.key.dpub
+          )
+        ),
+        wrappedSsek = null,
+        descriptorBackups = emptyList(),
+        activeKeysetId = activeKeyset.f8eSpendingKeyset.keysetId
+      )
+    )
+
+    val result = sweepGenerator
+      .generateSweep(keyboxMissingPrivateKeyset, sweepContext = SweepContext.InactiveWallet)
+      .shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldBeEmpty()
+  }
+
   test("no signable keysets - lost both") {
     val keyboxWithLostBothKeyset = activeKeybox.copy(
       keysets = listOf(activeKeyset, lostBothKeyset)
@@ -412,6 +552,8 @@ class SweepGeneratorImplTests : FunSpec({
       sweepGenerator.generateSweep(keyboxWithLostBothKeyset, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
     result.shouldBeEmpty()
   }
+
+
 
   test("some signable keysets") {
     val keyboxWithMixedKeysets = activeKeybox.copy(

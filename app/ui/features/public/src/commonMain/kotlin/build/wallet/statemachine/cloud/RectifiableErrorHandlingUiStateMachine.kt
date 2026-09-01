@@ -18,8 +18,7 @@ data class RectifiableErrorHandlingProps(
   val onReturn: () -> Unit,
   val screenId: CloudEventTrackerScreenId,
   val presentationStyle: ScreenPresentationStyle,
-  // TODO(BKR-1120): Make this non-nullable
-  val errorData: ErrorData?,
+  val errorData: ErrorData,
 )
 
 data class RectifiableErrorMessages(

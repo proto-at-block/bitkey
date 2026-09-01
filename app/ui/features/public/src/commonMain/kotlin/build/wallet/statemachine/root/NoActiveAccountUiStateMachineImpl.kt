@@ -1,6 +1,8 @@
 package build.wallet.statemachine.root
 
 import androidx.compose.runtime.*
+import bitkey.metrics.MetricOutcome
+import bitkey.metrics.MetricTrackerService
 import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
@@ -17,14 +19,19 @@ import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.AgeRangeVerificationFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.mapResult
+import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.Recovery
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.account.ChooseAccountAccessUiProps
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
 import build.wallet.statemachine.core.AgeRestrictedBodyModel
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiProps
@@ -33,12 +40,22 @@ import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecov
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
+import build.wallet.statemachine.root.metrics.AgeRangeVerificationMetricDefinition
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNot
+
+/**
+ * Help Center article explaining the 18+ age requirement for the Bitkey app.
+ *
+ * Per Help Center convention, the app only links bitkey.world URLs which redirect to the
+ * Zendesk-hosted article ("How do I download the Bitkey app to my phone?",
+ * support.bitkey.world article 18827984475924), so URL changes don't require app releases.
+ */
+private const val AGE_REQUIREMENT_HELP_CENTER_URL = "https://bitkey.world/hc/age-requirement"
 
 @BitkeyInject(ActivityScope::class)
 class NoActiveAccountUiStateMachineImpl(
@@ -49,6 +66,10 @@ class NoActiveAccountUiStateMachineImpl(
   private val accountService: AccountService,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val ageRangeVerificationService: AgeRangeVerificationService,
+  private val ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag,
+  private val appVariant: AppVariant,
+  private val metricTrackerService: MetricTrackerService,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val eventTracker: EventTracker,
   private val recoveryStatusService: RecoveryStatusService,
 ) : NoActiveAccountUiStateMachine {
@@ -185,15 +206,56 @@ class NoActiveAccountUiStateMachineImpl(
   ): ScreenModel {
     // Age range verification for App Store Accountability Act compliance (Texas SB2420).
     // Checks platform age signals before allowing account creation.
-    val result by produceState<AgeRangeVerificationResult?>(initialValue = null) {
-      value = ageRangeVerificationService.verifyAgeRange()
+    // Incrementing [verificationAttempt] re-runs the verification (used by "Try again"
+    // on the age restricted screen).
+    var verificationAttempt by remember { mutableStateOf(0) }
+    var showingAgeRestrictedHelp by remember { mutableStateOf(false) }
+    val result by produceState<AgeRangeVerificationResult?>(
+      initialValue = null,
+      key1 = verificationAttempt
+    ) {
+      value = null
+      // Only track the metric when the feature flag is enabled — when disabled, the service
+      // short-circuits to Allowed without performing a real platform age check, which would
+      // otherwise pollute the check-volume metric. The Emergency (EEK) variant also
+      // short-circuits the check, so it is explicitly excluded regardless of the flag.
+      val trackMetric = appVariant != AppVariant.Emergency &&
+        ageRangeVerificationFeatureFlag.isEnabled()
+      val verificationResult = ageRangeVerificationService.verifyAgeRange()
+      // Privacy: denied checks intentionally emit NO metric at all, honoring the design
+      // guarantee of "no tracking of blocked users". Block rate is instead approximated from
+      // AGE_RESTRICTED screen views vs. this metric's volume. We intentionally record the
+      // metric after the result is known: a check that never completes shows up as absent
+      // volume, cross-checked on the dashboard.
+      if (trackMetric && verificationResult == AgeRangeVerificationResult.Allowed) {
+        metricTrackerService.startMetric(AgeRangeVerificationMetricDefinition)
+        metricTrackerService.completeMetric(
+          metricDefinition = AgeRangeVerificationMetricDefinition,
+          outcome = MetricOutcome.Succeeded
+        )
+      }
+      value = verificationResult
+    }
+
+    if (showingAgeRestrictedHelp) {
+      return InAppBrowserModel(
+        open = {
+          inAppBrowserNavigator.open(
+            url = AGE_REQUIREMENT_HELP_CENTER_URL,
+            onClose = { showingAgeRestrictedHelp = false }
+          )
+        }
+      ).asModalScreen()
     }
 
     return when (result) {
       null -> AppLoadingScreenModel()
       AgeRangeVerificationResult.Denied ->
-        AgeRestrictedBodyModel(deviceInfoProvider.getDeviceInfo().devicePlatform)
-          .asRootScreen()
+        AgeRestrictedBodyModel(
+          devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
+          onLearnMore = { showingAgeRestrictedHelp = true },
+          onRetry = { verificationAttempt++ }
+        ).asRootScreen()
       AgeRangeVerificationResult.Allowed ->
         chooseAccountAccessUiStateMachine.model(
           props = ChooseAccountAccessUiProps(

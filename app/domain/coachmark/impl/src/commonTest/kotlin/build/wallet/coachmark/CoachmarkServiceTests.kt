@@ -9,10 +9,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
-import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
-import build.wallet.feature.flags.W3UpgradeBlockerFeatureFlag
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryFake
 import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.onboarding.OnboardingCompletionServiceFake
@@ -33,9 +30,6 @@ class CoachmarkServiceTests :
     val featureFlagDao = FeatureFlagDaoMock()
     val accountService = AccountServiceFake()
     val coachmarksGlobalFlag = CoachmarksGlobalFeatureFlag(featureFlagDao)
-    val bip177FeatureFlag = Bip177FeatureFlag(featureFlagDao)
-    val privateWalletMigrationFeatureFlag = PrivateWalletMigrationFeatureFlag(featureFlagDao)
-    val w3UpgradeBlockerFeatureFlag = W3UpgradeBlockerFeatureFlag(featureFlagDao)
     val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake()
     val bip177CoachmarkEligibilityDao = Bip177CoachmarkEligibilityDaoFake()
     val onboardingCompletionService = OnboardingCompletionServiceFake()
@@ -48,21 +42,16 @@ class CoachmarkServiceTests :
       clock = clock,
       bip177CoachmarkPolicy = Bip177CoachmarkPolicy(
         clock = clock,
-        bip177FeatureFlag = bip177FeatureFlag,
         bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
         bip177CoachmarkEligibilityDao = eligibilityDao,
         onboardingCompletionService = onboardingCompletionService
       ),
-      privateWalletMigrationFeatureFlag = privateWalletMigrationFeatureFlag,
-      w3UpgradeBlockerFeatureFlag = w3UpgradeBlockerFeatureFlag,
       onboardingCompletionService = onboardingCompletionService
     )
 
     beforeTest {
       accountService.setActiveAccount(FullAccountMock)
       bitcoinDisplayPreferenceRepository.setBitcoinDisplayUnit(BitcoinDisplayUnit.Satoshi)
-      bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-      privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       coachmarksGlobalFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
       bip177CoachmarkEligibilityDao.reset()
       onboardingCompletionService.reset()
@@ -83,7 +72,6 @@ class CoachmarkServiceTests :
     }
 
     test("coachmarksToDisplay") {
-      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service
         .coachmarksToDisplay(
           setOf(
@@ -99,7 +87,6 @@ class CoachmarkServiceTests :
     }
 
     test("didDisplayCoachmark") {
-      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service
         .coachmarksToDisplay(setOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark))
         .shouldBe(Ok(listOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)))
@@ -114,7 +101,6 @@ class CoachmarkServiceTests :
     }
 
     test("resetCoachmarks") {
-      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service
         .coachmarksToDisplay(
           setOf(
@@ -159,7 +145,6 @@ class CoachmarkServiceTests :
     }
 
     test("no coachmarks to display for lite accounts") {
-      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       accountService.setActiveAccount(LiteAccountMock)
       service
         .coachmarksToDisplay(
@@ -172,7 +157,6 @@ class CoachmarkServiceTests :
     }
 
     test("don't return expired coachmarks") {
-      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       val coachmarkDao = CoachmarkDaoFake()
       coachmarkDao.insertCoachmark(CoachmarkIdentifier.W3UpgradeBlockerCoachmark, Instant.DISTANT_PAST)
       service = CoachmarkServiceImpl(
@@ -190,7 +174,6 @@ class CoachmarkServiceTests :
     }
 
     test("don't return viewed coachmarks") {
-      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       val coachmarkDao = CoachmarkDaoFake()
       coachmarkDao
         .insertCoachmark(CoachmarkIdentifier.W3UpgradeBlockerCoachmark, Instant.DISTANT_FUTURE)
@@ -222,7 +205,6 @@ class CoachmarkServiceTests :
     }
 
     test("don't return any coachmarks for EEK builds") {
-      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       val eekService = CoachmarkServiceImpl(
         CoachmarkDaoImpl(BitkeyDatabaseProviderImpl(sqlDriver.factory)),
         accountService,
@@ -242,9 +224,9 @@ class CoachmarkServiceTests :
         )
     }
 
-    context("BIP 177 feature flag") {
+    context("BIP 177 coachmark") {
 
-      test("does not create BIP-177 when flag off or unit is BTC") {
+      test("does not create BIP-177 when unit is BTC") {
         accountService.setActiveAccount(FullAccountMock)
         bitcoinDisplayPreferenceRepository.setBitcoinDisplayUnit(BitcoinDisplayUnit.Bitcoin)
         val eligibilityDao = Bip177CoachmarkEligibilityDaoFake()
@@ -269,10 +251,9 @@ class CoachmarkServiceTests :
           .shouldBe(Ok(null))
       }
 
-      test("creates and shows BIP-177 when flag on and unit is sats") {
+      test("creates and shows BIP-177 when unit is sats") {
         accountService.setActiveAccount(FullAccountMock)
         bitcoinDisplayPreferenceRepository.setBitcoinDisplayUnit(BitcoinDisplayUnit.Satoshi)
-        bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
         val eligibilityDao = Bip177CoachmarkEligibilityDaoFake()
 
         val clock = ClockFake()
@@ -305,10 +286,9 @@ class CoachmarkServiceTests :
           )
       }
 
-      test("switching BTC -> sats does not trigger creation when flag was already on") {
+      test("switching BTC -> sats does not trigger creation after eligibility captured") {
         accountService.setActiveAccount(FullAccountMock)
         bitcoinDisplayPreferenceRepository.setBitcoinDisplayUnit(BitcoinDisplayUnit.Bitcoin)
-        bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
         val eligibilityDao = Bip177CoachmarkEligibilityDaoFake()
 
         val clock = ClockFake()
@@ -342,7 +322,6 @@ class CoachmarkServiceTests :
 
       test("coachmark without expiration never expires") {
         accountService.setActiveAccount(FullAccountMock)
-        w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
 
         val clock = ClockFake()
         val coachmarkDao = CoachmarkDaoFake()
@@ -368,37 +347,5 @@ class CoachmarkServiceTests :
           .coachmarksToDisplay(setOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark))
           .shouldBe(Ok(listOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)))
       }
-    }
-
-    test("coachmark expiration timer should not start before feature flag is enabled") {
-      accountService.setActiveAccount(FullAccountMock)
-      bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-
-      val clock = ClockFake()
-      val coachmarkDao = CoachmarkDaoFake()
-      val serviceWithFakeDao = CoachmarkServiceImpl(
-        coachmarkDao,
-        accountService,
-        createVisibilityDecider(clock = clock),
-        coachmarksGlobalFlag,
-        eventTracker,
-        clock,
-        AppVariant.Development
-      )
-
-      serviceWithFakeDao
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.Bip177Coachmark))
-        .shouldBe(Ok(emptyList()))
-
-      coachmarkDao.getCoachmark(CoachmarkIdentifier.Bip177Coachmark)
-        .shouldBe(Ok(null))
-
-      clock.advanceBy(15.days)
-
-      bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
-      serviceWithFakeDao
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.Bip177Coachmark))
-        .shouldBe(Ok(listOf(CoachmarkIdentifier.Bip177Coachmark)))
     }
   })

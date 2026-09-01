@@ -1,6 +1,7 @@
 package build.wallet.f8e.relationships
 
 import build.wallet.bitkey.relationships.*
+import build.wallet.bitkey.relationships.ProtectedCustomerRelationshipStatus.ENDORSED
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.relationships.models.GetRecoveryRelationshipsResponseBody
@@ -48,7 +49,8 @@ class GetRelationshipsF8eClientTests : FunSpec({
               {
                   "recovery_relationship_id": "customer-recovery-relationship-id",
                   "customer_alias": "customer-alias",
-                  "trusted_contact_roles": ["SOCIAL_RECOVERY_CONTACT"]
+                  "trusted_contact_roles": ["SOCIAL_RECOVERY_CONTACT"],
+                  "relationship_status": "ENDORSED"
               }
           ]
       }        
@@ -97,7 +99,8 @@ class GetRelationshipsF8eClientTests : FunSpec({
             ProtectedCustomer(
               id = RelationshipId("customer-recovery-relationship-id"),
               alias = ProtectedCustomerAlias("customer-alias"),
-              roles = setOf(TrustedContactRole.SocialRecoveryContact)
+              roles = setOf(TrustedContactRole.SocialRecoveryContact),
+              relationshipStatus = ENDORSED
             )
           )
       )

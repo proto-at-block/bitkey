@@ -1,0 +1,218 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-tracing",
+    "version": "2026.06.01",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "metadataApiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "non-jvm",
+        "org.gradle.usage": "kotlin-metadata",
+        "org.jetbrains.kotlin.platform.type": "common"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-tracing-metadata-2026.06.01.jar",
+          "url": "trailblaze-tracing-2026.06.01.jar",
+          "size": 759,
+          "sha512": "6accebb0b5e3c2dd7707f88edebd6e15f5842e86260199e770bb3d82e6c54bd984b2d989a0be57f35db699f396d3d1bd15fbd1da2834bd4369561176d17a2308",
+          "sha256": "777d2f59c674ca0e1fe2a11f73b205a9a0387672884da480993af70ed5b66c1b",
+          "sha1": "129a30baf97c707eea7134db1ded23a1b16ba944",
+          "md5": "2fa3e1ab7a1511ca108d2d18dc418330"
+        }
+      ]
+    },
+    {
+      "name": "metadataSourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "non-jvm",
+        "org.gradle.usage": "kotlin-runtime",
+        "org.jetbrains.kotlin.platform.type": "common"
+      },
+      "files": [
+        {
+          "name": "trailblaze-tracing-kotlin-2026.06.01-sources.jar",
+          "url": "trailblaze-tracing-2026.06.01-sources.jar",
+          "size": 5120,
+          "sha512": "a784d4817c02a2c9b3f4ba00ad865d60b1ccbeaf7a7791c958d666ca9c785c72766369e930f574f148b56de809fe28939ee0492aca8e3a94a02c94b7f7880810",
+          "sha256": "c736855a5794948f0967a23a9b9557443c5d3552b32f145d75ae2b07804f9c49",
+          "sha1": "88f155a5e299691e7e0d8a3fe3effb9974b883ac",
+          "md5": "4e585098ffffdb82f8d3c73d683cbb03"
+        }
+      ]
+    },
+    {
+      "name": "debugApiElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-tracing-android-debug/2026.06.01/trailblaze-tracing-android-debug-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-tracing-android-debug",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "debugRuntimeElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-tracing-android-debug/2026.06.01/trailblaze-tracing-android-debug-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-tracing-android-debug",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "debugSourcesElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-tracing-android-debug/2026.06.01/trailblaze-tracing-android-debug-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-tracing-android-debug",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "releaseApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-tracing-android/2026.06.01/trailblaze-tracing-android-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-tracing-android",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "releaseRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-tracing-android/2026.06.01/trailblaze-tracing-android-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-tracing-android",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "releaseSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-tracing-android/2026.06.01/trailblaze-tracing-android-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-tracing-android",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "jvmApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-tracing-jvm/2026.06.01/trailblaze-tracing-jvm-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-tracing-jvm",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "jvmRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-tracing-jvm/2026.06.01/trailblaze-tracing-jvm-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-tracing-jvm",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "jvmSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-tracing-jvm/2026.06.01/trailblaze-tracing-jvm-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-tracing-jvm",
+        "version": "2026.06.01"
+      }
+    }
+  ]
+}

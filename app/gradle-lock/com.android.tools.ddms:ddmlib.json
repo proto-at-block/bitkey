@@ -11,20 +11,8 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[bitkey]"
-            ]
-        },
-        {
-            "version": "31.4.2",
-            "variants": [
-                {
-                    "artifacts": {
-                        "ddmlib-31.4.2.jar": "f98b88cfe0fe729d755f0bf6d5fc21e20f89aea9e630860dc0f75dcbec6fec0b"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
             ]
         }
     ]

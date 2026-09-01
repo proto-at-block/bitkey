@@ -8,6 +8,8 @@ import androidx.compose.ui.layout.Layout
 /**
  * Wrap the [content] Composable size without placing it on screen.
  */
+// Modifier intentionally applies to the measured-but-not-placed inner box.
+@Suppress("ModifierNotUsedAtRoot")
 @Composable
 fun MeasureWithoutPlacement(
   modifier: Modifier = Modifier,

@@ -61,4 +61,47 @@ object SensitiveDataValidator {
       )
     }
   }
+
+  /**
+   * Like [check], but also scans the messages in an associated throwable's cause and
+   * suppressed-exception graph. Exception messages can embed the same sensitive material as
+   * log messages (e.g. an exception message containing an xprv or txid), and Datadog uploads
+   * the full graph, so every message in it must be validated with the same indicators.
+   *
+   * If either the log entry or throwable chain is sensitive, the result is
+   * [SensitiveDataResult.Sensitive] and callers must redact the message/tag *and* drop or
+   * replace the throwable before upload.
+   */
+  fun check(
+    entry: LogEntry,
+    throwable: Throwable?,
+  ): SensitiveDataResult {
+    val results = buildList {
+      add(check(entry))
+
+      val visited = mutableListOf<Throwable>()
+      val pending = mutableListOf<Throwable>()
+      throwable?.let(pending::add)
+      while (pending.isNotEmpty()) {
+        val current = pending.removeAt(pending.lastIndex)
+        if (visited.any { it === current }) continue
+
+        visited += current
+        current.message?.let { message ->
+          add(check(LogEntry(tag = entry.tag, message = message)))
+        }
+        current.cause?.let(pending::add)
+        pending += current.suppressedExceptions
+      }
+    }
+    val violations = results
+      .filterIsInstance<SensitiveDataResult.Sensitive>()
+      .flatMap { it.violations }
+      .distinct()
+
+    return when {
+      violations.isEmpty() -> SensitiveDataResult.NoneFound
+      else -> SensitiveDataResult.Sensitive(violations = violations)
+    }
+  }
 }

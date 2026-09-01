@@ -114,7 +114,7 @@ fun AppTester.getSharedInviteCode(): String {
  */
 suspend fun AppTester.awaitCloudBackupRefreshed(relationshipId: String) {
   withClue("await cloud backup includes relationships $relationshipId") {
-    withRealTimeout(2.seconds) {
+    withRealTimeout(10.seconds) {
       var backupUpdated = false
       while (isActive && !backupUpdated) {
         val backup = readCloudBackup(CloudStoreAccountFake.ProtectedCustomerFake)

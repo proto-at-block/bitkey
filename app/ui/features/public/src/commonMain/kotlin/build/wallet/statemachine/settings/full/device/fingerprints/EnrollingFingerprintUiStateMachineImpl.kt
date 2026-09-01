@@ -17,8 +17,9 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.RequiredSerialOnly
 import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiState.*
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetEnrollmentFailureBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetErrorBodyModel
@@ -60,6 +61,8 @@ class EnrollingFingerprintUiStateMachineImpl(
             onCancel = props.onCancel,
             screenPresentationStyle = ScreenPresentationStyle.Modal,
             shouldLock = false,
+            segment = SettingsAppSegment.Device,
+            actionDescription = "Preparing hardware for fingerprint enrollment",
             eventTrackerContext = NfcEventTrackerScreenIdContext.ENROLLING_NEW_FINGERPRINT
           )
         )
@@ -142,11 +145,19 @@ class EnrollingFingerprintUiStateMachineImpl(
           },
           onCancel = { uiState = ShowingFingerprintInstructionsUiState(isNavigatingBack = true) },
           screenPresentationStyle = ScreenPresentationStyle.Modal,
+          segment = SettingsAppSegment.Device,
+          actionDescription = "Checking fingerprint enrollment status",
           eventTrackerContext = NfcEventTrackerScreenIdContext.CHECKING_FINGERPRINT_ENROLLMENT_STATUS,
           shouldLock = props.context !is EnrollmentContext.FingerprintReset,
           hardwareVerification = when (props.context) {
             EnrollmentContext.AddingFingerprint -> Required()
-            is EnrollmentContext.FingerprintReset -> NotRequired
+            // Not Required(): the device may have locked mid-enrollment, and signChallenge
+            // would fail with 'Device Locked' instead of 'Enrollment incomplete' (W-11930).
+            // Not NotRequired either: Incomplete is a normal return, so a foreign tap here
+            // overwrites the serial cache that this flow's other pairing checks read, which
+            // then rejects the real device and wedges the reset (W-17516). getDeviceInfo works
+            // on a locked device.
+            is EnrollmentContext.FingerprintReset -> RequiredSerialOnly
           }
         )
       )

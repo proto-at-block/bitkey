@@ -10,6 +10,8 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        api(projects.domain.bitkeyPrimitivesPublic)
+        api(projects.domain.f8eClientPublic)
         implementation(projects.domain.cloudBackupPublic)
         implementation(projects.domain.inAppSecurityPublic)
         implementation(projects.domain.inheritancePublic)

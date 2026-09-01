@@ -50,6 +50,14 @@ blox-setup:
 android-emulator *ARGS: blox-setup
   ./scripts/blox/run-emulator.sh --background {{ARGS}}
 
+# Upload an evidence directory via bloxlet and emit a markdown summary (Blox workstations only)
+publish-evidence evidence-dir summary-name="evidence-summary":
+  ./scripts/blox/publish-evidence.sh {{evidence-dir}} {{summary-name}}
+
+# Full verification run: build, emulator, local F8e, trail replays, evidence (Blox workstations only)
+android-emulator-verify *ARGS: blox-setup
+  ./scripts/blox/verify.sh {{ARGS}}
+
 # Verify SqlDelight schemas and migrations
 test-unit-database:
   {{gradle}} verifySqlDelightMigration verifySqlDelightMigrationForeignKeyCheck
@@ -329,7 +337,7 @@ dxdd:
 
 # Generates .db schema for databases
 generate-db-schema:
-  {{gradle}} generateCommonMainBitkeyDatabaseSchema generateCommonMainBitkeyDebugDatabaseSchema
+  {{gradle}} generateCommonMainBitkeyDatabaseSchema
 
 # Verifies validity of the schema and runs migration tests
 verify-db-schema:

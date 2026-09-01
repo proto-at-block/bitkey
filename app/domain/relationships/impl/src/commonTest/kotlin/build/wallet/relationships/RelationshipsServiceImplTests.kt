@@ -9,6 +9,7 @@ import bitkey.f8e.error.code.CreateTrustedContactInvitationErrorCode
 import bitkey.relationships.Relationships
 import build.wallet.account.AccountServiceFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.*
@@ -31,6 +32,7 @@ import build.wallet.sqldelight.InMemorySqlDriverFactory
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -218,6 +220,67 @@ class RelationshipsServiceImplTests : FunSpec({
     }
   }
 
+  test("authenticated placeholder certificate awaits hardware verification") {
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
+    val placeholderCertificate = tcAliceUnverified.keyCertificate.copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+      )
+    )
+    relationshipsCrypto.validCertificates += placeholderCertificate
+    relationshipsF8eFake.endorsedTrustedContacts += tcAliceUnverified.copy(
+      keyCertificate = placeholderCertificate
+    )
+
+    val synced = service.syncAndVerifyRelationships(FullAccountMock).getOrThrow()
+
+    synced.endorsedTrustedContacts.single().apply {
+      authenticationState shouldBe AWAITING_VERIFY
+      needsHwVerification shouldBe true
+    }
+  }
+
+  test("sync preserves trusted contact state when auth keys are unavailable") {
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
+    relationshipsF8eFake.endorsedTrustedContacts += tcAliceVerified
+
+    val synced = service.syncAndVerifyRelationships(
+      accountId = FullAccountMock.accountId,
+      appAuthKey = null,
+      hwAuthPublicKey = null
+    ).getOrThrow()
+
+    synced.endorsedTrustedContacts.single().authenticationState shouldBe VERIFIED
+    dao.relationships().first().getOrThrow()
+      .endorsedTrustedContacts.single().authenticationState shouldBe VERIFIED
+  }
+
+  test("ordinary sync clears stale tampered state when certificate now verifies") {
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
+
+    // Begin with a locally tampered contact.
+    relationshipsCrypto.invalidCertificates += tcAliceUnverified.keyCertificate
+    relationshipsF8eFake.endorsedTrustedContacts += tcAliceUnverified
+    service.syncAndVerifyRelationships(FullAccountMock).getOrThrow()
+    dao.relationships().first().getOrThrow()
+      .endorsedTrustedContacts.single().authenticationState shouldBe TAMPERED
+
+    // A valid certificate should clear the stale state on sync.
+    relationshipsCrypto.invalidCertificates.clear()
+    relationshipsCrypto.validCertificates += tcAliceUnverified.keyCertificate
+    service.syncAndVerifyRelationships(FullAccountMock).getOrThrow()
+
+    dao.relationships()
+      .first { result ->
+        result.getOrThrow().endorsedTrustedContacts.single().authenticationState == VERIFIED
+      }
+      .getOrThrow()
+      .endorsedTrustedContacts.single().authenticationState shouldBe VERIFIED
+  }
+
   test("syncing does not occur while app is in the background") {
     val backgroundScope = createBackgroundScope()
     val service = relationshipsService(backgroundScope)
@@ -241,7 +304,6 @@ class RelationshipsServiceImplTests : FunSpec({
 
       // App is still in background - wait longer than sync frequency to ensure
       // the ticker has fired and been filtered due to background state.
-      // Use a generous timeout to avoid flakiness on slow CI (iOS simulator).
       awaitNoEvents(timeout = syncFrequency * 5)
 
       appSessionManager.appDidEnterForeground()

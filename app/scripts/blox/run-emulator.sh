@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Default values
-DEVICE="29-1080-1920"
+DEVICE="36-1080-1920"
 FORCE_SETUP=false
 BACKGROUND=false
 GOOGLE_APIS=false
@@ -27,12 +27,11 @@ Usage: $(basename "$0") [OPTIONS]
 Launch a headless Android emulator in Blox.
 
 Options:
-  --device DEVICE         Device profile to use (default: 29-1080-1920)
+  --device DEVICE         Device profile to use (default: 36-1080-1920)
   --force-setup           Force AVD recreation even if it already exists
   --background            Run the emulator in the background and wait for boot
-  --google-apis           Use the google_apis system image (needed for flows
-                          that depend on Google Play Services); creates a
-                          separate AVD with a -gapis suffix
+  --google-apis           Use the google_apis system image. This is already
+                          the default for API 36; unsupported for API 29
   --force                 Start even if another emulator is already running.
                           By default the script refuses: two concurrent
                           emulators can saturate a 32Gi workstation
@@ -124,22 +123,23 @@ fi
 API_LEVEL="${DEVICE%%-*}"
 AVD_NAME="blox-${DEVICE}"
 
-# --google-apis swaps in the google_apis image and uses a distinct AVD name so
-# the two AVDs don't collide. Note the image is necessary but NOT sufficient
-# for Google-backed flows (e.g. the legacy cloud-backup recovery Maestro
-# flow): those additionally require a signed-in Google account on the emulator
-# at runtime (the old Maestro CI injected MAESTRO_GOOGLE_LOGIN/PW secrets),
-# which is why the recovery trail is deferred in BKW-92.
-IMAGE_VARIANT="default"
-if [[ "$GOOGLE_APIS" == "true" ]]; then
-  IMAGE_VARIANT="google_apis"
-  AVD_NAME="${AVD_NAME}-gapis"
-fi
-
 # Map device to system image (must be listed in .android-sdk-packages)
 case "$API_LEVEL" in
+  36)
+    # Only the google_apis variant is provisioned for API 36: it is the
+    # primary verification image precisely because its sdk_gphone64 model
+    # string passes the app's isEmulator heuristic (BKW-106). Since this is
+    # already the default, --google-apis must not switch to a separate AVD
+    # with different persisted state.
+    SYSTEM_IMAGE="system-images;android-36;google_apis;x86_64"
+    ;;
   29)
-    SYSTEM_IMAGE="system-images;android-29;${IMAGE_VARIANT};x86_64"
+    if [[ "$GOOGLE_APIS" == "true" ]]; then
+      echo "Error: --google-apis is unsupported for API 29 on Blox." >&2
+      echo "Only system-images;android-29;default;x86_64 is provisioned." >&2
+      exit 1
+    fi
+    SYSTEM_IMAGE="system-images;android-29;default;x86_64"
     ;;
   *)
     echo "Error: Unsupported API level: ${API_LEVEL}"

@@ -47,14 +47,14 @@ fun Banner(
   Box(
     modifier =
       modifier
+        .then(widthModifier)
+        .height(BannerHeight)
+        .background(color = backgroundColor, shape = RoundedCornerShape(24.dp))
         .clickable(
           interactionSource = MutableInteractionSource(),
           indication = null,
           onClick = onClick
         )
-        .then(widthModifier)
-        .height(BannerHeight)
-        .background(color = backgroundColor, shape = RoundedCornerShape(24.dp))
         .padding(horizontal = 16.dp),
     contentAlignment = Alignment.Center
   ) {

@@ -20,7 +20,7 @@ import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.tokens.LabelType
 
@@ -45,7 +45,7 @@ data class VerificationThresholdPickerModel(
         Toolbar(
           model = ToolbarModel(
             leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBack),
-            middleAccessory = ToolbarMiddleAccessoryModel(
+            title = ToolbarTitleModel.Inline(
               title = "Custom amount"
             )
           )

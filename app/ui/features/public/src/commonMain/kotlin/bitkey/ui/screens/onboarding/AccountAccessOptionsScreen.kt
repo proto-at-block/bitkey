@@ -34,7 +34,6 @@ class AccountAccessOptionsScreenPresenter : ScreenPresenter<AccountAccessOptions
       },
       onRecoverFromOrphanedKeysClick = null,
       onResetExistingDevice = null,
-      canShowCustomerSupport = true,
       onCustomerSupportClick = {
         // TODO: implement
       }

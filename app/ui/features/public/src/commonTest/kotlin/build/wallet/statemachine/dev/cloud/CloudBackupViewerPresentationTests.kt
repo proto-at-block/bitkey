@@ -22,7 +22,7 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class CloudBackupViewerPresentationTests : FunSpec({
+class CloudBackupViewerFakeCloudStoragePresentationTests : FunSpec({
   test("fake cloud storage setting is editable only with no account") {
     val unknownAccountStatus: Result<AccountStatus, Error>? = null
 

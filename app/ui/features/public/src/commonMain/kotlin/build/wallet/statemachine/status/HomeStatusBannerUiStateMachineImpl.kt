@@ -43,6 +43,7 @@ class HomeStatusBannerUiStateMachineImpl(
           is AtRiskCause.MissingCloudBackup -> "Add a cloud backup to protect your funds →"
           AtRiskCause.MissingContactMethod -> "Add a contact method to protect your funds →"
           AtRiskCause.ActiveSpendingKeysetMismatch -> "Fix your local data to protect your funds →"
+          AtRiskCause.UnverifiedHardwareSignature -> "Verify with your Bitkey device to protect your funds →"
         }
 
         val bannerType = when (val cause = (fundsLostRisk as FundsLostRiskLevel.AtRisk).cause) {
@@ -52,6 +53,7 @@ class HomeStatusBannerUiStateMachineImpl(
             problemWithBackup = cause.problem
           )
           AtRiskCause.ActiveSpendingKeysetMismatch -> SpendingKeysetMismatch
+          AtRiskCause.UnverifiedHardwareSignature -> UnverifiedHardwareSignature
         }
 
         StatusBannerModel(

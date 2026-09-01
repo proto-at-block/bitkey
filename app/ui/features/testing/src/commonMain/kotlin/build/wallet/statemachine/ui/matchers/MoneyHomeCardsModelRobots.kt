@@ -2,6 +2,7 @@ package build.wallet.statemachine.ui.matchers
 
 import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.statemachine.moneyhome.card.titleString
 import io.kotest.assertions.asClue
 
 /**
@@ -10,7 +11,7 @@ import io.kotest.assertions.asClue
 fun CardListModel.shouldHaveCard(title: String): CardModel {
   return asClue {
     cards.single {
-      it.title?.string == title
+      it.titleString == title
     }
   }
 }

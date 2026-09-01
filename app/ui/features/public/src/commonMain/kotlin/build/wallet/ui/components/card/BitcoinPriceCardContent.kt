@@ -25,7 +25,7 @@ import bitkey.ui.framework_public.generated.resources.*
 import build.wallet.pricechart.ChartRange
 import build.wallet.pricechart.ui.PriceChart
 import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
+import build.wallet.statemachine.moneyhome.card.CardModel.BitcoinPrice
 import build.wallet.ui.components.label.AnimatedAmount
 import build.wallet.ui.components.label.AnimatedAmountAutoResizedLabel
 import build.wallet.ui.components.label.Label

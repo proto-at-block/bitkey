@@ -12,6 +12,9 @@ enum class SecurityHubEventTrackerScreenId : EventTrackerScreenId {
   /** Education modal for fingerprints in security hub */
   SECURITY_HUB_EDUCATION_FINGERPRINTS,
 
+  /** Education modal for provisioning the app key to hardware in security hub */
+  SECURITY_HUB_EDUCATION_PROVISION_APP_KEY,
+
   /** Education modal for social recovery in security hub */
   SECURITY_HUB_EDUCATION_SOCIAL_RECOVERY,
 
@@ -20,4 +23,7 @@ enum class SecurityHubEventTrackerScreenId : EventTrackerScreenId {
 
   /** Education modal for transaction verification in security hub */
   SECURITY_HUB_EDUCATION_TRANSACTION_VERIFICATION,
+
+  /** Delay & notify period configuration screen */
+  SECURITY_HUB_DELAY_NOTIFY_PERIOD,
 }

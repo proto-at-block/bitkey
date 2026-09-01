@@ -33,6 +33,20 @@ class SpendingKeysetSyncActionTests : FunSpec({
     )
   }
 
+  test("returns no recommendation when status is IncompleteKeysetListUnrecoverable") {
+    // The repair flow cannot resolve these keysets, so recommending it would produce a prompt the
+    // customer can never clear. Deliberate: this is the loop the status was introduced to stop.
+    val action = SpendingKeysetSyncAction(
+      syncStatus = SpendingKeysetSyncStatus.IncompleteKeysetListUnrecoverable(
+        activeKeysetId = "active-keyset-id",
+        missingKeysetIds = setOf("unrecoverable-keyset-id")
+      )
+    )
+
+    action.getRecommendations().shouldBeEmpty()
+    action.state().shouldBe(SecurityActionState.Secure)
+  }
+
   test("returns REPAIR_KEYSET_MISMATCH recommendation when status is IncompleteKeysetList") {
     val action = SpendingKeysetSyncAction(
       syncStatus = SpendingKeysetSyncStatus.IncompleteKeysetList(

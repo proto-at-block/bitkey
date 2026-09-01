@@ -37,7 +37,7 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
@@ -64,7 +64,7 @@ fun DebugMenuScreen(
       model =
         ToolbarModel(
           leadingAccessory = BackAccessory(onClick = model.onBack),
-          middleAccessory = ToolbarMiddleAccessoryModel(model.title)
+          title = ToolbarTitleModel.Inline(model.title)
         )
     )
 

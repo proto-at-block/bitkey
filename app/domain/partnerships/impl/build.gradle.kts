@@ -29,6 +29,7 @@ kotlin {
         implementation(projects.libs.platformFake)
         implementation(projects.libs.timeFake)
         implementation(projects.libs.testingPublic)
+        implementation(projects.libs.moneyFake)
         implementation(projects.domain.walletFake)
       }
     }

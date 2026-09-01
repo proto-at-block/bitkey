@@ -48,7 +48,6 @@ import kotlinx.collections.immutable.ImmutableList
  * @property primaryButton: The primary button in the footer area of the screen.
  * @property secondaryButton: Optional secondary button shown above the primary button.
  * @property tertiaryButton: Optional tertiary button shown below the primary button.
- * @property keepScreenOn: Prevent screen dimming from inactivity.
  * @property renderContext [RenderContext]: how the model will be displayed to the user, defaults to
  * [Screen]
  * @property eventTrackerShouldTrack: whether the screen event should be tracked for analytics
@@ -64,16 +63,13 @@ open class FormBodyModel(
   open val primaryButton: ButtonModel?,
   open val secondaryButton: ButtonModel? = null,
   open val tertiaryButton: ButtonModel? = null,
-  open val keepScreenOn: Boolean = false,
   open val renderContext: RenderContext = Screen,
   open val eventTrackerContext: EventTrackerContext? = null,
   open val eventTrackerShouldTrack: Boolean = true,
   open val errorData: ErrorData? = null,
-  open val formScreenTitle: FormScreenTitleModel? = null,
   open val formScreenLayout: FormScreenLayoutModel = FormScreenLayoutModel.Legacy,
   open val headerToMainContentSpacing: Int? = null,
-  open val footerRevealDelayMillis: Int = 0,
-  open val preFooterContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
+  open val preFooterContentList: ImmutableList<FormPreFooterContentModel> = emptyImmutableList(),
 ) : BodyModel(), AutomaticUiTests {
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?
     get() =
@@ -141,7 +137,6 @@ fun formBodyModel(
   primaryButton: ButtonModel?,
   secondaryButton: ButtonModel? = null,
   tertiaryButton: ButtonModel? = null,
-  keepScreenOn: Boolean = false,
   renderContext: RenderContext = Screen,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
@@ -156,7 +151,6 @@ fun formBodyModel(
     primaryButton = primaryButton,
     secondaryButton = secondaryButton,
     tertiaryButton = tertiaryButton,
-    keepScreenOn = keepScreenOn,
     renderContext = renderContext,
     eventTrackerContext = eventTrackerContext,
     eventTrackerShouldTrack = eventTrackerShouldTrack,
@@ -179,16 +173,13 @@ private data class FormBodyModelImpl(
   override val primaryButton: ButtonModel?,
   override val secondaryButton: ButtonModel? = null,
   override val tertiaryButton: ButtonModel? = null,
-  override val keepScreenOn: Boolean = false,
   override val renderContext: RenderContext = Screen,
   override val eventTrackerContext: EventTrackerContext? = null,
   override val eventTrackerShouldTrack: Boolean = true,
   override val errorData: ErrorData? = null,
-  override val formScreenTitle: FormScreenTitleModel? = null,
   override val formScreenLayout: FormScreenLayoutModel = FormScreenLayoutModel.Legacy,
   override val headerToMainContentSpacing: Int? = null,
-  override val footerRevealDelayMillis: Int = 0,
-  override val preFooterContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
+  override val preFooterContentList: ImmutableList<FormPreFooterContentModel> = emptyImmutableList(),
 ) : FormBodyModel(
     id = id,
     onBack = onBack,
@@ -198,14 +189,11 @@ private data class FormBodyModelImpl(
     primaryButton = primaryButton,
     secondaryButton = secondaryButton,
     tertiaryButton = tertiaryButton,
-    keepScreenOn = keepScreenOn,
     renderContext = renderContext,
     eventTrackerContext = eventTrackerContext,
     eventTrackerShouldTrack = eventTrackerShouldTrack,
     errorData = errorData,
-    formScreenTitle = formScreenTitle,
     formScreenLayout = formScreenLayout,
     headerToMainContentSpacing = headerToMainContentSpacing,
-    footerRevealDelayMillis = footerRevealDelayMillis,
     preFooterContentList = preFooterContentList
   )

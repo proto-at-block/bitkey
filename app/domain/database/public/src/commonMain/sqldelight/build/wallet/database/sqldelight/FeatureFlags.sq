@@ -1,0 +1,21 @@
+getAllFlags:
+SELECT
+  featureFlagId,
+  value AS booleanValue,
+  NULL AS doubleValue,
+  NULL AS stringValue
+FROM booleanFeatureFlagEntity
+UNION ALL
+SELECT
+  featureFlagId,
+  NULL AS booleanValue,
+  value AS doubleValue,
+  NULL AS stringValue
+FROM doubleFeatureFlagEntity
+UNION ALL
+SELECT
+  featureFlagId,
+  NULL AS booleanValue,
+  NULL AS doubleValue,
+  value AS stringValue
+FROM stringFeatureFlagEntity;

@@ -256,6 +256,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitUntil { it is AwaitingProofOfPossessionForCancellationData }.let {
         it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
+        it.authTokens?.accessToken.shouldBe(AccessToken("fake-access-token"))
         it.addProof(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")))
       }
 

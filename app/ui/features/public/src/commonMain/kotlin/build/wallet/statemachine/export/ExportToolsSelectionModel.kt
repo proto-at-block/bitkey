@@ -13,7 +13,7 @@ import build.wallet.ui.model.list.ListGroupStyle.DIVIDER
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 data class ExportToolsSelectionModel(
@@ -24,7 +24,7 @@ data class ExportToolsSelectionModel(
     onBack = onBack,
     toolbar = ToolbarModel(
       leadingAccessory = CloseAccessory(onBack),
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Exports")
+      title = ToolbarTitleModel.Inline(title = "Exports")
     ),
     mainContentList = immutableListOf(
       ListGroup(

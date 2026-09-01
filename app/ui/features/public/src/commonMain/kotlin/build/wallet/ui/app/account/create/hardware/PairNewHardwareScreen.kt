@@ -62,7 +62,7 @@ fun PairNewHardwareScreen(
   var videoView: VideoPlayerHandler? by remember { mutableStateOf(null) }
   val showsHeroImage = model.heroImageContent != null
 
-  var videoAlpha: Float by remember { mutableStateOf(0.0f) }
+  var videoAlpha by remember { mutableFloatStateOf(0.0f) }
 
   /**
    * 500ms after the screen has appeared, fade in the video. This prevents flickering of videos

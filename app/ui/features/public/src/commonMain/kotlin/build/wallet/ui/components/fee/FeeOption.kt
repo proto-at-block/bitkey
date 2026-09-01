@@ -26,7 +26,6 @@ import build.wallet.ui.tokens.LabelType
 
 @Composable
 fun FeeOption(
-  modifier: Modifier = Modifier,
   leadingText: String,
   trailingPrimaryText: String,
   trailingSecondaryText: String,
@@ -34,6 +33,7 @@ fun FeeOption(
   enabled: Boolean,
   infoText: String?,
   onClick: (() -> Unit)?,
+  modifier: Modifier = Modifier,
 ) {
   Box(
     modifier =

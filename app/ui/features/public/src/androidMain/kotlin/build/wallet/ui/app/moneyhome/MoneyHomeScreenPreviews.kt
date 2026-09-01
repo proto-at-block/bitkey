@@ -456,45 +456,39 @@ fun MoneyHomeScreenFullNewWalletGettingStartedNoActivity() {
         cardsModel = CardListModel(
           cards =
             immutableListOf(
-              CardModel(
-                title = null,
-                content = CardModel.CardContent.BitcoinPrice(
-                  isLoading = false,
-                  price = "$90,000.00",
-                  priceChange = "10.00% today",
-                  priceDirection = PriceDirection.UP,
-                  lastUpdated = "Updated 12:00am",
-                  data =
-                    immutableListOf(
-                      DataPoint(1L, 90_000.0),
-                      DataPoint(2L, 90_500.0),
-                      DataPoint(3L, 90_250.0),
-                      DataPoint(4L, 90_750.0),
-                      DataPoint(5L, 90_600.0),
-                      DataPoint(6L, 91_000.0),
-                      DataPoint(7L, 90_900.0),
-                      DataPoint(8L, 91_250.0),
-                      DataPoint(9L, 91_100.0),
-                      DataPoint(10L, 91_400.0)
-                    )
-                ),
-                style = CardModel.CardStyle.Outline()
-              ),
-              GettingStartedCardModel(
-                animations = null,
-                taskModels =
+              CardModel.BitcoinPrice(
+                isLoading = false,
+                price = "$90,000.00",
+                priceChange = "10.00% today",
+                priceDirection = PriceDirection.UP,
+                data =
                   immutableListOf(
-                    GettingStartedTaskRowModel(
-                      task = GettingStartedTask(AddBitcoin, Incomplete),
-                      isEnabled = true,
-                      onClick = {}
-                    ),
-                    GettingStartedTaskRowModel(
-                      task = GettingStartedTask(EnableSpendingLimit, Incomplete),
-                      isEnabled = true,
-                      onClick = {}
-                    )
+                    DataPoint(1L, 90_000.0),
+                    DataPoint(2L, 90_500.0),
+                    DataPoint(3L, 90_250.0),
+                    DataPoint(4L, 90_750.0),
+                    DataPoint(5L, 90_600.0),
+                    DataPoint(6L, 91_000.0),
+                    DataPoint(7L, 90_900.0),
+                    DataPoint(8L, 91_250.0),
+                    DataPoint(9L, 91_100.0),
+                    DataPoint(10L, 91_400.0)
                   )
+              )
+            )
+        ),
+        gettingStartedSection = GettingStartedCardModel(
+          taskModels =
+            immutableListOf(
+              GettingStartedTaskRowModel(
+                task = GettingStartedTask(AddBitcoin, Incomplete),
+                isEnabled = true,
+                onClick = {}
+              ),
+              GettingStartedTaskRowModel(
+                task = GettingStartedTask(EnableSpendingLimit, Incomplete),
+                isEnabled = true,
+                onClick = {}
               )
             )
         ),

@@ -5,11 +5,16 @@ import bitkey.securitycenter.SecurityActionsService
 import build.wallet.activity.TransactionActivityOperations
 import build.wallet.activity.TransactionsActivityService
 import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME_RELOADING_WALLET_HISTORY
+import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME_RELOADING_WALLET_HISTORY_FAILED
 import build.wallet.analytics.v1.Action
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitcoin.transactions.BitcoinWalletService
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.Failed
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.NotRequired
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.Syncing
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.coachmark.CoachmarkIdentifier
@@ -19,8 +24,6 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.home.GettingStartedTask
@@ -32,6 +35,11 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
+import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
@@ -40,6 +48,7 @@ import build.wallet.statemachine.limit.MobilePayOnboardingScreenModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.money.amount.toAnimatedAmountAnimationKey
 import build.wallet.statemachine.money.amount.toAnimatedAmountValue
+import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
 import build.wallet.statemachine.moneyhome.card.CardListModel
@@ -47,6 +56,8 @@ import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsUiStateMachine
 import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
+import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachine
+import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedSectionModel
 import build.wallet.statemachine.moneyhome.card.inheritance.InheritanceCardUiProps
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
@@ -71,8 +82,8 @@ import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactProps
 import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiStateMachine
 import build.wallet.statemachine.walletmigration.W3UpgradeCompleteSheetModel
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
@@ -80,7 +91,6 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.statemachine.core.Icon
 import build.wallet.wallet.migration.MigrationProgress
 import build.wallet.wallet.migration.MigrationService
 import build.wallet.wallet.migration.MigrationType
@@ -100,6 +110,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val moneyHomeCardsUiStateMachine: MoneyHomeCardsUiStateMachine,
+  private val gettingStartedCardUiStateMachine: GettingStartedCardUiStateMachine,
   private val transactionsActivityUiStateMachine: TransactionsActivityUiStateMachine,
   private val viewingInvitationUiStateMachine: ViewingInvitationUiStateMachine,
   private val viewingRecoveryContactUiStateMachine: ViewingRecoveryContactUiStateMachine,
@@ -114,12 +125,29 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val refreshExecutor: RefreshExecutor,
   private val partnerTransferLinkUiStateMachine: PartnerTransferLinkUiStateMachine,
   private val migrationService: MigrationService,
-  private val bip177FeatureFlag: Bip177FeatureFlag,
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
+    val initialSyncStatus = remember { bitcoinWalletService.initialSyncStatus() }
+      .collectAsState()
+      .value
+
+    when (initialSyncStatus) {
+      NotRequired -> Unit
+      Syncing -> return reloadingWalletHistoryModel(props)
+      is Failed -> return reloadWalletHistoryFailedModel(
+        status = initialSyncStatus,
+        props = props,
+        onRetry = {
+          scope.launch {
+            bitcoinWalletService.sync()
+          }
+        }
+      )
+    }
+
     if (props.state.isRefreshing) {
       LaunchedEffect("refresh-transactions") {
         refreshMoneyHomeData()
@@ -147,9 +175,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         }
     }
 
-    val isBip177Enabled by remember {
-      bip177FeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = bip177FeatureFlag.isEnabled())
     val bitcoinDisplayUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
 
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
@@ -158,7 +183,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     LaunchedEffect(
       "coachmarks",
       coachmarkDisplayed,
-      isBip177Enabled,
       bitcoinDisplayUnit,
       transactionsData != null
     ) {
@@ -206,7 +230,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           balanceModel = createBalanceModel(transactionsData),
           cardsModel = MoneyHomeCardsModel(
             props = props,
-            appFunctionalityStatus = appFunctionalityStatus,
+            appFunctionalityStatus = appFunctionalityStatus
+          ),
+          gettingStartedSection = GettingStartedSectionLoaderModel(
+            props = props,
             onShowAlert = { alertModel = it },
             onDismissAlert = { alertModel = null }
           ),
@@ -278,6 +305,51 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private suspend fun refreshMoneyHomeData() {
     refreshExecutor.runRefreshOperations(TransactionActivityOperations)
     transactionsActivityService.sync()
+  }
+
+  private fun reloadingWalletHistoryModel(props: MoneyHomeViewingBalanceUiProps) =
+    LoadingSuccessBodyModel(
+      id = MONEY_HOME_RELOADING_WALLET_HISTORY,
+      state = LoadingSuccessBodyModel.State.Loading,
+      message = "Updating your wallet",
+      description = "Bitkey was updated and needs to reload your transaction history. Keep the app open until this finishes."
+    ).asRootScreen(statusBannerModel = props.homeStatusBannerModel)
+
+  private fun reloadWalletHistoryFailedModel(
+    status: Failed,
+    props: MoneyHomeViewingBalanceUiProps,
+    onRetry: () -> Unit,
+  ) = ErrorFormBodyModel(
+    title = "We couldn't update your wallet",
+    subline = "Bitkey needs to finish reloading your transaction history before showing your wallet. Keep the app open and try again.",
+    primaryButton = ButtonDataModel(
+      text = "Retry",
+      onClick = onRetry
+    ),
+    secondaryButton = ButtonDataModel(
+      text = "Contact support",
+      onClick = props.onContactSupport
+    ),
+    eventTrackerScreenId = MONEY_HOME_RELOADING_WALLET_HISTORY_FAILED,
+    errorData = ErrorData(
+      segment = MoneyHomeAppSegment.InitialWalletSync,
+      actionDescription = "Reloading wallet history",
+      cause = status.cause.redactedForInitialSyncErrorData()
+    )
+  ).asRootScreen(statusBannerModel = props.homeStatusBannerModel)
+
+  private fun Throwable.redactedForInitialSyncErrorData(): Throwable =
+    RuntimeException("Initial wallet sync failed: ${typeChain()}")
+
+  private companion object {
+    private const val MAX_ERROR_CAUSE_DEPTH = 5
+
+    private fun Throwable.typeChain(): String =
+      generateSequence(this) { it.cause }
+        .take(MAX_ERROR_CAUSE_DEPTH)
+        .joinToString(separator = " caused by ") { cause ->
+          cause::class.simpleName ?: "Unknown"
+        }
   }
 
   private fun createBalanceModel(
@@ -451,44 +523,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private fun MoneyHomeCardsModel(
     props: MoneyHomeViewingBalanceUiProps,
     appFunctionalityStatus: AppFunctionalityStatus,
-    onShowAlert: (ButtonAlertModel) -> Unit,
-    onDismissAlert: () -> Unit,
   ): CardListModel {
-    val firmwareUpdateState = remember { firmwareDataService.firmwareData() }
-      .collectAsState()
-      .value
-      .firmwareUpdateState
-
     return moneyHomeCardsUiStateMachine.model(
       props =
         MoneyHomeCardsProps(
-          gettingStartedCardUiProps =
-            GettingStartedCardUiProps(
-              onAddBitcoin = {
-                props.setState(
-                  ViewingBalanceUiState(
-                    bottomSheetDisplayState = Partners(
-                      initialState = AddBitcoinBottomSheetDisplayState.ShowingPurchaseOrTransferUiState
-                    )
-                  )
-                )
-              },
-              onEnableSpendingLimit = {
-                props.setState(
-                  ViewingBalanceUiState(bottomSheetDisplayState = MobilePay(skipped = false))
-                )
-              },
-              onUpdateFirmware = {
-                (firmwareUpdateState as? FirmwareData.FirmwareUpdateState.PendingUpdate)?.let {
-                    pendingUpdate ->
-                  props.setState(FwupFlowUiState(pendingUpdate))
-                }
-              },
-              showUpdateFirmwareTile =
-                firmwareUpdateState is FirmwareData.FirmwareUpdateState.PendingUpdate,
-              onShowAlert = onShowAlert,
-              onDismissAlert = onDismissAlert
-            ),
           startSweepCardUiProps = StartSweepCardUiProps(
             onStartSweepClicked = props.onStartSweepFlow
           ),
@@ -500,6 +538,46 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           ),
           inheritanceCardUiProps = inheritanceCardUiProps(props)
         )
+    )
+  }
+
+  @Composable
+  private fun GettingStartedSectionLoaderModel(
+    props: MoneyHomeViewingBalanceUiProps,
+    onShowAlert: (ButtonAlertModel) -> Unit,
+    onDismissAlert: () -> Unit,
+  ): GettingStartedSectionModel? {
+    val firmwareUpdateState = remember { firmwareDataService.firmwareData() }
+      .collectAsState()
+      .value
+      .firmwareUpdateState
+
+    return gettingStartedCardUiStateMachine.model(
+      props = GettingStartedCardUiProps(
+        onAddBitcoin = {
+          props.setState(
+            ViewingBalanceUiState(
+              bottomSheetDisplayState = Partners(
+                initialState = AddBitcoinBottomSheetDisplayState.ShowingPurchaseOrTransferUiState
+              )
+            )
+          )
+        },
+        onEnableSpendingLimit = {
+          props.setState(
+            ViewingBalanceUiState(bottomSheetDisplayState = MobilePay(skipped = false))
+          )
+        },
+        onUpdateFirmware = {
+          (firmwareUpdateState as? FirmwareData.FirmwareUpdateState.PendingUpdate)?.let {
+              pendingUpdate ->
+            props.setState(FwupFlowUiState(pendingUpdate))
+          }
+        },
+        showUpdateFirmwareTile = firmwareUpdateState is FirmwareData.FirmwareUpdateState.PendingUpdate,
+        onShowAlert = onShowAlert,
+        onDismissAlert = onDismissAlert
+      )
     )
   }
 

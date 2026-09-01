@@ -1,5 +1,6 @@
 import build.wallet.crypto.PublicKey;
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias;
+import build.wallet.bitkey.relationships.ProtectedCustomerRelationshipStatus;
 import build.wallet.bitkey.relationships.TrustedContactAlias;
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState;
 import build.wallet.bitkey.relationships.TrustedContactEnrollmentPakeKey;
@@ -21,7 +22,13 @@ CREATE TABLE protectedCustomerEntity(
   rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   relationshipId          TEXT UNIQUE NOT NULL,
   alias                   TEXT AS ProtectedCustomerAlias NOT NULL,
-  roles                   TEXT AS Set<TrustedContactRole> NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT'
+  roles                   TEXT AS Set<TrustedContactRole> NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT',
+  -- Fail-safe default: if a future insert path omits this column, hide "Help with Recovery"
+  -- rather than falsely claim the contact is active. Note this intentionally differs from the
+  -- domain-level default of ENDORSED on `ProtectedCustomer`, which exists to preserve legacy
+  -- behavior when the API response omits `relationship_status`. The two defaults live on
+  -- non-overlapping paths: `insertProtectedCustomer` always binds this column explicitly.
+  relationshipStatus      TEXT AS ProtectedCustomerRelationshipStatus NOT NULL DEFAULT 'UNENDORSED'
 );
 
 CREATE TABLE trustedContactInvitationEntity(
@@ -64,8 +71,8 @@ SELECT * FROM trustedContactEntity
 ORDER BY relationshipId;
 
 insertProtectedCustomer:
-INSERT OR REPLACE INTO protectedCustomerEntity(relationshipId, alias, roles)
-VALUES(?, ?, ?);
+INSERT OR REPLACE INTO protectedCustomerEntity(relationshipId, alias, roles, relationshipStatus)
+VALUES(?, ?, ?, ?);
 
 getProtectedCustomers:
 SELECT * FROM protectedCustomerEntity
@@ -117,4 +124,3 @@ clear {
   DELETE FROM trustedContactInvitationEntity;
   DELETE FROM unendorsedTrustedContactEntity;
 }
-

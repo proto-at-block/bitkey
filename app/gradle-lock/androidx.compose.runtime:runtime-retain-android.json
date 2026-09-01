@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-retain-android",
+    "components": [
+        {
+            "version": "1.10.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-retain.aar": "fd03f002bd47edf80902e62cafb660bc1d93800fc6a7c9bcc16e620e46c4b86f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

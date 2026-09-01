@@ -2,6 +2,8 @@ package build.wallet.bitcoin.transactions
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.NotRequired
 import build.wallet.time.someInstant
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -15,18 +17,23 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
   private val defaultBroadcastTransactionId: (Psbt) -> String = { it.id }
 
   val transactionsData = MutableStateFlow<TransactionsData?>(null)
+  val initialSyncStatus = MutableStateFlow<WalletInitialSyncStatus>(NotRequired)
+  var syncCalls = 0
   var spendingWallet = MutableStateFlow<SpendingWallet?>(null)
   var syncResult: Result<Unit, Error> = Ok(Unit)
 
   override fun spendingWallet() = spendingWallet
 
   override suspend fun sync(): Result<Unit, Error> {
+    syncCalls += 1
     return syncResult.onSuccess {
       spendingWallet.value?.sync()
     }
   }
 
   override fun transactionsData() = transactionsData
+
+  override fun initialSyncStatus() = initialSyncStatus
 
   fun setTransactions(transactions: List<BitcoinTransaction>) {
     transactionsData.update {
@@ -70,6 +77,8 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
 
   fun reset() {
     transactionsData.value = null
+    initialSyncStatus.value = NotRequired
+    syncCalls = 0
     broadcastError = null
     broadcastTransactionId = defaultBroadcastTransactionId
     broadcastedPsbts.value = emptyList()

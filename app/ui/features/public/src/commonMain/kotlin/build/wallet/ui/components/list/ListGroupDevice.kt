@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.button.Button
-import build.wallet.ui.components.card.Card
+import build.wallet.ui.components.card.CardContainer
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.layout.Divider
@@ -45,17 +45,17 @@ fun ListGroupDevice(
   modifier: Modifier = Modifier,
   collapseContent: Boolean = false,
 ) {
-  Column {
+  Column(modifier) {
     when (model.style) {
       CARD_ITEM -> CardListGroup(model)
-      DIVIDER -> RegularListGroup(model, modifier, showsDivider = true) {
+      DIVIDER -> RegularListGroup(model, showsDivider = true) {
         ListItem(model = it, collapseContent = collapseContent)
       }
-      NONE -> RegularListGroup(model, modifier, showsDivider = false) {
+      NONE -> RegularListGroup(model, showsDivider = false) {
         ListItem(model = it, collapseContent = collapseContent)
       }
       CARD_GROUP, CARD_GROUP_DIVIDER ->
-        Card {
+        CardContainer {
           RegularListGroup(
             model = model,
             showsDivider = model.style == CARD_GROUP_DIVIDER,
@@ -111,7 +111,7 @@ private fun FixedColumnCardListGroup(
         contentAlignment = Alignment.Center,
         modifier = Modifier.padding(8.dp)
       ) {
-        Card(
+        CardContainer(
           modifier =
             Modifier
               .height(cardHeight.dp)
@@ -142,7 +142,7 @@ private fun CardListGroup(model: ListGroupModel) {
       ListSectionHeader(title = header, treatment = model.headerTreatment)
     }
     model.items.forEachIndexed { index, item ->
-      Card(backgroundColor = Color.Black.copy(alpha = 0.03f)) {
+      CardContainer(backgroundColor = Color.Black.copy(alpha = 0.03f)) {
         ListItem(model = item)
       }
 

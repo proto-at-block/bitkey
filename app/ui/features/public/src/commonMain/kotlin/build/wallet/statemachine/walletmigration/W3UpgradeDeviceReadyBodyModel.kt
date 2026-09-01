@@ -6,7 +6,7 @@ import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -24,16 +24,14 @@ data class W3UpgradeDeviceReadyBodyModel(
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_DEVICE_READY,
     onBack = onBack,
-    toolbar = onBack?.let {
-      ToolbarModel(
-        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(
-          onClick = onBack
-        )
+    toolbar = ToolbarModel(
+      leadingAccessory = onBack?.let {
+        ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClick = onBack)
+      },
+      title = ToolbarTitleModel.Large(
+        eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
+        title = "Do you have a new Bitkey device ready?"
       )
-    },
-    formScreenTitle = FormScreenTitleModel(
-      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
-      title = "Do you have a new Bitkey device ready?"
     ),
     formScreenLayout = FormScreenLayoutModel.LargeTitle(scrollable = false),
     header = FormHeaderModel(

@@ -5,6 +5,7 @@ import bitkey.account.HardwareType
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import bitkey.recovery.InitiateDelayNotifyRecoveryError.*
+import bitkey.securitycenter.DelayNotifyConfigurationService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext.HW_RECOVERY
@@ -19,16 +20,12 @@ import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-
-
 import build.wallet.recovery.CancelDelayNotifyRecoveryError
 import build.wallet.recovery.LostHardwareRecoveryService
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps.Request.Ready
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
 import build.wallet.statemachine.account.create.full.hardware.PairingContext
-
-
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.HardwarePresenceProps
 import build.wallet.statemachine.nfc.HardwarePresenceUiStateMachine
@@ -56,12 +53,16 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
   private val recoveryNotificationVerificationUiStateMachine:
     RecoveryNotificationVerificationUiStateMachine,
   private val hardwarePresenceUiStateMachine: HardwarePresenceUiStateMachine,
+  private val delayNotifyConfigurationService: DelayNotifyConfigurationService,
   private val lostHardwareRecoveryService: LostHardwareRecoveryService,
   private val minimumLoadingDuration: MinimumLoadingDuration,
 ) : InitiatingLostHardwareRecoveryUiStateMachine {
   @Composable
   override fun model(props: InitiatingLostHardwareRecoveryProps): ScreenModel {
     var state: UiState by remember { mutableStateOf(GeneratingNewAppKeys) }
+    val delayPeriodDays: Int? by remember(props.account) {
+      delayNotifyConfigurationService.delayNotifyPeriod(props.account)
+    }.collectAsState(initial = null)
 
     return when (val currentState = state) {
       is AskingNewHardwareReadyQuestionState -> NewDeviceReadyQuestionModel(
@@ -263,14 +264,16 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
         onContinue = {
           state = AskingNewHardwareReadyQuestionState(currentState.newAppKeys)
         },
-        onClose = props.onExit
+        onClose = props.onExit,
+        delayPeriodDays = delayPeriodDays
       ).asScreen(props.screenPresentationStyle)
       is VerifyingFoundHardwareState -> hardwarePresenceUiStateMachine.model(
         HardwarePresenceProps(
           onSuccess = { currentState.onSuccess() },
-          onFailure = { currentState.onBack() },
           onCancel = currentState.onBack,
           screenPresentationStyle = props.screenPresentationStyle,
+          segment = RecoverySegment.DelayAndNotify.LostHardware.Cancellation,
+          actionDescription = "Verifying found hardware to cancel lost hardware recovery",
           eventTrackerContext = NfcEventTrackerScreenIdContext.HW_DELAY_NOTIFY_VERIFY_FOUND_HARDWARE
         )
       )

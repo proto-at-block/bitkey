@@ -22,8 +22,6 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.collectIsEnabledAsState
-import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
@@ -46,6 +44,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.settings.full.device.AboutDeviceSheetModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
@@ -95,7 +94,6 @@ class DeviceSettingsScreenPresenter(
   private val clock: Clock,
   private val w3UpgradeUiStateMachine: W3UpgradeUiStateMachine,
   private val accountConfigService: AccountConfigService,
-  private val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
 ) : ScreenPresenter<DeviceSettingsScreen> {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -132,8 +130,6 @@ class DeviceSettingsScreenPresenter(
     // hides immediately after a W3 upgrade completes (without needing an app restart).
     val accountConfig by remember { accountConfigService.activeOrDefaultConfig() }.collectAsState()
     val activeHardwareType = (accountConfig as? FullAccountConfig)?.hardwareType
-
-    val isW3OnboardingEnabled by w3OnboardingFeatureFlag.collectIsEnabledAsState()
 
     return when (val state = uiState) {
       is ViewingDeviceDataUiState -> {
@@ -255,11 +251,7 @@ class DeviceSettingsScreenPresenter(
           activeHardwareType = activeHardwareType,
           goToNfcMetadata = { leaveDeviceSettings(DeviceSettingsExitAction.SyncMetadata) },
           onExitDeviceSettings = ::leaveDeviceSettings,
-          onUpgradeDevice = if (activeHardwareType == HardwareType.W3 || !isW3OnboardingEnabled) {
-            null
-          } else {
-            { leaveDeviceSettings(DeviceSettingsExitAction.UpgradeDevice) }
-          },
+          onUpgradeDevice = { leaveDeviceSettings(DeviceSettingsExitAction.UpgradeDevice) },
           replaceDeviceEnabled = replaceDeviceEnabled,
           firmwareData = firmwareData,
           showRealtimeMedia = state.showRealtimeMedia,
@@ -349,6 +341,8 @@ class DeviceSettingsScreenPresenter(
             hardwareVerification = NotRequired,
             shouldLock = false,
             screenPresentationStyle = Modal,
+            segment = SettingsAppSegment.Device,
+            actionDescription = "Syncing firmware metadata from device",
             eventTrackerContext = METADATA
           )
         )
@@ -556,7 +550,9 @@ class DeviceSettingsScreenPresenter(
           onBack = onBack,
           onShowAboutSheet = onShowAboutSheet,
           onManageFingerprints = onManageFingerprints,
-          onUpgradeDevice = onUpgradeDevice
+          onUpgradeDevice = onUpgradeDevice.takeUnless {
+            (activeHardwareType ?: modelData.hardwareType) == HardwareType.W3
+          }
         )
       },
       presentationStyle = Root

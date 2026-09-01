@@ -3,7 +3,6 @@ package build.wallet.integration.statemachine.create
 import bitkey.account.HardwareType
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP
-import build.wallet.feature.setFlagValue
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.statemachine.account.ChooseAccountAccessModel
@@ -42,7 +41,6 @@ class W3OnboardingFunctionalTests : FunSpec({
         PermissionStatus.Authorized
       )
       accountConfigService.setHardwareType(HardwareType.W3).getOrThrow()
-      w3OnboardingFeatureFlag.setFlagValue(true)
     }
   }
 
@@ -50,7 +48,6 @@ class W3OnboardingFunctionalTests : FunSpec({
     test("email success automatically advances to SMS when SMS visible") {
       val app = launchNewApp()
       app.prepareApp()
-      app.usSmsFeatureFlag.setFlagValue(true) // Ensure SMS is shown
 
       app.appUiStateMachine.test(
         Unit,
@@ -72,7 +69,6 @@ class W3OnboardingFunctionalTests : FunSpec({
     test("full sequential flow: email -> SMS -> push -> transactions") {
       val app = launchNewApp()
       app.prepareApp()
-      app.usSmsFeatureFlag.setFlagValue(true)
 
       app.appUiStateMachine.test(
         Unit,
@@ -95,10 +91,9 @@ class W3OnboardingFunctionalTests : FunSpec({
       }
     }
 
-    test("email success skips SMS and shows push page when SMS is hidden") {
+    test("email success shows SMS, which can be skipped to the push page") {
       val app = launchNewApp()
       app.prepareApp()
-      app.usSmsFeatureFlag.setFlagValue(false) // SMS hidden
       app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
         PermissionStatus.NotDetermined
       )
@@ -113,6 +108,9 @@ class W3OnboardingFunctionalTests : FunSpec({
 
         advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
 
+        awaitUntilBody<PhoneNumberInputBodyModel> {
+          clickSecondaryButton() // "Skip"
+        }
         awaitUntilBody<RecoveryNotificationsSetupFormBodyModel>()
 
         cancelAndIgnoreRemainingEvents()
@@ -124,7 +122,6 @@ class W3OnboardingFunctionalTests : FunSpec({
     test("SMS skip button advances to push setup page") {
       val app = launchNewApp()
       app.prepareApp()
-      app.usSmsFeatureFlag.setFlagValue(true) // Ensure SMS is visible
       // Use NotDetermined push status so push setup page is shown
       app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
         PermissionStatus.NotDetermined
@@ -156,7 +153,6 @@ class W3OnboardingFunctionalTests : FunSpec({
     test("push setup back button returns to SMS when SMS shown") {
       val app = launchNewApp()
       app.prepareApp()
-      app.usSmsFeatureFlag.setFlagValue(true)
       app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
         PermissionStatus.NotDetermined
       )
@@ -189,7 +185,6 @@ class W3OnboardingFunctionalTests : FunSpec({
     test("push setup skip button advances to transactions") {
       val app = launchNewApp()
       app.prepareApp()
-      app.usSmsFeatureFlag.setFlagValue(false) // Skip SMS
       app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
         PermissionStatus.NotDetermined
       )
@@ -203,6 +198,10 @@ class W3OnboardingFunctionalTests : FunSpec({
         advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
 
         advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
+
+        awaitUntilBody<PhoneNumberInputBodyModel> {
+          clickSecondaryButton() // "Skip"
+        }
 
         // Push setup page shown (push not determined)
         awaitUntilBody<RecoveryNotificationsSetupFormBodyModel> {
@@ -273,7 +272,6 @@ class W3OnboardingFunctionalTests : FunSpec({
     test("push already authorized skips fullscreen page and goes to transactions") {
       val app = launchNewApp()
       app.prepareApp() // Sets push to Authorized
-      app.usSmsFeatureFlag.setFlagValue(true)
 
       app.appUiStateMachine.test(
         Unit,

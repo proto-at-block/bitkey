@@ -22,8 +22,6 @@ import build.wallet.database.sqldelight.PendingPrivilegedActionsEntity
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.PrivilegedActionProof
-import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
@@ -60,7 +58,6 @@ class TxVerificationServiceImpl(
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val bitkeyDatabaseProvider: BitkeyDatabaseProvider,
-  private val bip177FeatureFlag: Bip177FeatureFlag,
 ) : TxVerificationService {
   override fun getCurrentThreshold(): Flow<Result<VerificationThreshold?, Error>> {
     return flow {
@@ -96,7 +93,6 @@ class TxVerificationServiceImpl(
     val fullAccount = accountService.getAccount<FullAccount>()
       .logFailure { "Update Threshold cannot be called without full account." }
       .getOrElse { return Err(Error("Account not available")) }
-    val useBip177 = bip177FeatureFlag.isEnabled()
 
     return policyClient.requestAction(
       f8eEnvironment = fullAccount.config.f8eEnvironment,
@@ -105,7 +101,7 @@ class TxVerificationServiceImpl(
         threshold = policy.threshold,
         amountBtc = amountBtc,
         proof = proof,
-        useBip177 = useBip177
+        useBip177 = true
       )
     ).mapError {
       Error("Error updating policy threshold: ${it::class.simpleName}", it)
@@ -188,15 +184,13 @@ class TxVerificationServiceImpl(
         .bind()
       val btcPreference = bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.value
       val fiatPreference = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value
-      val useBip177 = bip177FeatureFlag.isEnabled()
-
       val createResponse = verificationClient.createVerificationRequest(
         f8eEnvironment = account.config.f8eEnvironment,
         fullAccountId = account.accountId,
         psbt = psbt,
         fiatCurrency = fiatPreference,
         bitcoinDisplayUnit = btcPreference,
-        useBip177 = useBip177,
+        useBip177 = true,
         keysetId = account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
       ).logFailure { "Failed to create verification request" }.bind()
 
@@ -240,15 +234,13 @@ class TxVerificationServiceImpl(
         .bind()
       val btcPreference = bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.value
       val fiatPreference = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value
-      val useBip177 = bip177FeatureFlag.isEnabled()
-
       verificationClient.requestGrant(
         f8eEnvironment = account.config.f8eEnvironment,
         fullAccountId = account.accountId,
         psbt = psbt,
         fiatCurrency = fiatPreference,
         bitcoinDisplayUnit = btcPreference,
-        useBip177 = useBip177,
+        useBip177 = true,
         keysetId = account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
       ).bind()
     }

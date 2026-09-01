@@ -269,7 +269,7 @@ data class SocialRecoveryExplanationModel(
               leadingAccessory = ListItemAccessory.CircularCharacterAccessory(character = '2'),
               leadingAccessoryAlignment = ListItemAccessoryAlignment.TOP,
               title = "Pair a new Bitkey device",
-              secondaryText = "Once paired you’ll have a 7-day security waiting period. You can cancel this process anytime and continue using your existing Bitkey device."
+              secondaryText = "Once paired, your recovery will be protected by a security waiting period. You can cancel this process anytime and continue using your existing Bitkey device."
             )
           ),
           style = ListGroupStyle.NONE

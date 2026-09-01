@@ -1,39 +1,81 @@
 import DatadogTrace
+import Foundation
 import Shared
 
 class DatadogSpanImpl: DatadogSpan {
+    private var _resourceName: String?
+
     var resourceName: String? {
-        didSet {
-            if let name = resourceName {
-                span.setOperationName(name)
+        get {
+            mutationQueue.sync {
+                _resourceName
+            }
+        }
+        set {
+            guard let name = newValue else {
+                mutationQueue.sync {
+                    _resourceName = nil
+                }
+                return
+            }
+
+            let copiedName = copiedString(name)
+            mutationQueue.sync {
+                _resourceName = copiedName
+                span.setOperationName(copiedName)
             }
         }
     }
 
-    let span: OTSpan
+    var context: OTSpanContext {
+        mutationQueue.sync {
+            span.context
+        }
+    }
+
+    private let mutationQueue = DispatchQueue(label: "world.bitkey.datadog-span")
+    private let span: OTSpan
 
     init(span: OTSpan) {
         self.span = span
     }
 
     func setTag(key: String, value: String) {
-        span.setTag(key: key, value: value)
+        let copiedKey = copiedString(key)
+        let copiedValue = copiedString(value)
+        mutationQueue.sync {
+            span.setTag(key: copiedKey, value: copiedValue)
+        }
     }
 
     func finish() {
-        span.finish()
+        mutationQueue.sync {
+            span.finish()
+        }
     }
 
     func finish(cause: KotlinThrowable) {
-        span.setError(
-            kind: cause.description,
-            message: cause.message ?? "",
-            stack: KotlinArrayIterator(cause.getStackTrace()).map { $0 as String }
-                .joined(separator: "\n"),
-            file: ""
+        let kind = copiedString(cause.description)
+        let message = copiedString(cause.message ?? "")
+        let stack = copiedString(
+            KotlinArrayIterator(cause.getStackTrace()).map { $0 as String }
+                .joined(separator: "\n")
         )
 
-        span.finish()
+        mutationQueue.sync {
+            span.setError(
+                kind: kind,
+                message: message,
+                stack: stack,
+                file: ""
+            )
+
+            span.finish()
+        }
+    }
+
+    private func copiedString(_ string: String) -> String {
+        String(decoding: string.utf8, as: UTF8.self)
     }
 }
 

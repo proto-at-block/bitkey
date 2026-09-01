@@ -16,8 +16,6 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.auth.PrivilegedActionProof
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
@@ -52,7 +50,6 @@ class TxVerificationServiceTest : FunSpec({
   val currencyConverter = CurrencyConverterFake()
   val verificationClient = TxVerificationF8eClientFake()
   val bitkeyDatabaseProvider = BitkeyDatabaseProviderImpl(inMemorySqlDriver().factory, TestScope())
-  val bip177FeatureFlag = Bip177FeatureFlag(FeatureFlagDaoFake())
   val service = TxVerificationServiceImpl(
     txVerificationDao = dao,
     policyClient = f8eClient,
@@ -61,8 +58,7 @@ class TxVerificationServiceTest : FunSpec({
     currencyConverter = currencyConverter,
     bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake(),
     fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryFake(),
-    bitkeyDatabaseProvider = bitkeyDatabaseProvider,
-    bip177FeatureFlag = bip177FeatureFlag
+    bitkeyDatabaseProvider = bitkeyDatabaseProvider
   )
 
   beforeTest {

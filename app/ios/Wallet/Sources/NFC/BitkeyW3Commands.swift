@@ -1836,6 +1836,7 @@ private extension Shared.ActionProofAction {
         case .sendRecoveryVerificationCode: return "SendRecoveryVerificationCode"
         case .verifyRecoveryVerificationCode: return "VerifyRecoveryVerificationCode"
         case .rotateAppAuthKeys: return "RotateAppAuthKeys"
+        case .setDelayNotifyPeriod: return "SetDelayNotifyPeriod"
         default: fatalError("Unknown ActionProofAction: \(self.name)")
         }
     }

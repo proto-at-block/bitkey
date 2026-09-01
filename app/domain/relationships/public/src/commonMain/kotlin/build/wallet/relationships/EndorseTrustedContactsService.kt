@@ -23,5 +23,6 @@ interface EndorseTrustedContactsService {
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     newHwAuthKey: HwAuthPublicKey = oldHwAuthKey,
+    allowW3OnboardingPlaceholder: Boolean = false,
   ): Result<Unit, Error>
 }

@@ -52,6 +52,7 @@ class CreateKeyboxUiStateMachineImpl(
             request = PairNewHardwareProps.Request.Preparing,
             screenPresentationStyle = RootFullScreen,
             onExit = props.onExit,
+            segment = OnboardingAppSegment.FullAccount,
             eventTrackerContext = ACCOUNT_CREATION,
             pairingContext = PairingContext.Onboarding
           )
@@ -72,6 +73,7 @@ class CreateKeyboxUiStateMachineImpl(
             ),
             screenPresentationStyle = Root,
             onExit = props.onExit,
+            segment = OnboardingAppSegment.FullAccount,
             eventTrackerContext = ACCOUNT_CREATION,
             pairingContext = PairingContext.Onboarding
           )

@@ -3,6 +3,7 @@ package build.wallet.statemachine.recovery.socrec.view
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.relationships.ProtectedCustomerFake
+import build.wallet.bitkey.relationships.UnendorsedProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.auth.PrivilegedActionProof
@@ -21,6 +22,7 @@ import build.wallet.time.ClockFake
 import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -58,6 +60,23 @@ class ViewingProtectedCustomerUiStateMachineImplTests : FunSpec({
     onHelpWithRecovery = { onHelpWithRecoveryCalls.add(Unit) },
     onExit = { onExitCalls.add(Unit) }
   )
+
+  val pendingCustomerProps = ViewingProtectedCustomerProps(
+    account = LiteAccountMock,
+    screenModel = screenModel,
+    protectedCustomer = UnendorsedProtectedCustomerFake,
+    onHelpWithRecovery = { onHelpWithRecoveryCalls.add(Unit) },
+    onExit = { onExitCalls.add(Unit) }
+  )
+
+  test("Pending protected customer cannot start recovery help") {
+    stateMachine.test(pendingCustomerProps) {
+      awaitUntilSheet<FormBodyModel> {
+        primaryButton.shouldBeNull()
+        secondaryButton.shouldNotBeNull()
+      }
+    }
+  }
 
   test("Lite Account TC removes self without hardware auth") {
     stateMachine.test(liteAccountProps) {

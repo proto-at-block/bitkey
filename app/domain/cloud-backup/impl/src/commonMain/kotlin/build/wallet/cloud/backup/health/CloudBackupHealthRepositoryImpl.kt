@@ -12,9 +12,7 @@ import build.wallet.cloud.backup.CloudBackupOperationLock
 import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
-import build.wallet.cloud.backup.JsonSerializer
 import build.wallet.cloud.backup.local.CloudBackupDao
-import build.wallet.cloud.backup.v2.FullAccountFields
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
@@ -22,8 +20,6 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.emergencyexitkit.EmergencyExitKitRepository
 import build.wallet.feature.flags.CloudBackupForceReuploadTimestampFeatureFlag
-import build.wallet.feature.flags.CloudBackupHealthLoggingFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
@@ -49,16 +45,14 @@ class CloudBackupHealthRepositoryImpl(
   private val fullAccountCloudBackupRepairer: FullAccountCloudBackupRepairer,
   private val appFunctionalityService: AppFunctionalityService,
   private val jsonSerializer: JsonSerializer,
-  private val cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
   private val cloudBackupForceReuploadTimestampFeatureFlag:
     CloudBackupForceReuploadTimestampFeatureFlag,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val cloudBackupOperationLock: CloudBackupOperationLock,
 ) : CloudBackupHealthRepository {
   companion object {
-    // Cloud storage (e.g., iCloud NSUbiquitousKeyValueStore) typically has a 1MB limit
-    private const val CLOUD_BACKUP_SIZE_WARNING_BYTES = 900_000
     private const val CLOUD_BACKUP_SIZE_LIMIT_BYTES = 1_000_000
+
   }
 
   private val appKeyBackupStatus = MutableStateFlow<AppKeyBackupStatus?>(null)
@@ -72,12 +66,6 @@ class CloudBackupHealthRepositoryImpl(
   override fun eekBackupStatus(): StateFlow<EekBackupStatus?> {
     return eekBackupStatus
   }
-
-  /**
-   * Cache for backup size calculation to avoid re-serializing on every health check.
-   * Maps backup hashCode to calculated size.
-   */
-  private val backupSizeCache = mutableMapOf<Int, Int>()
 
   override suspend fun performSync(
     accountId: FullAccountId,
@@ -168,11 +156,95 @@ class CloudBackupHealthRepositoryImpl(
       return AppKeyBackupStatus.ProblemWithBackup.BackupMissing
     }
 
-    // Check for backup size issues
+    checkAndFixAppGlobalAuthKeySignature(cloudAccount, localCloudBackup, accountId, keybox)
+      ?.let { return it }
+
     checkAndFixBackupSize(localCloudBackup, accountId, keybox)?.let { return it }
 
-    // Compare local and cloud backups
     return compareLocalAndCloudBackups(cloudAccount, localCloudBackup)
+  }
+
+  /**
+   * Checks the local backup's app global auth key hw signature against the active keybox,
+   * so that flows relying on the backup (e.g. descriptor backup) don't use stale key material.
+   *
+   * Repairs only the unambiguous case: the backup holds a sentinel/placeholder signature while
+   * the keybox holds a real one. The backup is regenerated, persisted, and marked
+   * [AppKeyBackupStatus.ProblemWithBackup.StaleBackup] so the repairer re-uploads it. Any other
+   * mismatch (keybox sentinel, hardware type change, real-vs-real) is a transient state owned
+   * by a recovery/migration/rotation flow and is left alone.
+   */
+  private suspend fun checkAndFixAppGlobalAuthKeySignature(
+    cloudAccount: CloudStoreAccount,
+    localCloudBackup: CloudBackup,
+    accountId: FullAccountId,
+    keybox: Keybox,
+  ): AppKeyBackupStatus? {
+    val fullAccountFields = when (localCloudBackup) {
+      is CloudBackupV2 -> localCloudBackup.fullAccountFields
+      is CloudBackupV3 -> localCloudBackup.fullAccountFields
+    }
+      // Not a full account backup - nothing to check.
+      ?: return null
+
+    if (keybox.appGlobalAuthKeyHwSignature.isPlaceholder) {
+      // Keybox has no real hardware signature yet; don't regenerate from an incomplete keybox.
+      return null
+    }
+
+    if (fullAccountFields.hardwareType != keybox.config.hardwareType) {
+      // Backup belongs to different hardware (mid-upgrade); its sealed CSEK can't be reused.
+      return null
+    }
+
+    if (fullAccountFields.appGlobalAuthKeyHwSignature == keybox.appGlobalAuthKeyHwSignature) {
+      return null
+    }
+
+    if (!fullAccountFields.appGlobalAuthKeyHwSignature.isPlaceholder) {
+      // Two real but different signatures, e.g. mid auth key rotation; the rotation flow
+      // refreshes the backup itself.
+      logWarn {
+        "App key backup hw signature does not match active keybox - leaving for owning flow to refresh"
+      }
+      return null
+    }
+
+    // Confirm the active cloud backup belongs to this account before reporting StaleBackup;
+    // the repairer's StaleBackup path uploads unconditionally, which would bypass the
+    // account-ID guard that the InvalidBackup path applies for shared cloud accounts.
+    val activeCloudBackup = cloudBackupService.readActiveBackup(cloudAccount)
+      .logFailure { "Failed to confirm active cloud backup ownership" }
+      .getOrElse {
+        return AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
+      }
+    val cloudOwnershipConfirmed =
+      activeCloudBackup == null || activeCloudBackup.accountId == accountId.serverId
+    if (!cloudOwnershipConfirmed) {
+      // Fall through to compareLocalAndCloudBackups, which reports the mismatch as
+      // InvalidBackup/NoCloudAccess for manual resolution.
+      return null
+    }
+
+    logWarn {
+      "App key backup has placeholder hw signature - regenerating and marking as stale"
+    }
+
+    val fixedBackup = fullAccountCloudBackupCreator.create(
+      keybox = keybox,
+      sealedCsek = fullAccountFields.sealedHwEncryptionKey
+    ).logFailure { "Failed to regenerate cloud backup after hw signature mismatch" }
+      .get()
+      ?: return AppKeyBackupStatus.ProblemWithBackup.PlaceholderSignatureRepairFailed
+
+    // Only report stale once the fix is persisted; the repairer uploads whatever backup is in
+    // the DAO, so reporting stale earlier would re-upload the known-stale backup.
+    return cloudBackupDao.set(accountId.serverId, fixedBackup)
+      .logFailure { "Failed to persist regenerated cloud backup" }
+      .fold(
+        success = { AppKeyBackupStatus.ProblemWithBackup.StaleBackup },
+        failure = { AppKeyBackupStatus.ProblemWithBackup.PlaceholderSignatureRepairFailed }
+      )
   }
 
   private suspend fun checkAndFixBackupSize(
@@ -180,42 +252,44 @@ class CloudBackupHealthRepositoryImpl(
     accountId: FullAccountId,
     keybox: Keybox,
   ): AppKeyBackupStatus? {
-    val localBackupSize = getBackupSizeBytes(localCloudBackup)
-
-    if (localBackupSize >= CLOUD_BACKUP_SIZE_WARNING_BYTES && cloudBackupHealthLoggingFeatureFlag.isEnabled()) {
-      logWarn { "Backup approaching 1MB: ${localBackupSize}b. ${getFieldSizeSummary(localCloudBackup)}" }
-      if (localBackupSize >= CLOUD_BACKUP_SIZE_LIMIT_BYTES && localCloudBackup.isFullAccount()) {
-        // We've exceeded the limit due to INC-7289; overwrite the local cache with the correct backup
-        // and report a mismatch
-        val sealedCsek = when (localCloudBackup) {
-          is CloudBackupV2 -> checkNotNull(localCloudBackup.fullAccountFields) {
-            "Full account backup is missing full account fields"
-          }.sealedHwEncryptionKey
-          is CloudBackupV3 -> checkNotNull(localCloudBackup.fullAccountFields) {
-            "Full account backup is missing full account fields"
-          }.sealedHwEncryptionKey
-        }
-        val fixedBackup = fullAccountCloudBackupCreator.create(
-          keybox = keybox,
-          sealedCsek = sealedCsek
-        ).logFailure { "Failed to create fixed cloud backup" }
-          .get()
-        if (fixedBackup != null) {
-          cloudBackupDao.set(accountId.serverId, fixedBackup)
-          logInfo { "App key backup status check: backup exceeded size limit - fixed and marked as stale" }
-          return AppKeyBackupStatus.ProblemWithBackup.StaleBackup
-        }
-      }
+    if (!localCloudBackup.isFullAccount() || getBackupSizeBytes(localCloudBackup) < CLOUD_BACKUP_SIZE_LIMIT_BYTES) {
+      return null
     }
-    return null
+
+    val sealedCsek = when (localCloudBackup) {
+      is CloudBackupV2 -> localCloudBackup.fullAccountFields?.sealedHwEncryptionKey
+      is CloudBackupV3 -> localCloudBackup.fullAccountFields?.sealedHwEncryptionKey
+    } ?: return null
+
+    val fixedBackup = fullAccountCloudBackupCreator.create(
+      keybox = keybox,
+      sealedCsek = sealedCsek
+    ).logFailure { "Failed to create fixed cloud backup" }
+      .get()
+      ?: return null
+
+    cloudBackupDao.set(accountId.serverId, fixedBackup)
+    logInfo { "App key backup status check: backup exceeded size limit - fixed and marked as stale" }
+    return AppKeyBackupStatus.ProblemWithBackup.StaleBackup
+  }
+
+  private fun getBackupSizeBytes(backup: CloudBackup): Int {
+    val jsonResult = when (backup) {
+      is CloudBackupV2 -> jsonSerializer.encodeToStringResult(backup)
+      is CloudBackupV3 -> jsonSerializer.encodeToStringResult(backup)
+    }
+    return jsonResult
+      .map { it.encodeToByteArray().size }
+      .getOrElse {
+        logWarn(throwable = it) { "Failed to calculate backup size" }
+        -1
+      }
   }
 
   private suspend fun compareLocalAndCloudBackups(
     cloudAccount: CloudStoreAccount,
     localCloudBackup: CloudBackup,
   ): AppKeyBackupStatus {
-    val localBackupSize = getBackupSizeBytes(localCloudBackup)
-
     return cloudBackupService
       .readActiveBackup(cloudAccount)
       .fold(
@@ -227,17 +301,6 @@ class CloudBackupHealthRepositoryImpl(
             }
             else -> {
               if (cloudBackup != localCloudBackup) {
-                if (cloudBackupHealthLoggingFeatureFlag.isEnabled()) {
-                  val cloudBackupSize = getBackupSizeBytes(cloudBackup)
-                  logWarn {
-                    "Backup mismatch. Local: ${localBackupSize}b (${localCloudBackup.hashCode()}), Cloud: ${cloudBackupSize}b (${cloudBackup.hashCode()}). ${
-                      getDiffSummary(
-                        localCloudBackup,
-                        cloudBackup
-                      )
-                    }"
-                  }
-                }
                 logInfo { "App key backup status check: backup mismatch detected" }
                 AppKeyBackupStatus.ProblemWithBackup.InvalidBackup(cloudBackup)
               } else {
@@ -338,92 +401,4 @@ class CloudBackupHealthRepositoryImpl(
       )
   }
 
-  private fun getBackupSizeBytes(backup: CloudBackup): Int {
-    val hash = backup.hashCode()
-    backupSizeCache[hash]?.let { return it }
-
-    val jsonResult = when (backup) {
-      is CloudBackupV3 -> jsonSerializer.encodeToStringResult(backup)
-      is CloudBackupV2 -> jsonSerializer.encodeToStringResult(backup)
-    }
-
-    return jsonResult
-      .map { jsonString ->
-        val size = jsonString.encodeToByteArray().size
-        backupSizeCache[hash] = size
-        size
-      }
-      .getOrElse {
-        logWarn(throwable = it) { "Failed to calculate backup size: $it" }
-        -1
-      }
-  }
-
-  private fun getFieldSizeSummary(backup: CloudBackup): String {
-    val fields = when (backup) {
-      is CloudBackupV3 -> backup.fullAccountFields
-      is CloudBackupV2 -> backup.fullAccountFields
-    }
-    val dekSize = fields?.socRecSealedDekMap?.let {
-      jsonSerializer.encodeToStringResult(it).map { json ->
-        json.encodeToByteArray().size
-      }.getOrElse { 0 }
-    } ?: 0
-    val hwSize = fields?.hwFullAccountKeysCiphertext?.let {
-      jsonSerializer.encodeToStringResult(it).map { json ->
-        json.encodeToByteArray().size
-      }.getOrElse { 0 }
-    } ?: 0
-    val socRecSize = fields?.socRecSealedFullAccountKeys?.let {
-      jsonSerializer.encodeToStringResult(it).map { json ->
-        json.encodeToByteArray().size
-      }.getOrElse { 0 }
-    } ?: 0
-    return "dek=${dekSize}b, hw=${hwSize}b, socRec=${socRecSize}b"
-  }
-
-  @Suppress("CyclomaticComplexMethod")
-  private fun getDiffSummary(
-    local: CloudBackup,
-    cloud: CloudBackup,
-  ): String {
-    val diffs = mutableListOf<String>()
-    if (local::class != cloud::class) return "version"
-
-    when {
-      local is CloudBackupV3 && cloud is CloudBackupV3 -> {
-        if (local.accountId != cloud.accountId) diffs += "accountId"
-        if (local.f8eEnvironment != cloud.f8eEnvironment) diffs += "f8eEnv"
-        if (local.delegatedDecryptionKeypair != cloud.delegatedDecryptionKeypair) diffs += "ddkp"
-        if (local.appRecoveryAuthKeypair != cloud.appRecoveryAuthKeypair) diffs += "recoveryAuth"
-        if (local.deviceNickname != cloud.deviceNickname) diffs += "deviceNickname"
-        if (local.createdAt != cloud.createdAt) diffs += "createdAt"
-        diffs += getFullAccountFieldsDiff(local.fullAccountFields, cloud.fullAccountFields)
-      }
-      local is CloudBackupV2 && cloud is CloudBackupV2 -> {
-        if (local.accountId != cloud.accountId) diffs += "accountId"
-        if (local.f8eEnvironment != cloud.f8eEnvironment) diffs += "f8eEnv"
-        if (local.delegatedDecryptionKeypair != cloud.delegatedDecryptionKeypair) diffs += "ddkp"
-        if (local.appRecoveryAuthKeypair != cloud.appRecoveryAuthKeypair) diffs += "recoveryAuth"
-        diffs += getFullAccountFieldsDiff(local.fullAccountFields, cloud.fullAccountFields)
-      }
-    }
-    return if (diffs.isEmpty()) "unknown" else diffs.joinToString(",")
-  }
-
-  private fun getFullAccountFieldsDiff(
-    local: FullAccountFields?,
-    cloud: FullAccountFields?,
-  ): List<String> {
-    if (local == null && cloud == null) return emptyList()
-    if (local == null || cloud == null) return listOf("fullAcct")
-    val diffs = mutableListOf<String>()
-    if (local.sealedHwEncryptionKey != cloud.sealedHwEncryptionKey) diffs += "hwEncKey"
-    if (local.socRecSealedDekMap != cloud.socRecSealedDekMap) diffs += "dekMap"
-    if (local.hwFullAccountKeysCiphertext != cloud.hwFullAccountKeysCiphertext) diffs += "hwKeys"
-    if (local.socRecSealedFullAccountKeys != cloud.socRecSealedFullAccountKeys) diffs += "socRecKeys"
-    if (local.rotationAppRecoveryAuthKeypair != cloud.rotationAppRecoveryAuthKeypair) diffs += "rotationAuth"
-    if (local.appGlobalAuthKeyHwSignature != cloud.appGlobalAuthKeyHwSignature) diffs += "hwSig"
-    return diffs
-  }
 }

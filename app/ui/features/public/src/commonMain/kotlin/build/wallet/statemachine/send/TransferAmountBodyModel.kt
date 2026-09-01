@@ -6,7 +6,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
-import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.statemachine.send.amountentry.SmartBarModel
 import build.wallet.ui.app.send.TransferAmountScreen
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.LabelTreatment.Secondary
@@ -14,7 +14,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import dev.zacsweers.redacted.annotations.Redacted
 
@@ -25,7 +25,7 @@ data class TransferAmountBodyModel(
   val amountModel: MoneyAmountEntryModel,
   val keypadModel: KeypadModel,
   val primaryButton: ButtonModel,
-  val cardModel: CardModel?,
+  val smartBarModel: SmartBarModel?,
   val amountDisabled: Boolean,
   val amountContextLineTreatment: LabelTreatment = Secondary,
   val shouldTriggerContextualErrorFeedback: Boolean = false,
@@ -39,7 +39,7 @@ data class TransferAmountBodyModel(
     balanceTitle: String,
     amountModel: MoneyAmountEntryModel,
     keypadModel: KeypadModel,
-    cardModel: CardModel?,
+    smartBarModel: SmartBarModel?,
     continueButtonEnabled: Boolean,
     amountDisabled: Boolean,
     amountContextLineTreatment: LabelTreatment = Secondary,
@@ -52,8 +52,8 @@ data class TransferAmountBodyModel(
     toolbar =
       ToolbarModel(
         leadingAccessory = BackAccessory(onClick = onBack),
-        middleAccessory =
-          ToolbarMiddleAccessoryModel(
+        title =
+          ToolbarTitleModel.Inline(
             title = "Amount",
             subtitle = balanceTitle
           )
@@ -67,7 +67,7 @@ data class TransferAmountBodyModel(
         size = Footer,
         onClick = StandardClick(onContinueClick)
       ),
-    cardModel = cardModel,
+    smartBarModel = smartBarModel,
     amountDisabled = amountDisabled,
     amountContextLineTreatment = amountContextLineTreatment,
     shouldTriggerContextualErrorFeedback = shouldTriggerContextualErrorFeedback,

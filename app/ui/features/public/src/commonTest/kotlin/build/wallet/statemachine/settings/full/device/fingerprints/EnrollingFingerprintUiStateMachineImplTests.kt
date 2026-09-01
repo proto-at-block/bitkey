@@ -23,8 +23,8 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.RequiredSerialOnly
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetEnrollmentFailureBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetGrantProvisionResult
 import build.wallet.statemachine.ui.awaitBody
@@ -580,7 +580,7 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("FingerprintReset context does not require hardware pairing") {
+  test("FingerprintReset context checks the paired serial, not a signed challenge") {
     val fingerprintResetProps = props.copy(
       context = EnrollmentContext.FingerprintReset(grant = testGrant),
       fingerprintHandle = FingerprintHandle(index = 0, label = "Right Thumb")
@@ -592,7 +592,10 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
       }
 
       awaitBodyMock<NfcSessionUIStateMachineProps<EnrollmentStatusResult>> {
-        hardwareVerification.shouldBe(NotRequired)
+        // Not Required() so a locked device reports 'Enrollment incomplete' rather than
+        // 'Device Locked' (W-11930), but still gated: a foreign tap here would overwrite the
+        // serial cache the reset flow's other checks read (W-17516).
+        hardwareVerification.shouldBe(RequiredSerialOnly)
       }
     }
   }

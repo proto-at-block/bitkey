@@ -19,7 +19,7 @@ fun WalletsProtectingMoneyHomeCardModel(
   onProtectedCustomerClick: (ProtectedCustomer) -> Unit,
   onAcceptInviteClick: () -> Unit,
   isLiteMode: Boolean = false,
-): CardModel {
+): CardModel.DrillList {
   var cardItems = protectedCustomers.map { protectedCustomer ->
     protectedCustomer.listItemModel {
       onProtectedCustomerClick(it)
@@ -47,10 +47,9 @@ fun WalletsProtectingMoneyHomeCardModel(
     cardItems = cardItems.plus(getAcceptInviteItemModel(protectedCustomers, onAcceptInviteClick))
   }
 
-  return CardModel(
+  return CardModel.DrillList(
     title = title,
-    content = CardModel.CardContent.DrillList(items = cardItems.toImmutableList()),
-    style = CardModel.CardStyle.Outline()
+    items = cardItems.toImmutableList()
   )
 }
 

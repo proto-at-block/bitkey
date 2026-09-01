@@ -48,6 +48,12 @@ sealed interface AppKeyBackupStatus {
      * uploaded.
      */
     data object StaleBackup : ProblemWithBackup
+
+    /**
+     * The local backup contains a placeholder hardware signature and its repaired replacement
+     * could not be regenerated or persisted.
+     */
+    data object PlaceholderSignatureRepairFailed : ProblemWithBackup
   }
 }
 

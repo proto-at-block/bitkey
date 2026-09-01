@@ -47,8 +47,8 @@ fun CircularTabRow(
 fun CircularTabRow(
   items: ImmutableList<String>,
   selectedItemIndex: Int,
-  modifier: Modifier = Modifier,
   onClick: (Int) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
   BoxWithConstraints(
     modifier = modifier

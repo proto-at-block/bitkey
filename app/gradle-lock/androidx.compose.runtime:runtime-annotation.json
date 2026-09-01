@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.runtime:runtime-annotation",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-annotation-metadata-1.9.3.jar": "a4ad4eb1139a80737755b3ddb7da993697f758f6555486d6eaae59cb8dca19d2"
+                        "runtime-annotation-metadata-1.10.0.jar": "5d4ce82699f501a0c8e1e672658f1f8089534e06989bf253bdfab11e2c730595"
                     }
                 }
             ],

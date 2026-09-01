@@ -114,6 +114,10 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.android.google.play.services.coroutines
     )
 
+    dependencyLockingExtension.commonDependencyLockingGroups.buildClasspath.pin(
+      "org.jetbrains.compose.material:material-ripple:1.10.0-rc02"
+    )
+
     dependencyLockingExtension.commonDependencyLockingGroups.kotlinCompiler.pin(
       libs.kmp.kotlin.stdlib.jdk8
     )

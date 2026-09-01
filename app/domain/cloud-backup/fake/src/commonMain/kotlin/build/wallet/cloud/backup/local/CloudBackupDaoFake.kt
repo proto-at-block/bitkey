@@ -11,12 +11,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class CloudBackupDaoFake : CloudBackupDao {
   internal val backups = mutableMapOf<String, MutableStateFlow<CloudBackup?>>()
   var returnError = false
+  var returnErrorOnSet = false
 
   override suspend fun set(
     accountId: String,
     backup: CloudBackup,
   ): Result<Unit, BackupStorageError> {
-    if (returnError) return Err(BackupStorageError())
+    if (returnError || returnErrorOnSet) return Err(BackupStorageError())
 
     backups.getOrPut(accountId) { MutableStateFlow(null) }.value = backup
     return Ok(Unit)
@@ -42,6 +43,7 @@ class CloudBackupDaoFake : CloudBackupDao {
   fun reset() {
     backups.clear()
     returnError = false
+    returnErrorOnSet = false
   }
 
   fun shouldBeEmpty() = backups.values.forEach { it.value.shouldBeNull() }

@@ -1,0 +1,10 @@
+- config:
+    id: "bitkey/smoke/welcome-screen"
+    target: "world.bitkey.debug"
+    platform: android
+    driver: ANDROID_ONDEVICE_ACCESSIBILITY
+- tools:
+    - launchApp:
+        appId: "world.bitkey.debug"
+- prompts:
+    - verify: The Bitkey welcome screen is shown with a "Set up a new wallet" button and a "More options" button

@@ -10,6 +10,7 @@ import build.wallet.feature.isEnabled
 import build.wallet.logging.logWarn
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
@@ -21,6 +22,15 @@ class MetricTrackerServiceImpl(
   private val metricTrackerIdleTimeout: MetricTrackerIdleTimeout,
   private val mobileRealTimeMetricsFeatureFlag: MobileRealTimeMetricsFeatureFlag,
 ) : MetricTrackerService, MetricTrackerTimeoutPoller {
+  /**
+   * Single-threaded dispatcher used to serialize metric persistence operations
+   * ([startMetric], [setVariant], [completeMetric]) so they execute in submission order.
+   * Without this, back-to-back start→complete calls launched as independent fire-and-forget
+   * jobs can execute out of order (complete before start persists), leaving an orphaned
+   * metric row that later emits a spurious Timeout.
+   */
+  private val metricPersistenceDispatcher = Dispatchers.Default.limitedParallelism(1)
+
   override suspend fun executeWork() {
     appCoroutineScope.launchTicker(metricTrackerTimeoutJobInterval.value) {
       if (mobileRealTimeMetricsFeatureFlag.isEnabled()) {
@@ -42,7 +52,7 @@ class MetricTrackerServiceImpl(
       return
     }
 
-    appCoroutineScope.launch {
+    appCoroutineScope.launch(metricPersistenceDispatcher) {
       val newMetric = TrackedMetric(
         name = metricDefinition.name,
         variant = variant?.name
@@ -64,7 +74,7 @@ class MetricTrackerServiceImpl(
     metricDefinition: T,
     variant: Variant<T>,
   ) {
-    appCoroutineScope.launch {
+    appCoroutineScope.launch(metricPersistenceDispatcher) {
       dao.setVariant(metricDefinition.name, variant)
     }
   }
@@ -77,7 +87,7 @@ class MetricTrackerServiceImpl(
       return
     }
 
-    appCoroutineScope.launch {
+    appCoroutineScope.launch(metricPersistenceDispatcher) {
       dao.removeByName(metricDefinition.name).get()?.let {
         metricUpdate(it, outcome)
       }

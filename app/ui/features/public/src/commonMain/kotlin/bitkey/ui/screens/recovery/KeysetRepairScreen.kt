@@ -189,6 +189,8 @@ class SpendingKeysetRepairScreenPresenter(
               hardwareVerification = NotRequired,
               shouldLock = screen.account.config.hardwareType != HardwareType.W3,
               screenPresentationStyle = ScreenPresentationStyle.Modal,
+              segment = RecoverySegment.KeysetRepair.Repair,
+              actionDescription = "Unsealing SSEK for keyset repair",
               eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_SSEK
             ),
             confirmationContent = HardwareConfirmationContent.KeysetRepairUnseal
@@ -295,6 +297,8 @@ class SpendingKeysetRepairScreenPresenter(
               hardwareVerification = NotRequired,
               shouldLock = screen.account.config.hardwareType != HardwareType.W3,
               screenPresentationStyle = ScreenPresentationStyle.Modal,
+              segment = RecoverySegment.KeysetRepair.Repair,
+              actionDescription = "Generating new hardware key for keyset repair",
               eventTrackerContext = NfcEventTrackerScreenIdContext.KEYSET_REPAIR_GENERATE_HW_KEY
             ),
             confirmationContent = HardwareConfirmationContent.KeysetRepairRotateHwKey
@@ -491,6 +495,8 @@ class SpendingKeysetRepairScreenPresenter(
               )
             },
             screenPresentationStyle = ScreenPresentationStyle.Modal,
+            segment = RecoverySegment.KeysetRepair.Repair,
+            actionDescription = "Provisioning hardware descriptor for keyset repair",
             eventTrackerContext = NfcEventTrackerScreenIdContext.VERIFY_KEYS_AND_BUILD_HARDWARE_DESCRIPTOR,
             hardwareVerification = Required(),
             hardwareTypeOverride = HardwareType.W3,
@@ -856,17 +862,38 @@ private fun KeysetRepairErrorFormBodyModel(
   onRetry: () -> Unit,
   onBackClick: () -> Unit,
 ): FormBodyModel {
+  // Unresolvable keysets are terminal: the data needed to rebuild them does not exist on the
+  // server, so retrying can never succeed. Offering "Retry" here is what left customers looping
+  // through the flow repeatedly, so show a single dismissive action instead.
+  val isTerminal = error is KeysetRepairError.UnresolvableKeysets
+
   return ErrorFormBodyModel(
-    title = "Repair failed",
-    subline = "An error occurred. Please try again.",
-    primaryButton = ButtonDataModel(
-      text = "Retry",
-      onClick = onRetry
-    ),
-    secondaryButton = ButtonDataModel(
-      text = "Cancel",
-      onClick = onBackClick
-    ),
+    title = if (isTerminal) "Repair incomplete" else "Repair failed",
+    subline = if (isTerminal) {
+      "We couldn't finish updating your wallet. Your funds are safe. " +
+        "Please contact support so we can help."
+    } else {
+      "An error occurred. Please try again."
+    },
+    primaryButton = if (isTerminal) {
+      ButtonDataModel(
+        text = "Close",
+        onClick = onBackClick
+      )
+    } else {
+      ButtonDataModel(
+        text = "Retry",
+        onClick = onRetry
+      )
+    },
+    secondaryButton = if (isTerminal) {
+      null
+    } else {
+      ButtonDataModel(
+        text = "Cancel",
+        onClick = onBackClick
+      )
+    },
     eventTrackerScreenId = KeysetRepairEventTrackerScreenId.KEYSET_REPAIR_FAILED,
     errorData = ErrorData(
       segment = RecoverySegment.KeysetRepair.Repair,

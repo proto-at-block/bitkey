@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.animation:animation",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-metadata-1.9.3.jar": "1806a8f30c76b7c0a3366f08287d55977679dc64be85c3e9d79ad18bc678d95a"
+                        "animation-metadata-1.10.0.jar": "e98112512a87229f9cfdd46295cde38594533659a6d4980f7d4039b653f94be2"
                     }
                 }
             ],

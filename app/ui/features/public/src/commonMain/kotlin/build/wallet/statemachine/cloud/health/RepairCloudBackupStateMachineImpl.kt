@@ -193,6 +193,8 @@ class RepairCloudBackupStateMachineImpl(
             onCancel = props.onExit,
             needsAuthentication = false,
             screenPresentationStyle = props.presentationStyle,
+            segment = RecoverySegment.CloudBackup.FullAccount.Upload,
+            actionDescription = "Sealing CSEK with hardware to repair cloud backup",
             eventTrackerContext = NfcEventTrackerScreenIdContext.METADATA
           )
         )

@@ -12,7 +12,7 @@ import build.wallet.statemachine.dev.logs.LogRowModel
 import build.wallet.statemachine.dev.logs.LogsBodyModel
 import build.wallet.statemachine.dev.logs.LogsModel
 import build.wallet.ui.components.button.Button
-import build.wallet.ui.components.card.Card
+import build.wallet.ui.components.card.CardContainer
 import build.wallet.ui.components.forms.TextField
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
@@ -24,7 +24,7 @@ import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
@@ -45,11 +45,11 @@ fun LogsScreen(
       model =
         ToolbarModel(
           leadingAccessory = BackAccessory(onClick = model.onBack),
-          middleAccessory = ToolbarMiddleAccessoryModel(title = "Logs")
+          title = ToolbarTitleModel.Inline(title = "Logs")
         )
     )
     Spacer(Modifier.height(24.dp))
-    Card {
+    CardContainer {
       ListItem(
         title = "Errors only",
         trailingAccessory =
@@ -112,7 +112,7 @@ fun LogsScreen(
 
 @Composable
 private fun LogsCard(model: LogsModel) {
-  Card {
+  CardContainer {
     LazyColumn {
       items(model.logRows) {
         LogRow(model = it)

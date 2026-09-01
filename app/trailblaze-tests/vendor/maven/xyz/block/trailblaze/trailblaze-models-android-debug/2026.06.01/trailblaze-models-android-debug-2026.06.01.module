@@ -1,0 +1,731 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "url": "../../trailblaze-models/2026.06.01/trailblaze-models-2026.06.01.module",
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-models",
+    "version": "2026.06.01",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "debugApiElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.test",
+          "module": "monitor",
+          "version": {
+            "requires": "1.8.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-models-debug.aar",
+          "url": "trailblaze-models-android-debug-2026.06.01.aar",
+          "size": 2916831,
+          "sha512": "9329f9699e8456fea490eb6f5969d893ae44bc21f4d255c30653e097cfc7299e621d229f7db9945d25f17f69345c02ab3f5749d86533ca361c71f0df5ca4c223",
+          "sha256": "b388c9aba6cb34e429487e986b18b79a19387a8c3f6823bfee0659382889d121",
+          "sha1": "bc675a6ddab4cb0a305e49e0f0340fcb68397fd4",
+          "md5": "ac20b2541d3a8264d13f50509b0e5cf4"
+        }
+      ]
+    },
+    {
+      "name": "debugRuntimeElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.test",
+          "module": "monitor",
+          "version": {
+            "requires": "1.8.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "com.charleskorn.kaml",
+          "module": "kaml",
+          "version": {
+            "requires": "0.104.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-tools",
+          "version": {
+            "requires": "1.0.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-model",
+          "version": {
+            "requires": "1.0.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-anthropic-client",
+          "version": {
+            "requires": "1.0.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-clients",
+          "version": {
+            "requires": "1.0.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-google-client",
+          "version": {
+            "requires": "1.0.0-beta"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-model",
+          "version": {
+            "requires": "1.0.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-openai-client",
+          "version": {
+            "requires": "1.0.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-openrouter-client",
+          "version": {
+            "requires": "1.0.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-core",
+          "version": {
+            "requires": "3.3.3"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1-0.6.x-compat"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-reflect",
+          "version": {
+            "requires": "2.3.20"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.10.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-models-debug.aar",
+          "url": "trailblaze-models-android-debug-2026.06.01.aar",
+          "size": 2916831,
+          "sha512": "9329f9699e8456fea490eb6f5969d893ae44bc21f4d255c30653e097cfc7299e621d229f7db9945d25f17f69345c02ab3f5749d86533ca361c71f0df5ca4c223",
+          "sha256": "b388c9aba6cb34e429487e986b18b79a19387a8c3f6823bfee0659382889d121",
+          "sha1": "bc675a6ddab4cb0a305e49e0f0340fcb68397fd4",
+          "md5": "ac20b2541d3a8264d13f50509b0e5cf4"
+        }
+      ]
+    },
+    {
+      "name": "debugSourcesElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "files": [
+        {
+          "name": "trailblaze-models-android-debug-2026.06.01-sources.jar",
+          "url": "trailblaze-models-android-debug-2026.06.01-sources.jar",
+          "size": 472379,
+          "sha512": "ecaf5b420c1625a241ba88a6def4447d2ca64f290a9f45fbec0ed1404ec531721b26d470f19351cc2e5bda094f4c050180cb845b8c3e7cab3830184879676a2a",
+          "sha256": "35d90ea554cdbda2cd25732835cce996218d5e4e1a3a30c5bbcf8e023cd85816",
+          "sha1": "5b9ee127892a4ad729f9fc1047b0701bda0df76b",
+          "md5": "5e34ca7009c710956b075b688fa53e7b"
+        }
+      ]
+    }
+  ]
+}

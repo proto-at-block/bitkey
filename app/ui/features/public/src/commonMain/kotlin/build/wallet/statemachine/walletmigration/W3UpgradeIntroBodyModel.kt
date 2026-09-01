@@ -22,15 +22,13 @@ data class W3UpgradeIntroBodyModel(
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_INTRO,
     onBack = onBack,
-    toolbar = onBack?.let {
-      ToolbarModel(
-        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(
-          onClick = onBack
-        )
+    toolbar = ToolbarModel(
+      leadingAccessory = onBack?.let {
+        ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClick = onBack)
+      },
+      title = w3UpgradeInstructionScreenTitle(
+        title = "Upgrade to the new Bitkey"
       )
-    },
-    formScreenTitle = w3UpgradeInstructionScreenTitle(
-      title = "Upgrade to the new Bitkey"
     ),
     formScreenLayout = w3UpgradeInstructionLayout(),
     headerToMainContentSpacing = W3_UPGRADE_INSTRUCTION_HEADER_TO_MAIN_CONTENT_SPACING,
@@ -40,10 +38,9 @@ data class W3UpgradeIntroBodyModel(
     mainContentList = immutableListOf(
       introInstructionListGroup()
     ),
-    primaryButton = ButtonModel(
+    primaryButton = ButtonModel.BitkeyInteractionButtonModel(
       text = "Continue",
       size = ButtonModel.Size.Footer,
-      treatment = ButtonModel.Treatment.Primary,
       isLoading = isLoading,
       onClick = StandardClick(onContinue)
     )
@@ -54,6 +51,11 @@ private fun introInstructionListGroup() =
     listGroupModel = ListGroupModel(
       style = ListGroupStyle.NONE,
       items = immutableListOf(
+        w3UpgradeInstructionListItem(
+          title = "Keep your current Bitkey nearby",
+          secondaryText = "To authorize the upgrade, you'll first tap your current Bitkey.",
+          icon = Icon.Bitkey
+        ),
         w3UpgradeInstructionListItem(
           title = "Confirm with your new Bitkey",
           secondaryText = "You'll need to pair the new Bitkey hardware device before you can start the upgrade process.",

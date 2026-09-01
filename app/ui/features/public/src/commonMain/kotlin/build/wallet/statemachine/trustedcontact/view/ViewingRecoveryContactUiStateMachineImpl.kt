@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILED
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.TAMPERED
@@ -49,6 +50,20 @@ class ViewingRecoveryContactUiStateMachineImpl(
                 onClosed = props.onExit
               )
             props.recoveryContact is UnendorsedTrustedContact && props.recoveryContact.authenticationState == TAMPERED ->
+              ViewingTamperedContactSheetModel(
+                contact = props.recoveryContact,
+                onRemove = { state = Removing },
+                onClosed = props.onExit
+              )
+            props.recoveryContact is EndorsedTrustedContact &&
+              props.recoveryContact.needsHwVerification ->
+              ViewingUnverifiedContactSheetModel(
+                contact = props.recoveryContact,
+                onRemove = { state = Removing },
+                onClosed = props.onExit
+              )
+            props.recoveryContact is EndorsedTrustedContact &&
+              props.recoveryContact.authenticationState == TAMPERED ->
               ViewingTamperedContactSheetModel(
                 contact = props.recoveryContact,
                 onRemove = { state = Removing },

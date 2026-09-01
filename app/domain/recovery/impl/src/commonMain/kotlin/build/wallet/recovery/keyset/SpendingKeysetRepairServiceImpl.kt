@@ -134,6 +134,38 @@ class SpendingKeysetRepairServiceImpl(
             val missingServerKeysetIds = serverKeysetIds - localKeysetIds
 
             if (missingServerKeysetIds.isNotEmpty()) {
+              // Only advertise the repair flow when EVERY missing keyset is recoverable.
+              // determineRepairDataSource aborts the repair if any private keyset can be neither
+              // reused from local state nor unsealed from a backup, so a mixed set (say one legacy
+              // keyset plus one unbacked private keyset) would surface an actionable banner for a
+              // repair that always terminates. The customer closes the terminal screen, the banner
+              // is still there, and they run the flow again -- the loop this status prevents.
+              //
+              // A descriptor backup is only usable if we also hold the wrapped SSEK needed to
+              // unseal it; without one, unsealDescriptors cannot run.
+              val backedUpKeysetIds = when (response.wrappedSsek) {
+                null -> emptySet()
+                else -> response.descriptorBackups.map { it.keysetId }.toSet()
+              }
+              val unrecoverableKeysetIds = response.keysets
+                .filter { it.keysetId in missingServerKeysetIds }
+                .filterNot { it is LegacyRemoteKeyset || it.keysetId in backedUpKeysetIds }
+                .map { it.keysetId }
+                .toSet()
+
+              if (unrecoverableKeysetIds.isNotEmpty()) {
+                logWarn {
+                  "Incomplete keyset list detected for active keyset $localActiveKeysetId, but " +
+                    "${unrecoverableKeysetIds.size} missing keyset(s) cannot be recovered " +
+                    "(no usable descriptor backup): ${unrecoverableKeysetIds.joinToString()}; " +
+                    "all missing server keysets: ${missingServerKeysetIds.joinToString()}"
+                }
+                return@mapBoth SpendingKeysetSyncStatus.IncompleteKeysetListUnrecoverable(
+                  activeKeysetId = localActiveKeysetId,
+                  missingKeysetIds = missingServerKeysetIds
+                )
+              }
+
               logWarn {
                 "Incomplete keyset list detected for active keyset $localActiveKeysetId; missing server keysets: ${missingServerKeysetIds.joinToString()}"
               }
@@ -187,7 +219,9 @@ class SpendingKeysetRepairServiceImpl(
           )
         }
 
+        // No SSEK unsealing needed for these, so no hardware tap is required.
         RepairDataSource.DirectFromResponse,
+        RepairDataSource.LocalPrivateKeysets,
         RepairDataSource.LegacyOnly -> {
           PrivateKeysetInfo.None(cachedResponseData = cachedData)
         }
@@ -227,16 +261,64 @@ class SpendingKeysetRepairServiceImpl(
             )
           ).bind()
 
-          descriptorBackupService.unsealDescriptors(
+          val unsealedKeysets = descriptorBackupService.unsealDescriptors(
             sealedSsek = sealedSsek,
             encryptedDescriptorBackups = response.descriptorBackups
           )
             .mapError { KeysetRepairError.DecryptKeysetsFailed(cause = it) }
             .bind()
+
+          // Descriptor backups only cover keysets that have one. Resolve every server keyset
+          // individually so legacy keysets (which carry full descriptors in the listKeysets
+          // response) and already-known local keysets are not dropped just because this
+          // account also has private keysets. Without this, accounts with a mix of keyset
+          // types silently repair to an incomplete list and re-detect immediately.
+          resolveKeysetsPerKeyset(
+            account = account,
+            response = response,
+            unsealedKeysets = unsealedKeysets
+          )
+        }
+
+        RepairDataSource.LocalPrivateKeysets -> {
+          logInfo { "Repairing wallet using private keysets already held locally" }
+          // Nothing to unseal: every private keyset the server lists is already local, so
+          // resolveKeysetsPerKeyset reuses those and rebuilds any legacy keysets from the response.
+          resolveKeysetsPerKeyset(
+            account = account,
+            response = response,
+            unsealedKeysets = emptyList()
+          )
         }
       }
 
-      // 2. Find the server's active keyset from the cached account status
+      // 2. Refuse to proceed unless the resolved keyset list covers every keyset the server knows
+      // about.
+      //
+      // This MUST happen before any cloud backup or local keybox write: a partial repair would
+      // otherwise replace the customer's existing cloud backup with a strictly smaller keyset set.
+      // If that backup held the only recoverable copy of a keyset local state had lost, overwriting
+      // it converts a supportable state into permanent fund inaccessibility on the next recovery.
+      //
+      // It must also happen before the active-keyset lookup below. When the server's active keyset
+      // is itself unresolvable, that lookup fails with a generic FetchKeysetsFailed, which the UI
+      // presents as a retryable error -- sending the customer back through a flow that can never
+      // succeed. Classifying unresolvable keysets first yields the terminal support state instead.
+      val resolvedKeysetIds = keysets.map { it.f8eSpendingKeyset.keysetId }.toSet()
+      val unresolvedKeysetIds = response.keysets.map { it.keysetId }.toSet() - resolvedKeysetIds
+      if (unresolvedKeysetIds.isNotEmpty()) {
+        logWarn {
+          "Aborting keyset repair before any writes; could not resolve all server keysets. " +
+            "Unresolved: ${unresolvedKeysetIds.joinToString()}"
+        }
+        Err(
+          KeysetRepairError.UnresolvableKeysets(unresolvedKeysetIds = unresolvedKeysetIds)
+        ).bind<Unit>()
+      }
+
+      // 3. Find the server's active keyset from the cached account status. Safe to treat a miss as
+      // a generic failure here: the unresolved check above has already ruled out the case where the
+      // active keyset is absent because it could not be reconstructed.
       val serverActiveKeysetId = cachedData.serverActiveKeysetId
 
       val serverActiveKeyset = keysets.find {
@@ -249,14 +331,14 @@ class SpendingKeysetRepairServiceImpl(
 
       logInfo { "Found server active keyset: $serverActiveKeysetId" }
 
-      // 3. Build updated keybox (not saved yet!)
+      // 4. Build updated keybox (not saved yet!)
       val updatedKeybox = account.keybox.copy(
         activeSpendingKeyset = serverActiveKeyset,
         keysets = keysets,
         canUseKeyboxKeysets = true
       )
 
-      // 4. Create and upload cloud backup FIRST (before updating local keybox)
+      // 5. Create and upload cloud backup FIRST (before updating local keybox)
       // This ensures idempotency: if we crash after this but before saving the keybox,
       // the local keybox still has the wrong active keyset, so detection
       // will still find a mismatch and we can retry.
@@ -307,14 +389,13 @@ class SpendingKeysetRepairServiceImpl(
 
       logInfo { "Cloud backup updated successfully" }
 
-      // 5. NOW update local keybox (the "commit" point)
+      // 6. NOW update local keybox (the "commit" point)
       keyboxDao.saveKeyboxAsActive(updatedKeybox)
         .mapError { KeysetRepairError.SaveKeyboxFailed(cause = it) }
         .bind()
 
       logInfo { "Local keybox updated successfully" }
 
-      // 6. Update sync status
       markRepaired()
 
       logInfo { "Keyset repair completed successfully" }
@@ -541,6 +622,34 @@ class SpendingKeysetRepairServiceImpl(
     _syncStatus.value = SpendingKeysetSyncStatus.Synced
   }
 
+  /**
+   * Resolves each server keyset individually rather than assuming one source can supply them all.
+   *
+   * Recoverability is a per-keyset property:
+   * - [LegacyRemoteKeyset] carries full extended descriptors in the listKeysets response, so it can
+   *   be reconstructed directly with no descriptor backup and no hardware interaction.
+   * - [PrivateMultisigRemoteKeyset] only carries bare public keys; it can be recovered from an
+   *   unsealed descriptor backup, or reused from the local keybox if we already have it.
+   * - A private keyset with neither is not recoverable from server state at all, and is omitted
+   *   here so the caller can report it instead of silently repairing to an incomplete list.
+   */
+  private fun resolveKeysetsPerKeyset(
+    account: FullAccount,
+    response: ListKeysetsResponse,
+    unsealedKeysets: List<SpendingKeyset>,
+  ): List<SpendingKeyset> {
+    val unsealedById = unsealedKeysets.associateBy { it.f8eSpendingKeyset.keysetId }
+    val localById = account.keybox.keysets.associateBy { it.f8eSpendingKeyset.keysetId }
+
+    return response.keysets.mapNotNull { remoteKeyset ->
+      when (remoteKeyset) {
+        is LegacyRemoteKeyset -> remoteKeyset.toSpendingKeyset(uuidGenerator)
+        is PrivateMultisigRemoteKeyset ->
+          unsealedById[remoteKeyset.keysetId] ?: localById[remoteKeyset.keysetId]
+      }
+    }
+  }
+
   private fun determineRepairDataSource(
     account: FullAccount,
     response: ListKeysetsResponse,
@@ -551,19 +660,48 @@ class SpendingKeysetRepairServiceImpl(
       ?.f8eSpendingKeyset
       ?.keysetId
 
-    return when {
-      privateKeysets.isEmpty() -> Ok(RepairDataSource.LegacyOnly)
-      privateKeysets.size == 1 && privateKeysets.single().keysetId == activePrivateKeysetId ->
-        Ok(RepairDataSource.DirectFromResponse)
-      response.descriptorBackups.isNotEmpty() && response.wrappedSsek != null ->
-        Ok(RepairDataSource.DescriptorBackups)
-      else -> Err(
-        KeysetRepairError.FetchKeysetsFailed(
-          cause = IllegalStateException(
-            "Private keysets require descriptor backups to repair local wallet data"
-          )
-        )
+    if (privateKeysets.isEmpty()) return Ok(RepairDataSource.LegacyOnly)
+
+    if (privateKeysets.size == 1 && privateKeysets.single().keysetId == activePrivateKeysetId) {
+      return Ok(RepairDataSource.DirectFromResponse)
+    }
+
+    // Classify every private keyset by how (or whether) it can be resolved, rather than inferring
+    // it from aggregate conditions. Earlier versions checked "are there any backups at all" and
+    // "are any keysets missing locally" as separate branches, which let partially-covered accounts
+    // through: the preflight would request a hardware tap, then the repair would abort on a keyset
+    // the backups never covered.
+    val localKeysetIds = account.keybox.keysets
+      .map { it.f8eSpendingKeyset.keysetId }
+      .toSet()
+    // Backups are only usable if we also hold the SSEK needed to unseal them.
+    val usableBackupKeysetIds = when (response.wrappedSsek) {
+      null -> emptySet()
+      else -> response.descriptorBackups.map { it.keysetId }.toSet()
+    }
+
+    val unresolvableKeysetIds = privateKeysets
+      .map { it.keysetId }
+      .filterNot { it in localKeysetIds || it in usableBackupKeysetIds }
+      .toSet()
+
+    // Terminal: these cannot be reconstructed from server state at all, because a private keyset's
+    // chaincode never leaves the client. Reported before the flow starts so the customer is never
+    // asked for a hardware tap that cannot lead anywhere.
+    if (unresolvableKeysetIds.isNotEmpty()) {
+      return Err(
+        KeysetRepairError.UnresolvableKeysets(unresolvedKeysetIds = unresolvableKeysetIds)
       )
+    }
+
+    // Everything is resolvable. Only unseal if some keyset actually requires it; otherwise the local
+    // keysets suffice and no hardware tap is needed.
+    val requiresUnsealing = privateKeysets.any {
+      it.keysetId !in localKeysetIds && it.keysetId in usableBackupKeysetIds
+    }
+    return when {
+      requiresUnsealing -> Ok(RepairDataSource.DescriptorBackups)
+      else -> Ok(RepairDataSource.LocalPrivateKeysets)
     }
   }
 
@@ -617,6 +755,13 @@ private sealed interface RepairDataSource {
   data object DirectFromResponse : RepairDataSource
 
   data object DescriptorBackups : RepairDataSource
+
+  /**
+   * Every private keyset the server knows about is already present in the local keybox, so the
+   * local [SpendingKeyset]s can be reused directly. No descriptor backups and no SSEK unsealing
+   * are required, which means no hardware tap either.
+   */
+  data object LocalPrivateKeysets : RepairDataSource
 }
 
 /**

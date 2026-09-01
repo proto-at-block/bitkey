@@ -11,20 +11,8 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[bitkey]"
-            ]
-        },
-        {
-            "version": "31.4.2",
-            "variants": [
-                {
-                    "artifacts": {
-                        "protos-31.4.2.jar": "3cc17200f904645251cf6f67c1281a70691428cde8f417b9b6c54acf89bf1a8a"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
             ]
         }
     ]

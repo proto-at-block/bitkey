@@ -8,6 +8,7 @@ import bitkey.f8e.error.code.CreateAccountClientErrorCode.HW_AUTH_PUBKEY_IN_USE
 import bitkey.onboarding.CreateFullAccountServiceFake
 import bitkey.onboarding.FullAccountCreationError
 import bitkey.onboarding.UpgradeLiteAccountToFullServiceFake
+import bitkey.recovery.WalletMetadataServerBackupServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.keybox.*
@@ -52,6 +53,7 @@ class OnboardFullAccountServiceImplTests : FunSpec({
   val onboardingKeyboxSealedSsekDao = OnboardingKeyboxSealedSsekDaoFake()
   val onboardingKeyboxHardwareKeysDao = OnboardingKeyboxHardwareKeysDaoFake()
   val onboardingF8eClient = OnboardingF8eClientMock(turbines::create)
+  val walletMetadataServerBackupService = WalletMetadataServerBackupServiceFake()
   val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
   val onboardingKeyboxStepStateDao = OnboardingKeyboxStepStateDaoFake()
@@ -69,6 +71,7 @@ class OnboardFullAccountServiceImplTests : FunSpec({
     onboardingKeyboxSealedSsekDao = onboardingKeyboxSealedSsekDao,
     onboardingKeyboxHardwareKeysDao = onboardingKeyboxHardwareKeysDao,
     onboardingF8eClient = onboardingF8eClient,
+    walletMetadataServerBackupService = walletMetadataServerBackupService,
     gettingStartedTaskDao = gettingStartedTaskDao,
     eventTracker = eventTracker,
     onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao
@@ -96,6 +99,7 @@ class OnboardFullAccountServiceImplTests : FunSpec({
     onboardingKeyboxSealedSsekDao.reset()
     onboardingKeyboxHardwareKeysDao.clear()
     onboardingF8eClient.reset()
+    walletMetadataServerBackupService.reset()
     gettingStartedTaskDao.reset()
     onboardingKeyboxStepStateDao.clear()
   }
@@ -164,6 +168,26 @@ class OnboardFullAccountServiceImplTests : FunSpec({
     val hwKeys = onboardingKeyboxHardwareKeysDao.get().shouldBeOk()
     hwKeys.shouldNotBeNull()
     hwKeys.hwAuthPublicKey.shouldBe(hwActivation.keyBundle.authKey)
+
+    // Verify an empty wallet metadata backup was provisioned with the account SSEK.
+    walletMetadataServerBackupService.provisionCalls
+      .shouldContain(FullAccountMock.accountId to SealedSsekFake)
+  }
+
+  test("createAccount succeeds with durable retry when metadata provisioning upload fails") {
+    val error = Error("Failed to provision metadata backup")
+    walletMetadataServerBackupService.provisionResult = Err(error)
+
+    val result = service.createAccount(
+      context = NewFullAccount,
+      appKeys = WithAppKeysMock,
+      hwActivation = hwActivation
+    )
+
+    result.shouldBeOk(FullAccountMock)
+    walletMetadataServerBackupService.provisionCalls.shouldContain(
+      FullAccountMock.accountId to SealedSsekFake
+    )
   }
 
   test("createAccount upgrades lite account to full account successfully") {

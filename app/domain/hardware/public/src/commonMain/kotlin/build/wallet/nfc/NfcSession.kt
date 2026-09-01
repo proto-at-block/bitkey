@@ -81,5 +81,30 @@ interface NfcSession : AutoCloseable {
       /** The callback in which the signature and challenge and verified, returning the result of the verification. */
       val checkHardwareIsPaired: (String, ByteString) -> Boolean,
     ) : RequirePairedHardware
+
+    /**
+     * Compares the tapped device's serial against the paired serial, on W1 and W3.
+     *
+     * Weaker than [Required]: proves claimed identity, not possession of the hardware auth key.
+     * Use only where [Required] can't work — fingerprint reset, where `signChallenge` needs a
+     * fingerprint the customer doesn't have. `getDeviceInfo` is unauthenticated, so it works on
+     * a locked device.
+     *
+     * Two constraints on callers:
+     *
+     * 1. Every NFC session in the flow must be gated, not just the ones that read the serial.
+     *    The expected serial comes from [build.wallet.firmware.FirmwareDeviceInfoDao], a
+     *    telemetry cache with ~10 writers — including `collectFirmwareTelemetry`, which persists
+     *    the tapped device after any session that reaches an unlocked device. An ungated tap
+     *    therefore overwrites the value this check compares against, and the foreign device
+     *    becomes "expected" while the real one gets rejected. Gating, not
+     *    `skipFirmwareTelemetry`: telemetry runs after the session body, so throwing already
+     *    prevents the write, and skipping it would drop legitimate telemetry too.
+     *
+     * 2. Not usable before hardware is paired. Throws
+     *    [NfcException.UnpairedHardwareError] when no serial is stored (fail closed), so a
+     *    pre-pairing flow would break with a misleading error rather than pass.
+     */
+    data object RequiredSerialOnly : RequirePairedHardware
   }
 }

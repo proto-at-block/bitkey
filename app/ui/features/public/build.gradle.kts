@@ -85,6 +85,7 @@ kotlin {
         implementation(projects.domain.inAppSecurityPublic)
         implementation(projects.domain.inheritancePublic)
         implementation(projects.domain.relationshipsPublic)
+        implementation(projects.domain.f8eClientPublic)
         implementation(projects.ui.snapshotGeneratorApiPublic)
       }
     }

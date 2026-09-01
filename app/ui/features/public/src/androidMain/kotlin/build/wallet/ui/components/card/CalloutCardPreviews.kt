@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
+import build.wallet.ui.app.moneyhome.card.Card
 import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.callout.CalloutModel.Treatment
 import build.wallet.ui.theme.WalletTheme
@@ -24,20 +24,17 @@ fun CalloutCardPreviews() {
         .background(color = WalletTheme.colors.background)
         .padding(24.dp)
   ) {
-    MoneyHomeCard(
+    Card(
       model =
-        CardModel(
-          title = null,
-          content = null,
-          style = CardModel.CardStyle.Callout(
-            CalloutModel(
-              title = "Inheritance claim initiated",
-              subtitle = LabelModel.StringModel("Decline claim by 10/21/2024 to retain control of your funds"),
-              treatment = Treatment.Danger,
-              leadingIcon = Icon.Information,
-              trailingIcon = Icon.ArrowRight,
-              onClick = null
-            )
+        CardModel.Callout(
+          id = "preview",
+          callout = CalloutModel(
+            title = "Inheritance claim initiated",
+            subtitle = LabelModel.StringModel("Decline claim by 10/21/2024 to retain control of your funds"),
+            treatment = Treatment.Danger,
+            leadingIcon = Icon.Information,
+            trailingIcon = Icon.ArrowRight,
+            onClick = null
           )
         )
     )

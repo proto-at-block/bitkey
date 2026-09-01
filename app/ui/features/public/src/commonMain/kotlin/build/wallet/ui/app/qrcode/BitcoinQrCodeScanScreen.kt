@@ -93,11 +93,11 @@ fun QrCodeScanScreen(
 @Composable
 fun DynamicIslandQrScannerPortalScreen(
   modifier: Modifier = Modifier,
-  content: @Composable () -> Unit,
   model: QrCodeScanBodyModel?,
   isClosing: Boolean,
   onClose: () -> Unit,
   onClosed: () -> Unit,
+  content: @Composable () -> Unit,
 ) {
   val progress = remember { Animatable(0f) }
   val currentOnClosed = rememberUpdatedState(onClosed)

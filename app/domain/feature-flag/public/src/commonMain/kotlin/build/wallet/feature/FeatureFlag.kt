@@ -67,13 +67,26 @@ open class FeatureFlag<T : FeatureFlagValue>(
    * Should be called at app launch.
    */
   suspend fun initializeFromDao() {
-    val persistedValue =
-      featureFlagDao.getFlag(
-        featureFlagId = identifier,
-        kClass = type
-      ).get() ?: defaultFlagValue
+    val persistedValue = featureFlagDao.getFlag(
+      featureFlagId = identifier,
+      kClass = type
+    ).get()
 
-    valueFlow.emit(persistedValue)
+    setInitialValue(persistedValue)
+  }
+
+  /** Initializes this flag from a value loaded by [FeatureFlagDao.getFlags]. */
+  suspend fun initializeFromPersistedValue(persistedValue: FeatureFlagValue?) {
+    setInitialValue(persistedValue?.takeIf(type::isInstance))
+  }
+
+  private suspend fun setInitialValue(persistedValue: FeatureFlagValue?) {
+    val value = persistedValue?.let {
+      @Suppress("UNCHECKED_CAST")
+      it as T
+    } ?: defaultFlagValue
+
+    valueFlow.emit(value)
   }
 
   /**

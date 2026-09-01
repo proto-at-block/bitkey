@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.animation:animation-core-uikitsimarm64",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-core-uikitSimArm64Main-1.9.1.klib": "15f920bab10b3731f9bd293899326d4b2eb9c42ad98191d135d5ba0c9e24646b"
+                        "animation-core-uikitSimArm64Main-1.10.0-rc02.klib": "86a15852aacafe88ee909c9964cdf90d2ec39c2a7404229c1aff1bda147cd1e6"
                     }
                 },
                 {
                     "artifacts": {
-                        "animation-core-uikitsimarm64-1.9.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "animation-core-uikitsimarm64-1.10.0-rc02-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 }
             ],

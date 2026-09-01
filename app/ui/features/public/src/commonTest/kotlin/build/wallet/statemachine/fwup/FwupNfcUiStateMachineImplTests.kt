@@ -1,4 +1,5 @@
 package build.wallet.statemachine.fwup
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 
 import bitkey.account.AccountConfigServiceFake
 import bitkey.account.HardwareType
@@ -168,7 +169,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
       }
 
       inAppBrowserNavigator.onOpenCalls.awaitItem()
-        .shouldBe("https://bitkey.world/en-US/releases")
+        .shouldBe("https://bitkey.world/releases")
     }
   }
 
@@ -186,7 +187,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
       awaitItem().apply {
         themePreference.shouldBe(ThemePreference.System)
         body.shouldBeInstanceOf<HardwareConfirmationHelpBodyModel>().apply {
-          formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+          (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("How it works")
           onBack.shouldNotBeNull().invoke()
         }
       }
@@ -225,7 +226,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
       awaitItem().apply {
         themePreference.shouldBe(ThemePreference.Manual(Theme.DARK))
         body.shouldBeInstanceOf<HardwareConfirmationHelpBodyModel>().apply {
-          formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+          (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("How it works")
         }
       }
     }
@@ -242,7 +243,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
       }
 
       awaitItem().body.shouldBeInstanceOf<HardwareConfirmationHelpBodyModel>().apply {
-        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("How it works")
         onBack.shouldNotBeNull().invoke()
       }
 

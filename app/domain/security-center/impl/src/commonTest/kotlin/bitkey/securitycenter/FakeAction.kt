@@ -145,3 +145,9 @@ class KeysetSyncActionFactoryFake : KeysetSyncActionFactory, FakeActionFactory(
 ) {
   override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
+
+class DelayNotifyPeriodActionFactoryFake : DelayNotifyPeriodActionFactory {
+  override fun create(): Flow<SecurityAction?> = flowOf(
+    DelayNotifyPeriodAction(currentPeriodDays = 7)
+  )
+}

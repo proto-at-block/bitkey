@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.moshi:moshi-adapters",
     "components": [
         {
-            "version": "1.15.1",
+            "version": "1.15.2",
             "variants": [
                 {
                     "artifacts": {
-                        "moshi-adapters-1.15.1.jar": "923f9fbc750db262877e9e5b3ae192c80c5b8fbeb1cc196885860a6e8adc4c3e"
+                        "moshi-adapters-1.15.2.jar": "efa90fb3419a5a88bd5e029cbafdcecce1812430b15cb86770f60eaf0b45c409"
                     }
                 }
             ],

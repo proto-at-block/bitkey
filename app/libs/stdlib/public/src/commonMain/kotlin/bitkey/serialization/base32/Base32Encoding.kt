@@ -1,20 +1,11 @@
 package bitkey.serialization.base32
 
-import build.wallet.catchingResult
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import io.matthewnelson.encoding.base32.Base32Crockford
-import io.matthewnelson.encoding.core.Decoder.Companion.decodeToByteArray
-import io.matthewnelson.encoding.core.Encoder.Companion.encodeToString
 import okio.ByteString
-import okio.ByteString.Companion.toByteString
 
 object Base32Encoding {
-  // Crockford Base32 encoding settings
-  private val base32Crockford = Base32Crockford {
-    // Don't use hyphens
-    this.hyphenInterval = 0
-  }
-
   /**
    * Encodes the input byte array into a Crockford Base32 string.
    *
@@ -22,9 +13,7 @@ object Base32Encoding {
    * @return the Base32 encoded string
    */
   fun encode(input: ByteString): Result<String, Throwable> {
-    return catchingResult {
-      input.toByteArray().encodeToString(base32Crockford)
-    }
+    return Ok(Base32.encode(input, Base32.Alphabet.Crockford))
   }
 
   /**
@@ -34,10 +23,20 @@ object Base32Encoding {
    * @return the decoded byte array
    */
   fun decode(input: String): Result<ByteString, Throwable> {
-    return catchingResult {
-      input.decodeToByteArray(base32Crockford).toByteString()
+    // Preserve the former decoder's lenient Crockford behavior.
+    val normalizedInput = input.filterNot { it == '-' || it.isBase32Whitespace() }
+    val hasTruncatedFinalByte = when (normalizedInput.length % 8) {
+      1, 3, 6 -> true
+      else -> false
     }
+    if ('=' in normalizedInput || hasTruncatedFinalByte) {
+      return Err(Base32.Base32Error("Invalid Crockford Base32 input"))
+    }
+    return Base32.decode(normalizedInput, Base32.Alphabet.Crockford)
   }
+
+  private fun Char.isBase32Whitespace(): Boolean =
+    this == '\n' || this == '\r' || this == ' ' || this == '\t'
 
   const val BITS_PER_CHAR = 5
 }

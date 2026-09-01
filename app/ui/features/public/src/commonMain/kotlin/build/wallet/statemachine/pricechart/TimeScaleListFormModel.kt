@@ -14,7 +14,7 @@ import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.toImmutableList
 
@@ -29,7 +29,7 @@ data class TimeScaleListFormModel(
     onBack = onClose,
     toolbar = ToolbarModel(
       leadingAccessory = CloseAccessory(onClick = onClose),
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Default time scale")
+      title = ToolbarTitleModel.Inline(title = "Default time scale")
     ),
     header = null,
     mainContentList = immutableListOf(

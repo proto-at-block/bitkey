@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-backhandler",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-backhandler-metadata-1.9.1.jar": "5705d70053d797033e9d5d06dce96e976d04342c1a7f2047a7056ea3d4ecaf1c"
+                        "ui-backhandler-metadata-1.10.0-rc02.jar": "a32331b48694e76791cf41b1e161947ecd73b1cc36f6292c1bbbc73cc411776b"
                     }
                 }
             ],

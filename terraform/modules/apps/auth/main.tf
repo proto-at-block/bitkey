@@ -8,7 +8,7 @@ module "define_auth_challenge_lambda" {
   cognito_user_pool_arn = var.cognito_user_pool_arn
   source_dir            = var.define_auth_challenge_asset_dir
   handler               = "rust-runtime"
-  runtime               = "provided.al2"
+  runtime               = "provided.al2023"
   architecture          = "arm64"
 }
 
@@ -22,7 +22,7 @@ module "create_auth_challenge_lambda" {
   cognito_user_pool_arn = var.cognito_user_pool_arn
   source_dir            = var.create_auth_challenge_asset_dir
   handler               = "rust-runtime"
-  runtime               = "provided.al2"
+  runtime               = "provided.al2023"
   architecture          = "arm64"
 }
 
@@ -36,7 +36,7 @@ module "verify_auth_challenge_lambda" {
   cognito_user_pool_arn = var.cognito_user_pool_arn
   source_dir            = var.verify_auth_challenge_asset_dir
   handler               = "rust-runtime"
-  runtime               = "provided.al2"
+  runtime               = "provided.al2023"
   architecture          = "arm64"
 }
 

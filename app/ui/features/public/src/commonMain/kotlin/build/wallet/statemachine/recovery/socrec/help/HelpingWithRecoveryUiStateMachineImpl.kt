@@ -128,6 +128,8 @@ class HelpingWithRecoveryUiStateMachineImpl(
     goToSuccess: () -> Unit,
     goToFailure: (Error) -> Unit,
   ): BodyModel {
+    val currentGoToSuccess by rememberUpdatedState(goToSuccess)
+    val currentGoToFailure by rememberUpdatedState(goToFailure)
     LaunchedEffect("verifying-recovery-code") {
       relationshipsKeysRepository
         .getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
@@ -139,9 +141,9 @@ class HelpingWithRecoveryUiStateMachineImpl(
             recoveryCode = recoveryCode
           )
         }
-        .onSuccess { goToSuccess() }
+        .onSuccess { currentGoToSuccess() }
         .logFailure { "Failed to verify social recovery code" }
-        .onFailure { goToFailure(it) }
+        .onFailure { currentGoToFailure(it) }
     }
 
     return LoadingSuccessBodyModel(
@@ -152,9 +154,10 @@ class HelpingWithRecoveryUiStateMachineImpl(
 
   @Composable
   private fun SuccessfulVerifiedRecoveryCodeModel(exit: () -> Unit): BodyModel {
+    val currentExit by rememberUpdatedState(exit)
     LaunchedEffect("verifying-recovery-code") {
       delay(minimumLoadingDuration.value)
-      exit()
+      currentExit()
     }
 
     return LoadingSuccessBodyModel(

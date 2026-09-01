@@ -1,7 +1,6 @@
 package build.wallet.ui.components.layout
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.LinearEasing
@@ -40,16 +39,19 @@ private const val EXPANDED_SCALE = 0.7f
  * @param slideCollapsedContent Whether collapsed content should slide vertically as it appears.
  * @param collapsedContent The content to display for the collapsed state.
  */
+// collapsedContent is intentionally instantiated twice: once visible and once as an
+// unplaced measurement placeholder for stable sizing, so movableContentOf does not apply.
+@Suppress("ContentSlotReused")
 @Composable
 fun CollapsibleLabelContainer(
   modifier: Modifier = Modifier,
   collapsed: Boolean,
   verticalArrangement: Arrangement.Vertical,
   horizontalAlignment: Alignment.Horizontal,
-  topContent: (@Composable AnimatedVisibilityScope.() -> Unit)?,
-  bottomContent: (@Composable AnimatedVisibilityScope.() -> Unit)?,
+  topContent: (@Composable () -> Unit)?,
+  bottomContent: (@Composable () -> Unit)?,
   slideCollapsedContent: Boolean = true,
-  collapsedContent: @Composable AnimatedVisibilityScope.(placeholder: Boolean) -> Unit,
+  collapsedContent: @Composable (placeholder: Boolean) -> Unit,
 ) {
   Box(modifier = modifier, contentAlignment = horizontalAlignment.toBoxAlignment()) {
     val motionTweenFloat = remember { tween<Float>(ANIMATE_MOTION_DURATION, easing = LinearEasing) }
@@ -88,10 +90,10 @@ fun CollapsibleLabelContainer(
 
     MeasureWithoutPlacement {
       Column(verticalArrangement = verticalArrangement) {
-        topContent?.let { AnimatedVisibility(visible = true, content = topContent) }
-        bottomContent?.let { AnimatedVisibility(visible = true, content = bottomContent) }
+        topContent?.invoke()
+        bottomContent?.invoke()
       }
-      AnimatedVisibility(visible = true) { collapsedContent(true) }
+      collapsedContent(true)
     }
 
     Column(
@@ -99,19 +101,19 @@ fun CollapsibleLabelContainer(
       modifier = Modifier.matchParentSize(),
       verticalArrangement = verticalArrangement
     ) {
-      if (topContent != null) {
+      topContent?.let {
         AnimatedContentContainer(
           collapsed = collapsed,
           transitionSpec = TransitionSpec.Top,
-          content = topContent
+          content = it
         )
       }
 
-      if (bottomContent != null) {
+      bottomContent?.let {
         AnimatedContentContainer(
           collapsed = collapsed,
           transitionSpec = TransitionSpec.Bottom,
-          content = bottomContent
+          content = it
         )
       }
     }
@@ -128,7 +130,7 @@ private sealed class TransitionSpec(val offset: Int) {
 private fun AnimatedContentContainer(
   collapsed: Boolean,
   transitionSpec: TransitionSpec,
-  content: @Composable AnimatedVisibilityScope.() -> Unit,
+  content: @Composable () -> Unit,
 ) {
   val motionTweenFloat = remember { tween<Float>(ANIMATE_MOTION_DURATION, easing = LinearEasing) }
   val motionTween = remember { tween<IntOffset>(ANIMATE_MOTION_DURATION, easing = LinearEasing) }
@@ -142,9 +144,10 @@ private fun AnimatedContentContainer(
     exit =
       scaleOut(motionTweenFloat, EXPANDED_SCALE) +
         slideOutVertically(motionTween) { transitionSpec.offset } +
-        fadeOut(fadeTween),
-    content = content
-  )
+        fadeOut(fadeTween)
+  ) {
+    content()
+  }
 }
 
 private fun Alignment.Horizontal.toBoxAlignment(): Alignment =

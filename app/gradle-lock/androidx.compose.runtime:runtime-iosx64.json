@@ -2,16 +2,16 @@
     "module-identifier": "androidx.compose.runtime:runtime-iosx64",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-iosX64Main-1.9.3.klib": "5bdccd9c9a6a50811541e78f226d0ed8f5805a31fb2386a8cd622166771010c9"
+                        "runtime-iosX64Main-1.10.0.klib": "3d80dc056b5c394696d84cf45462e66d1ec8804e67ed44b2d53f2c1c42e9f3b3"
                     }
                 },
                 {
                     "artifacts": {
-                        "runtime-iosx64-1.9.3-metadata.jar": "6df4a0733d3cb4486d4172e858b25a4300a321c0dd87f089eb530addd641229e"
+                        "runtime-iosx64-1.10.0-metadata.jar": "37d03be9347aaa808f36b6109e5e87c7632720955ec0a61417934def878cb0f1"
                     }
                 }
             ],

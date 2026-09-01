@@ -1,4 +1,5 @@
 package build.wallet.statemachine.send.hardwareconfirmation
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.coroutines.turbine.turbines
@@ -111,7 +112,7 @@ class HardwareConfirmationUiStateMachineImplTests : FunSpec({
       }
 
       awaitBody<HardwareConfirmationHelpBodyModel> {
-        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("How it works")
         mainContentList.first().shouldBeInstanceOf<FormMainContentModel.CustomContent>()
       }
     }
@@ -124,7 +125,7 @@ class HardwareConfirmationUiStateMachineImplTests : FunSpec({
       }
 
       awaitBody<HardwareConfirmationHelpBodyModel> {
-        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("How it works")
         mainContentList.first().shouldBeInstanceOf<FormMainContentModel.CustomContent>()
       }
     }

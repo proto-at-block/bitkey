@@ -106,7 +106,7 @@ class SetSpendingLimitUiStateMachineImplTests : FunSpec({
         header.shouldNotBeNull().run {
           headline.shouldBe("You're all set")
           sublineModel.shouldNotBeNull().string.shouldBe(
-            "Now you can spend up to $100.00 (100,000,000 sats) per day with just your phone."
+            "Now you can spend up to $100.00 (₿100,000,000) per day with just your phone."
           )
         }
         clickPrimaryButton()

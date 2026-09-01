@@ -104,6 +104,7 @@ class DependencyLockingCommonGroupConfigurationPlugin : Plugin<Project> {
           "COMPOSE_SKIKO_JS_WASM_RUNTIME",
           "layoutlibResources"
         )
+        nameContains("composeHotReload")
       } then {
         isLocked.set(false)
       }

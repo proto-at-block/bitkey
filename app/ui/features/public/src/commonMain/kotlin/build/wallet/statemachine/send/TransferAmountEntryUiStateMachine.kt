@@ -42,8 +42,8 @@ data class TransferAmountEntryUiProps(
     ) : Flow
 
     data class Sell(
-      val minAmount: BitcoinMoney,
-      val maxAmount: BitcoinMoney,
+      val minAmount: BitcoinMoney? = null,
+      val maxAmount: BitcoinMoney? = null,
     ) : Flow
   }
 }

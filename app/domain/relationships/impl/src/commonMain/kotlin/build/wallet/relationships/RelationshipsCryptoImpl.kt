@@ -166,6 +166,35 @@ class RelationshipsCryptoImpl(
         )
       }
 
+      // Verify the app endorsement.
+      val appSignatureValid = signatureVerifier.verifyEcdsaResult(
+        signature = keyCertificate.trustedContactIdentityKeyAppSignature.value,
+        publicKey = appEndorsementKey.toSecp256k1PublicKey(),
+        message = (
+          keyCertificate.delegatedDecryptionKey.value.decodeHexWithResult().mapError {
+            RelationshipsCryptoError.KeyCertificateVerificationFailed(it)
+          }.bind().toByteArray() +
+            hwEndorsementKey.pubKey.value.decodeHexWithResult().mapError {
+              RelationshipsCryptoError.KeyCertificateVerificationFailed(it)
+            }.bind().toByteArray()
+        ).toByteString()
+      ).mapError {
+        RelationshipsCryptoError.KeyCertificateVerificationFailed(it)
+      }.bind()
+
+      if (keyCertificate.appAuthGlobalKeyHwSignature.isPlaceholder) {
+        ensure(
+          keyCertificate.appAuthGlobalKeyHwSignature.isW3OnboardingPlaceholder &&
+            isAppKeyTrusted &&
+            appSignatureValid
+        ) {
+          RelationshipsCryptoError.KeyCertificateVerificationFailed(
+            IllegalArgumentException("Key certificate verification failed")
+          )
+        }
+        Err(RelationshipsCryptoError.KeyCertificateContainsPlaceholder).bind()
+      }
+
       // Verify HW endorsement of app auth key.
       // W3 firmware uses domain separation: SHA-256("BKRelationshipEndorsement" || pubkey_hex).
       // W1 firmware signs SHA-256(pubkey_hex) directly (no prefix).
@@ -184,23 +213,7 @@ class RelationshipsCryptoImpl(
       ).getOrElse { false }
 
       // Verify the key certificate
-      ensure(
-        hwEndorsementValid &&
-          signatureVerifier.verifyEcdsaResult(
-            signature = keyCertificate.trustedContactIdentityKeyAppSignature.value,
-            publicKey = appEndorsementKey.toSecp256k1PublicKey(),
-            message = (
-              keyCertificate.delegatedDecryptionKey.value.decodeHexWithResult().mapError {
-                RelationshipsCryptoError.KeyCertificateVerificationFailed(it)
-              }.bind().toByteArray() +
-                hwEndorsementKey.pubKey.value.decodeHexWithResult().mapError {
-                  RelationshipsCryptoError.KeyCertificateVerificationFailed(it)
-                }.bind().toByteArray()
-            ).toByteString()
-          ).mapError {
-            RelationshipsCryptoError.KeyCertificateVerificationFailed(it)
-          }.bind()
-      ) {
+      ensure(hwEndorsementValid && appSignatureValid) {
         RelationshipsCryptoError.KeyCertificateVerificationFailed(
           IllegalArgumentException("Key certificate verification failed")
         )
@@ -215,8 +228,17 @@ class RelationshipsCryptoImpl(
     hwAuthKey: HwAuthPublicKey,
     appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    allowW3OnboardingPlaceholder: Boolean,
   ): Result<TrustedContactKeyCertificate, RelationshipsCryptoError> =
     coroutineBinding {
+      // Only W3 migration may temporarily produce authenticated onboarding placeholders.
+      ensure(
+        !appGlobalAuthKeyHwSignature.isPlaceholder ||
+          (allowW3OnboardingPlaceholder && appGlobalAuthKeyHwSignature.isW3OnboardingPlaceholder)
+      ) {
+        RelationshipsCryptoError.PlaceholderHwSignature
+      }
+
       appAuthKeyMessageSigner.signMessage(
         appGlobalAuthKey,
         (

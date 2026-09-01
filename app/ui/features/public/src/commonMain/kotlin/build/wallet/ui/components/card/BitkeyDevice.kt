@@ -20,7 +20,7 @@ fun BitkeyDevice(
   model: DeviceStatusCard,
   modifier: Modifier = Modifier,
 ) {
-  var mediaAlpha by remember { mutableStateOf(0.0f) }
+  var mediaAlpha by remember { mutableFloatStateOf(0.0f) }
   val mediaInteractionState = rememberBitkeyDeviceMediaInteractionState()
   val bitkeyDeviceCardCornerRadius = 12.dp
   val supports3DMedia = supportsBitkeyDevice3DMedia(model.hardwareType)
@@ -40,7 +40,7 @@ fun BitkeyDevice(
     mediaAlpha = 1.0f
   }
 
-  Card(
+  CardContainer(
     modifier = modifier.clip(RoundedCornerShape(bitkeyDeviceCardCornerRadius)),
     backgroundColor = when {
       useFallbackVideoSurfaceTreatment -> fallbackVideoSurfaceBackgroundColor

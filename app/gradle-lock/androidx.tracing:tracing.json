@@ -2,11 +2,11 @@
     "module-identifier": "androidx.tracing:tracing",
     "components": [
         {
-            "version": "1.0.0",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "tracing-1.0.0.aar": "07b8b6139665b884a162eccf97891ca50f7f56831233bf25168ae04f7b568612"
+                        "tracing-1.2.0.aar": "6faa90390d1fdbf0adb9a99bf99de67b94c6c6f35aea9510593a9d17973736a2"
                     }
                 }
             ],

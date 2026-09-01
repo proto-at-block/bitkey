@@ -1,4 +1,6 @@
 package build.wallet.statemachine.partnerships
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -68,7 +70,7 @@ class CustomAmountEntryUiStateMachineImplTests : FunSpec({
   test("custom amount entry not in range") {
     stateMachine.test(props()) {
       awaitBody<CustomAmountBodyModel> {
-        this.toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("From $20.00 to $100.00")
+        this.toolbar.title.shouldBeInstanceOf<ToolbarTitleModel.Inline>().subtitle.shouldBe("From $20.00 to $100.00")
         this.primaryButton.isEnabled.shouldBeFalse()
 
         this.amountModel.secondaryAmount.shouldBe("Minimum buy amount is $20.00")

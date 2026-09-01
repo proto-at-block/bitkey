@@ -193,6 +193,63 @@ class SensitiveDataValidatorTest : FunSpec({
     val nonSensitiveLogEntry = LogEntry(tag = "RegularTag", message = "Just a regular log message")
     SensitiveDataValidator.check(nonSensitiveLogEntry).shouldNotViolateIndicators()
   }
+
+  test("detect sensitive data in throwable message when log entry is clean") {
+    SensitiveDataValidator.check(
+      entry = LogEntry(tag = "SomeTag", message = "Failed to sign transaction"),
+      throwable = Throwable("Signing failed for key ${bitcoinKeys.first()}")
+    ).shouldViolateNamed("Bitcoin private key")
+  }
+
+  test("detect sensitive data in nested throwable message") {
+    SensitiveDataValidator.check(
+      entry = LogEntry(tag = "SomeTag", message = "Failed to sign transaction"),
+      throwable = Throwable(
+        message = "Unexpected signing error",
+        cause = Throwable("Signing failed for key ${bitcoinKeys.first()}")
+      )
+    ).shouldViolateNamed("Bitcoin private key")
+  }
+
+  test("detect sensitive data in suppressed throwable message") {
+    val throwable = Throwable("Unexpected signing error")
+    throwable.addSuppressed(Throwable("Signing failed for key ${bitcoinKeys.first()}"))
+
+    SensitiveDataValidator.check(
+      entry = LogEntry(tag = "SomeTag", message = "Failed to sign transaction"),
+      throwable = throwable
+    ).shouldViolateNamed("Bitcoin private key")
+  }
+
+  test("detect sensitive data in log entry when throwable message is clean") {
+    SensitiveDataValidator.check(
+      entry = LogEntry(tag = "SomeTag", message = "Broadcast failed for ${bitcoinTxids.first()}"),
+      throwable = Throwable("Connection refused")
+    ).shouldViolateNamed("Bitcoin transaction ID")
+  }
+
+  test("combine violations from log entry and throwable message") {
+    val result = SensitiveDataValidator.check(
+      entry = LogEntry(tag = "SomeTag", message = "Sending to ${bitcoinAddresses.first()}"),
+      throwable = Throwable("Signing failed for key ${bitcoinKeys.first()}")
+    )
+    result.shouldViolateNamed("Bitcoin addresses")
+    result.shouldViolateNamed("Bitcoin private key")
+  }
+
+  test("null throwable behaves like plain check") {
+    SensitiveDataValidator.check(
+      entry = LogEntry(tag = "RegularTag", message = "Just a regular log message"),
+      throwable = null
+    ).shouldNotViolateIndicators()
+  }
+
+  test("clean log entry and clean throwable chain finds nothing") {
+    SensitiveDataValidator.check(
+      entry = LogEntry(tag = "RegularTag", message = "NFC session completed"),
+      throwable = Throwable("Tag was lost", Throwable("Connection interrupted"))
+    ).shouldNotViolateIndicators()
+  }
 })
 
 private fun SensitiveDataResult.shouldViolateNamed(name: String) {

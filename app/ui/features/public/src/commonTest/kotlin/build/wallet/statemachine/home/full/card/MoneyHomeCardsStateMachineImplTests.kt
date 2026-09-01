@@ -1,18 +1,16 @@
 package build.wallet.statemachine.home.full.card
 
-import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.availability.AppFunctionalityStatus
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.LabelModel
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsUiStateMachineImpl
 import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiProps
 import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiStateMachine
-import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
-import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.inheritance.InheritanceCardUiProps
 import build.wallet.statemachine.moneyhome.card.inheritance.InheritanceCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
@@ -24,11 +22,6 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 
 class MoneyHomeCardsStateMachineImplTests : FunSpec({
-  val gettingStartedCardStateMachine =
-    object : GettingStartedCardUiStateMachine,
-      StateMachineMock<GettingStartedCardUiProps, CardModel?>(
-        initialModel = null
-      ) {}
   val startSweepCardUiStateMachine =
     object : StartSweepCardUiStateMachine, StateMachineMock<StartSweepCardUiProps, CardModel?>(
       initialModel = null
@@ -47,7 +40,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
 
   val stateMachine =
     MoneyHomeCardsUiStateMachineImpl(
-      gettingStartedCardUiStateMachine = gettingStartedCardStateMachine,
       startSweepCardUiStateMachine = startSweepCardUiStateMachine,
       bitcoinPriceCardUiStateMachine = bitcoinPriceCardUiStateMachine,
       inheritanceCardUiStateMachine = inheritanceCardUiStateMachine
@@ -55,15 +47,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
 
   val props =
     MoneyHomeCardsProps(
-      gettingStartedCardUiProps =
-        GettingStartedCardUiProps(
-          onAddBitcoin = {},
-          onEnableSpendingLimit = {},
-          onUpdateFirmware = {},
-          showUpdateFirmwareTile = false,
-          onShowAlert = {},
-          onDismissAlert = {}
-        ),
       startSweepCardUiProps = StartSweepCardUiProps(
         onStartSweepClicked = {}
       ),
@@ -81,7 +64,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
     )
 
   afterTest {
-    gettingStartedCardStateMachine.reset()
     startSweepCardUiStateMachine.reset()
     bitcoinPriceCardUiStateMachine.reset()
     inheritanceCardUiStateMachine.reset()
@@ -90,14 +72,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
   test("should return empty card list when all child state machines return null or empty") {
     stateMachine.test(props) {
       awaitItem().cards.shouldBeEmpty()
-    }
-  }
-
-  test("should include getting started card when available") {
-    gettingStartedCardStateMachine.emitModel(createTestCard("Getting Started"))
-
-    stateMachine.test(props) {
-      awaitItem().cards.shouldBeSingleton()
     }
   }
 
@@ -129,13 +103,11 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
     }
   }
 
-  test("should maintain correct card order: inheritance, sweep, bitcoin price, getting started") {
-    val gettingStartedCard = createTestCard("Getting Started")
+  test("should maintain correct card order: inheritance, sweep, bitcoin price") {
     val sweepCard = createTestCard("Start Sweep")
     val bitcoinPriceCard = createTestCard("Bitcoin Price")
     val inheritanceCard = createTestCard("Inheritance")
 
-    gettingStartedCardStateMachine.emitModel(gettingStartedCard)
     startSweepCardUiStateMachine.emitModel(sweepCard)
     bitcoinPriceCardUiStateMachine.emitModel(bitcoinPriceCard)
     inheritanceCardUiStateMachine.emitModel(listOf(inheritanceCard))
@@ -145,7 +117,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       cards[0] shouldBe inheritanceCard
       cards[1] shouldBe sweepCard
       cards[2] shouldBe bitcoinPriceCard
-      cards[3] shouldBe gettingStartedCard
     }
   }
 
@@ -155,21 +126,20 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       awaitItem().cards.shouldBeEmpty()
 
       // Add a card
-      gettingStartedCardStateMachine.emitModel(createTestCard("Getting Started"))
+      startSweepCardUiStateMachine.emitModel(createTestCard("Start Sweep"))
       awaitItem().cards.shouldBeSingleton()
 
       // Remove the card
-      gettingStartedCardStateMachine.emitModel(null)
+      startSweepCardUiStateMachine.emitModel(null)
       awaitItem().cards.shouldBeEmpty()
     }
   }
 })
 
 private fun createTestCard(title: String) =
-  CardModel(
-    title = LabelModel.StringWithStyledSubstringModel.from(title, emptyMap()),
+  CardModel.Status(
+    id = title,
+    title = title,
     subtitle = null,
-    leadingImage = null,
-    content = null,
-    style = CardModel.CardStyle.Outline()
+    leadingImage = CardModel.Status.Image.StaticImage(Icon.Bitkey)
   )

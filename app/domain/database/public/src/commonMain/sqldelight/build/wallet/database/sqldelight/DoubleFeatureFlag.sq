@@ -11,5 +11,9 @@ getFlag:
 SELECT value FROM doubleFeatureFlagEntity
 WHERE featureFlagId = ?;
 
+deleteFlag:
+DELETE FROM doubleFeatureFlagEntity
+WHERE featureFlagId = ?;
+
 clear:
 DELETE FROM doubleFeatureFlagEntity;

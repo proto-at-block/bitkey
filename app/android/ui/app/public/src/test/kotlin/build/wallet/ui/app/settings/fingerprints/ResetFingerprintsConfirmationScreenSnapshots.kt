@@ -15,7 +15,8 @@ class FingerprintResetConfirmationScreenSnapshots : FunSpec({
         model = ScreenModel(
           body = FingerprintResetConfirmationBodyModel(
             onClose = {},
-            onConfirmReset = {}
+            onConfirmReset = {},
+            delayPeriodDays = 7
           )
         )
       )

@@ -107,7 +107,7 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().shouldBeLoaded()
-        .shouldBeTypeOf<CardModel>()
+        .shouldBeTypeOf<CardModel.Status>()
         .shouldHaveTitle("Replacement Ready")
         .shouldNotHaveSubtitle()
         .click()
@@ -135,7 +135,7 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitItem().shouldBeLoaded()
-        .shouldBeTypeOf<CardModel>()
+        .shouldBeTypeOf<CardModel.Status>()
         .shouldHaveTitle("Replacement pending...")
         .shouldHaveSubtitle("5d")
         .click()

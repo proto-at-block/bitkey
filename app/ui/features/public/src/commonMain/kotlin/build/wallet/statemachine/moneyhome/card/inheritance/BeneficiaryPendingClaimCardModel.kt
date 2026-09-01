@@ -5,22 +5,19 @@ import build.wallet.statemachine.moneyhome.card.CardModel
 import kotlin.time.Duration
 
 internal fun BeneficiaryPendingClaimCardModel(
+  id: String,
   title: String,
   subtitle: String,
-  isPendingClaim: Boolean,
+  state: CardModel.PendingClaim.State,
   timeRemaining: Duration,
   progress: Progress,
   onClick: (() -> Unit)? = null,
-) = CardModel(
-  title = null,
-  content = CardModel.CardContent.PendingClaim(
-    title = title,
-    subtitle = subtitle,
-    isPendingClaim = isPendingClaim,
-    timeRemaining = timeRemaining,
-    progress = progress,
-    onClick = onClick,
-    useMonochromeStyle = true
-  ),
-  style = CardModel.CardStyle.Plain
+) = CardModel.PendingClaim(
+  id = "BeneficiaryPendingClaim:$id",
+  title = title,
+  subtitle = subtitle,
+  state = state,
+  timeRemaining = timeRemaining,
+  progress = progress,
+  onClick = onClick,
 )

@@ -4,8 +4,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormPreFooterContentModel
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import io.kotest.core.spec.style.FunSpec
@@ -58,11 +58,9 @@ private data class TestFormBodyModel(
   override val mainContentList: ImmutableList<FormMainContentModel> = immutableListOf(),
   override val primaryButton: ButtonModel? = null,
   override val secondaryButton: ButtonModel? = null,
-  override val formScreenTitle: FormScreenTitleModel? = null,
   override val formScreenLayout: FormScreenLayoutModel = FormScreenLayoutModel.Legacy,
   override val headerToMainContentSpacing: Int? = null,
-  override val footerRevealDelayMillis: Int = 0,
-  override val preFooterContentList: ImmutableList<FormMainContentModel> = immutableListOf(),
+  override val preFooterContentList: ImmutableList<FormPreFooterContentModel> = immutableListOf(),
 ) : FormBodyModel(
     id = null,
     onBack = {},
@@ -71,9 +69,7 @@ private data class TestFormBodyModel(
     mainContentList = mainContentList,
     primaryButton = primaryButton,
     secondaryButton = secondaryButton,
-    formScreenTitle = formScreenTitle,
     formScreenLayout = formScreenLayout,
     headerToMainContentSpacing = headerToMainContentSpacing,
-    footerRevealDelayMillis = footerRevealDelayMillis,
     preFooterContentList = preFooterContentList
   )

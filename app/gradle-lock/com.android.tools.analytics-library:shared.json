@@ -11,20 +11,8 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[bitkey]"
-            ]
-        },
-        {
-            "version": "31.4.2",
-            "variants": [
-                {
-                    "artifacts": {
-                        "shared-31.4.2.jar": "971e224c62bb2f05ca8f4f37ed29ac8f91914b39eb8ac620ba92a2e0ea38bc7d"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
             ]
         }
     ]

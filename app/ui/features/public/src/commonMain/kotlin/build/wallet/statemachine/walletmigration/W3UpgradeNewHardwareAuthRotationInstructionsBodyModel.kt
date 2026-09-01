@@ -24,16 +24,16 @@ data class W3UpgradeNewHardwareAuthRotationInstructionsBodyModel(
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_NEW_HARDWARE_AUTH_ROTATION_INSTRUCTIONS,
     onBack = onBack,
-    toolbar = onBack?.let {
-      ToolbarModel(
-        leadingAccessory = build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.CloseAccessory(
+    toolbar = ToolbarModel(
+      leadingAccessory = onBack?.let {
+        build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.CloseAccessory(
           onClick = onBack
         )
+      },
+      title = w3UpgradeInstructionScreenTitle(
+        eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
+        title = "Now tap your new Bitkey"
       )
-    },
-    formScreenTitle = w3UpgradeInstructionScreenTitle(
-      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
-      title = "Now tap your new Bitkey"
     ),
     formScreenLayout = w3UpgradeInstructionLayout(),
     headerToMainContentSpacing = W3_UPGRADE_INSTRUCTION_HEADER_TO_MAIN_CONTENT_SPACING,

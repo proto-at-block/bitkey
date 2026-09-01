@@ -2,9 +2,11 @@ package build.wallet.statemachine.account.create.full.onboard
 
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.ensure
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.cloud.backup.CloudBackupHealthRepository
+import build.wallet.cloud.backup.health.isHealthy
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.keybox.KeyboxDao
@@ -16,6 +18,7 @@ import build.wallet.onboarding.OnboardingCompletionService
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.account.create.full.OnboardingAppSegment
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.ui.theme.ThemePreference
@@ -79,30 +82,46 @@ class BuildHardwareDescriptorUiStateMachineImpl(
               currentState.nfcSession(session, commands.requireW3(session))
             },
             onSuccess = { signature ->
-              coroutineBinding {
-                // Persist the HW signature over the app auth key to the keybox
-                val updatedKeybox = keyboxDao.updateAppGlobalAuthKeyHwSignature(
-                  keybox = props.fullAccount.keybox,
-                  signature = AppGlobalAuthKeyHwSignature(signature)
-                ).bind()
-
-                // Re-sync cloud backup with the real HW signature
-                cloudBackupHealthRepository.performSync(
-                  accountId = props.fullAccount.accountId,
-                  keybox = updatedKeybox
-                )
-              }
-                .onSuccess { props.onComplete() }
-                .onFailure { error -> props.onError(error) }
+              state = State.SavingBackup(signature)
             },
             onCancel = {
               state = State.ShowingIntroScreen(nfcSession = currentState.nfcSession)
             },
             screenPresentationStyle = ScreenPresentationStyle.Root,
+            segment = OnboardingAppSegment.FullAccount,
+            actionDescription = "Verifying keys and building hardware descriptor during onboarding",
             eventTrackerContext = NfcEventTrackerScreenIdContext.VERIFY_KEYS_AND_BUILD_HARDWARE_DESCRIPTOR,
             showDeviceConfirmation = true
           )
         )
+      }
+
+      is State.SavingBackup -> {
+        LaunchedEffect("save-cloud-backup") {
+          coroutineBinding {
+            // Persist the HW signature over the app auth key to the keybox.
+            val updatedKeybox = keyboxDao.updateAppGlobalAuthKeyHwSignature(
+              keybox = props.fullAccount.keybox,
+              signature = AppGlobalAuthKeyHwSignature(currentState.signature)
+            ).bind()
+
+            // Re-sync cloud backup with the real HW signature.
+            val backupStatus = cloudBackupHealthRepository.performSync(
+              accountId = props.fullAccount.accountId,
+              keybox = updatedKeybox
+            )
+            ensure(backupStatus.appKeyBackupStatus.isHealthy()) {
+              Error("Failed to repair cloud backup after updating hardware signature")
+            }
+          }
+            .onSuccess { props.onComplete() }
+            .onFailure { error -> props.onError(error) }
+        }
+
+        LoadingBodyModel(
+          id = LOADING_ONBOARDING_STEP,
+          title = "Saving your cloud backup…"
+        ).asRootScreen()
       }
     }
   }
@@ -125,6 +144,13 @@ class BuildHardwareDescriptorUiStateMachineImpl(
      */
     data class TappingHardware(
       val nfcSession: suspend (NfcSession, NfcCommands) -> String,
+    ) : State
+
+    /**
+     * Saving a cloud backup with the hardware signature returned from NFC.
+     */
+    data class SavingBackup(
+      val signature: String,
     ) : State
   }
 }

@@ -19,6 +19,8 @@ import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
+import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
@@ -31,13 +33,15 @@ class HardwareAuthUiStateMachineImpl(
 ) : HardwareAuthUiStateMachine {
   @Composable
   override fun model(props: HardwareAuthUiProps): ScreenModel {
-    var state: State by remember {
+    var state: State by remember(
+      props.fullAccountId,
+      props.hardwareType,
+      props.actionProofType,
+      props.refreshAuthTokens,
+      props.authTokens
+    ) {
       mutableStateOf(
-        if (!props.refreshAuthTokens && props.hardwareType == HardwareType.W3) {
-          State.W3BuildingAndAppSigning
-        } else {
-          State.RefreshingAuthTokens
-        }
+        initialState(props)
       )
     }
 
@@ -67,7 +71,12 @@ class HardwareAuthUiStateMachineImpl(
             },
             onSuccess = { signedToken ->
               props.onSuccess(
-                HwKeyProof(HwFactorProofOfPossession(signedToken))
+                HwKeyProof(
+                  HwFactorProofOfPossession(
+                    hwSignedToken = signedToken,
+                    accessToken = currentState.accessToken.raw
+                  )
+                )
               )
             },
             onCancel = props.onBack,
@@ -98,7 +107,7 @@ class HardwareAuthUiStateMachineImpl(
                   nonce = nonce
                 )
               }
-              .onFailure { state = State.W3Error(it) }
+              .onFailure { state = State.ActionProofError(it) }
           } else {
             actionProofService.buildAppSignedPayload(
               action = type.action,
@@ -115,7 +124,7 @@ class HardwareAuthUiStateMachineImpl(
                   nonce = signed.nonce
                 )
               }
-              .onFailure { state = State.W3Error(it) }
+              .onFailure { state = State.ActionProofError(it) }
           }
         }
 
@@ -148,7 +157,7 @@ class HardwareAuthUiStateMachineImpl(
                 .onSuccess { header ->
                   props.onSuccess(HwSignedAction(actionProof = header))
                 }
-                .onFailure { state = State.W3Error(it) }
+                .onFailure { state = State.ActionProofError(it) }
             },
             onCancel = props.onBack,
             segment = props.segment,
@@ -168,14 +177,17 @@ class HardwareAuthUiStateMachineImpl(
         )
       }
 
-      is State.W3Error -> {
+      is State.ActionProofError -> {
         ErrorFormBodyModel(
           title = "We couldn’t verify this action",
           primaryButton = ButtonDataModel(
             text = "Retry",
-            onClick = { state = State.W3BuildingAndAppSigning }
+            onClick = { state = initialState(props) }
           ),
           onBack = props.onBack,
+          toolbar = ToolbarModel(
+            leadingAccessory = CloseAccessory(onClick = props.onBack)
+          ),
           eventTrackerScreenId = AuthEventTrackerScreenId.ACTION_PROOF_ERROR,
           errorData = ErrorData(
             segment = props.segment,
@@ -187,8 +199,27 @@ class HardwareAuthUiStateMachineImpl(
     }
   }
 
+  private fun initialState(props: HardwareAuthUiProps): State =
+    when {
+      props.hardwareType == HardwareType.W1 &&
+        props.actionProofType.hwSignatureOnly ->
+        props.authTokens
+          ?.let { State.W1SigningWithNfc(it.accessToken) }
+          ?: State.ActionProofError(
+            IllegalStateException(
+              "Missing auth tokens for W1 hardware-signature-only proof"
+            )
+          )
+
+      props.hardwareType == HardwareType.W3 &&
+        (!props.refreshAuthTokens || props.actionProofType.hwSignatureOnly) ->
+        State.W3BuildingAndAppSigning
+
+      else -> State.RefreshingAuthTokens
+    }
+
   private sealed interface State {
-    /** Shared first step: refresh auth tokens before any NFC operation. */
+    /** Refreshes auth tokens before flows that need a fresh app-authenticated token. */
     data object RefreshingAuthTokens : State
 
     // W1 states
@@ -203,6 +234,7 @@ class HardwareAuthUiStateMachineImpl(
       val nonce: String,
     ) : State
 
-    data class W3Error(val error: Throwable) : State
+    // Shared error state
+    data class ActionProofError(val error: Throwable) : State
   }
 }

@@ -39,6 +39,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -88,6 +89,7 @@ internal fun SegmentedVerificationCodeInput(
   testTag: String? = null,
 ) {
   val focusRequester = remember { FocusRequester() }
+  val focusManager = LocalFocusManager.current
   val keyboardController = LocalSoftwareKeyboardController.current
   val requestFocusAndShowKeyboard = {
     focusRequester.requestFocus()
@@ -154,6 +156,10 @@ internal fun SegmentedVerificationCodeInput(
           ) ?: return@BasicTextField
 
         textValue = filteredValue
+        if (filteredValue.length == expectedCodeLength) {
+          keyboardController?.hide()
+          focusManager.clearFocus(force = true)
+        }
         model.onValueChange(
           filteredValue,
           filteredValue.length..filteredValue.length

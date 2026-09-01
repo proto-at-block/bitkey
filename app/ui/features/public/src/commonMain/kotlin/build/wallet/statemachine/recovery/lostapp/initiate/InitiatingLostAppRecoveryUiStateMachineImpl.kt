@@ -166,6 +166,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
             shouldLock = false, // Don't lock because we quickly call signChallenge/signActionProof next
             screenPresentationStyle = Root,
             hardwareVerification = NotRequired,
+            segment = RecoverySegment.DelayAndNotify.LostApp.Initiation,
+            actionDescription = "Getting hardware keys for lost app recovery",
             eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_GET_HW_KEYS,
             showDeviceConfirmation = true
           )
@@ -449,6 +451,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
         onCancel = { onStateChange(AwaitingHardwareKeysState) },
         hardwareVerification = NotRequired,
         shouldLock = false,
+        segment = RecoverySegment.DelayAndNotify.LostApp.Initiation,
+        actionDescription = "Signing auth challenge for lost app recovery",
         eventTrackerContext = APP_DELAY_NOTIFY_SIGN_AUTH,
         screenPresentationStyle = Root,
         hardwareTypeOverride = currentState.hardwareType
@@ -482,6 +486,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
         onCancel = { onStateChange(AwaitingHardwareKeysState) },
         hardwareVerification = NotRequired,
         shouldLock = false,
+        segment = RecoverySegment.DelayAndNotify.LostApp.Initiation,
+        actionDescription = "Signing auth challenge for lost app recovery",
         eventTrackerContext = APP_DELAY_NOTIFY_SIGN_AUTH,
         screenPresentationStyle = Root,
         confirmationContent = HardwareConfirmationContent.LostAppRecoverySignChallenge,
@@ -566,6 +572,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
         },
         onCancel = { onStateChange(AwaitingHardwareKeysState) },
         hardwareVerification = NotRequired,
+        segment = RecoverySegment.DelayAndNotify.LostApp.Initiation,
+        actionDescription = "Getting hardware proof of possession and spending keys for lost app recovery",
         eventTrackerContext = HW_PROOF_OF_POSSESSION,
         screenPresentationStyle = Root,
         hardwareTypeOverride = currentState.hardwareType
@@ -656,6 +664,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
         },
         onCancel = { onStateChange(AwaitingHardwareKeysState) },
         hardwareVerification = NotRequired,
+        segment = RecoverySegment.DelayAndNotify.LostApp.Initiation,
+        actionDescription = "Signing proof of possession and spending key for lost app recovery",
         eventTrackerContext = LOST_APP_RECOVERY,
         screenPresentationStyle = Root,
         confirmationContent = HardwareConfirmationContent.LostAppRecovery,
@@ -700,6 +710,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
           )
         },
         hardwareVerification = NotRequired,
+        segment = RecoverySegment.DelayAndNotify.LostApp.Cancellation,
+        actionDescription = "Signing proof of possession to cancel conflicting recovery",
         eventTrackerContext = HW_PROOF_OF_POSSESSION,
         screenPresentationStyle = Root,
         hardwareTypeOverride = currentState.hardwareType
@@ -757,6 +769,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
           )
         },
         hardwareVerification = NotRequired,
+        segment = RecoverySegment.DelayAndNotify.LostApp.Cancellation,
+        actionDescription = "Signing action proof to cancel conflicting recovery",
         eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_ACTION_PROOF,
         screenPresentationStyle = Root,
         confirmationContent = HardwareConfirmationContent.SignActionProof,

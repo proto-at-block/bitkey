@@ -22,6 +22,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.*
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.EditingFingerprintUiState
 import build.wallet.statemachine.settings.full.device.fingerprints.metrics.FingerprintAddMetricDefinition
@@ -230,6 +231,8 @@ class ManagingFingerprintsScreenPresenter(
             )
           },
           screenPresentationStyle = ScreenPresentationStyle.Modal,
+          segment = SettingsAppSegment.Device,
+          actionDescription = "Saving fingerprint label",
           eventTrackerContext = NfcEventTrackerScreenIdContext.SAVE_FINGERPRINT_LABEL
         )
       )
@@ -308,6 +311,8 @@ class ManagingFingerprintsScreenPresenter(
             )
           },
           screenPresentationStyle = ScreenPresentationStyle.Modal,
+          segment = SettingsAppSegment.Device,
+          actionDescription = "Deleting fingerprint",
           eventTrackerContext = NfcEventTrackerScreenIdContext.DELETE_FINGERPRINT
         )
       )
@@ -370,6 +375,8 @@ class ManagingFingerprintsScreenPresenter(
                 { navigator.exit() }
               },
               screenPresentationStyle = ScreenPresentationStyle.Modal,
+              segment = SettingsAppSegment.Device,
+              actionDescription = "Retrieving enrolled fingerprints",
               eventTrackerContext = NfcEventTrackerScreenIdContext.GET_ENROLLED_FINGERPRINTS
             )
           )

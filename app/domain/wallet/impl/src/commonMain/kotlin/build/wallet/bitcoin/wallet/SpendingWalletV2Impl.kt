@@ -44,14 +44,25 @@ class SpendingWalletV2Impl(
   private val appSessionManager: AppSessionManager,
   private val bdkTransactionMapperV2: BdkTransactionMapperV2,
   private val bdkWalletSyncerV2: BdkWalletSyncerV2,
+  private val bdk2InitialSyncCompletionDao: Bdk2InitialSyncCompletionDao,
   private val syncContext: CoroutineContext = Dispatchers.IO,
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
 ) : SpendingWallet {
   private val balanceState = MutableStateFlow<BitcoinBalance?>(null)
   private val transactionsState = MutableStateFlow<List<BitcoinTransaction>?>(null)
   private val unspentOutputsState = MutableStateFlow<List<BdkUtxo>?>(null)
+  private val initialSyncStatusState = MutableStateFlow<WalletInitialSyncStatus>(
+    WalletInitialSyncStatus.NotRequired
+  )
+  private var hasCompletedBdk2InitialSyncInMemory = false
 
   override suspend fun initializeBalanceAndTransactions() {
+    if (!hasCompletedBdk2InitialSync()) {
+      initialSyncStatusState.value = WalletInitialSyncStatus.Syncing
+      return
+    }
+
+    initialSyncStatusState.value = WalletInitialSyncStatus.NotRequired
     if (!hasCompletedInitialSync()) {
       return
     }
@@ -61,7 +72,12 @@ class SpendingWalletV2Impl(
 
   override suspend fun sync(): Result<Unit, Error> {
     return withContext(syncContext) {
-      coroutineBinding {
+      val isInitialSyncRequired = !hasCompletedBdk2InitialSync()
+      if (isInitialSyncRequired) {
+        initialSyncStatusState.value = WalletInitialSyncStatus.Syncing
+      }
+
+      val syncResult = coroutineBinding {
         bdkWalletSyncerV2.sync(
           bdkWallet = bdkWallet,
           persister = persister,
@@ -70,12 +86,27 @@ class SpendingWalletV2Impl(
           .mapError { SpendingWalletV2Error.SyncFailed(it) }
           .bind()
 
-        if (!hasCompletedInitialSync()) {
-          return@coroutineBinding
-        }
+        readBalanceAndTransactions()
+          .bind()
+          .also { walletData ->
+            if (!hasCompletedBdk2InitialSync()) {
+              walletData.validateForInitialSync()
+                .bind()
 
-        loadBalanceAndTransactions().bind()
+              markBdk2InitialSyncCompleteBestEffort()
+            }
+
+            walletData.publish()
+            initialSyncStatusState.value = WalletInitialSyncStatus.NotRequired
+          }
+        Unit
       }
+
+      if (syncResult.isErr && isInitialSyncRequired && !hasCompletedBdk2InitialSync()) {
+        initialSyncStatusState.value = WalletInitialSyncStatus.Failed(syncResult.error)
+      }
+
+      syncResult
     }
   }
 
@@ -160,6 +191,8 @@ class SpendingWalletV2Impl(
   override fun transactions(): Flow<List<BitcoinTransaction>> = transactionsState.filterNotNull()
 
   override fun unspentOutputs(): Flow<List<BdkUtxo>> = unspentOutputsState.filterNotNull()
+
+  override fun initialSyncStatus(): Flow<WalletInitialSyncStatus> = initialSyncStatusState
 
   // TODO(W-15850): Migrate callers to use createSignedPsbt() instead.
   //  BitcoinTransactionFeeEstimatorImpl and isBalanceSpendable() still use this legacy API.
@@ -279,25 +312,35 @@ class SpendingWalletV2Impl(
       .logFailure(logLevel = Warn) { "BDK2 checkpoint retrieval failed" }
       .getOr(false)
 
+  private suspend fun hasCompletedBdk2InitialSync(): Boolean =
+    hasCompletedBdk2InitialSyncInMemory ||
+      bdk2InitialSyncCompletionDao.isComplete(identifier)
+        .logFailure(logLevel = Warn) { "BDK2 initial sync completion lookup failed" }
+        .getOr(false)
+
+  private suspend fun markBdk2InitialSyncCompleteBestEffort() {
+    hasCompletedBdk2InitialSyncInMemory = true
+    bdk2InitialSyncCompletionDao.markComplete(identifier)
+      .logFailure(logLevel = Warn) { "BDK2 initial sync completion marker write failed" }
+  }
+
   private suspend fun loadBalanceAndTransactionsBestEffort() {
     getBalance().onSuccess { balanceState.value = it }
     getTransactions().onSuccess { transactionsState.value = it }
     getUnspentOutputs().onSuccess { unspentOutputsState.value = it }
   }
 
-  private suspend fun loadBalanceAndTransactions(): Result<Unit, Error> =
+  private suspend fun readBalanceAndTransactions(): Result<WalletData, Error> =
     coroutineBinding {
-      getTransactions()
-        .bind()
-        .also { transactionsState.value = it }
+      val transactions = getTransactions().bind()
+      val balance = getBalance().bind()
+      val unspentOutputs = getUnspentOutputs().bind()
 
-      getBalance()
-        .bind()
-        .also { balanceState.value = it }
-
-      getUnspentOutputs()
-        .bind()
-        .also { unspentOutputsState.value = it }
+      WalletData(
+        balance = balance,
+        transactions = transactions,
+        unspentOutputs = unspentOutputs
+      )
     }
 
   private fun getBalance(): Result<BitcoinBalance, Error> {
@@ -317,16 +360,16 @@ class SpendingWalletV2Impl(
 
   private suspend fun getTransactions(): Result<List<BitcoinTransaction>, SpendingWalletV2Error> {
     return catchingResult {
-      bdkWallet.transactions().mapNotNull { canonicalTx ->
+      bdkWallet.transactions().map { canonicalTx ->
         // Get full TxDetails which includes sent/received amounts
         val txid = canonicalTx.transaction.computeTxid()
-        bdkWallet.txDetails(txid)?.let { txDetails ->
-          bdkTransactionMapperV2.createTransaction(
-            txDetails = txDetails,
-            wallet = bdkWallet,
-            networkType = networkType
-          )
-        }
+        val txDetails = bdkWallet.txDetails(txid)
+          ?: bdkWallet.txDetailsFromCanonicalTx(canonicalTx, txid)
+        bdkTransactionMapperV2.createTransaction(
+          txDetails = txDetails,
+          wallet = bdkWallet,
+          networkType = networkType
+        )
       }
     }.mapError { SpendingWalletV2Error.TransactionsRetrievalFailed(it) }
       .logFailure { "BDK2 transactions retrieval failed" }
@@ -337,6 +380,48 @@ class SpendingWalletV2Impl(
       bdkWallet.listUnspent().map { bdkTransactionMapperV2.createUtxo(it) }
     }.mapError { SpendingWalletV2Error.UnspentOutputsRetrievalFailed(it) }
       .logFailure { "BDK2 UTXO retrieval failed" }
+  }
+
+  private fun BdkV2Wallet.txDetailsFromCanonicalTx(
+    canonicalTx: CanonicalTx,
+    txid: Txid,
+  ): TxDetails {
+    logWarn { "BDK2 transaction details missing; deriving from canonical transaction" }
+    val sentAndReceived = sentAndReceived(canonicalTx.transaction)
+    val fee = catchingResult { calculateFee(canonicalTx.transaction) }.getOr(null)
+    val sentSats = sentAndReceived.sent.toSat().toLong()
+    val receivedSats = sentAndReceived.received.toSat().toLong()
+    return TxDetails(
+      txid = txid,
+      sent = sentAndReceived.sent,
+      received = sentAndReceived.received,
+      fee = fee,
+      feeRate = null,
+      balanceDelta = receivedSats - sentSats,
+      chainPosition = canonicalTx.chainPosition,
+      tx = canonicalTx.transaction
+    )
+  }
+
+  private data class WalletData(
+    val balance: BitcoinBalance,
+    val transactions: List<BitcoinTransaction>,
+    val unspentOutputs: List<BdkUtxo>,
+  )
+
+  private fun WalletData.validateForInitialSync(): Result<Unit, SpendingWalletV2Error> {
+    if (balance.total.isPositive && transactions.isEmpty()) {
+      logWarn { "BDK2 initial sync returned balance without transaction history" }
+      return Err(SpendingWalletV2Error.InitialSyncDataIncomplete)
+    }
+
+    return Ok(Unit)
+  }
+
+  private fun WalletData.publish() {
+    transactionsState.value = transactions
+    balanceState.value = balance
+    unspentOutputsState.value = unspentOutputs
   }
 
   /**

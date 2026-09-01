@@ -77,7 +77,7 @@ private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveR
 
 internal val LiteMoneyHomeBodyModel.walletsYoureProtectingCount: Int
   get() {
-    val drillList = cardsModel.cards.first().content as CardModel.CardContent.DrillList
+    val drillList = cardsModel.cards.first() as CardModel.DrillList
     return when (drillList.items.first().leadingAccessory) {
       // This is the Accept Invite button, so there are no protected customers.
       is ListItemAccessory.ButtonAccessory -> 0

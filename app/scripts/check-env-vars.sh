@@ -26,7 +26,7 @@ else
 fi
 
 # Check ANDROID_BUILD_TOOLS_VERSION
-expected_build_tools="35.0.0"
+expected_build_tools="36.0.0"
 if [ "$ANDROID_BUILD_TOOLS_VERSION" = "$expected_build_tools" ]; then
   echo "✅ ANDROID_BUILD_TOOLS_VERSION is set: $ANDROID_BUILD_TOOLS_VERSION"
 else

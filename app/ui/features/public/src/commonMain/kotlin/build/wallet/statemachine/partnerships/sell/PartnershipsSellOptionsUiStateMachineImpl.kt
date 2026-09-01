@@ -138,8 +138,8 @@ class PartnershipsSellOptionsUiStateMachineImpl(
           currentState.quotes.isEmpty() -> {
             return SellErrorModel(
               id = SellEventTrackerScreenId.SELL_PARTNERS_NOT_AVAILABLE,
-              title = "Sell partners coming soon",
-              errorMessage = "Selling isn’t available in your region yet. But we’re currently working with our partners and will send you an email when it’s ready to use.",
+              title = "No sell offers available",
+              errorMessage = "No partner can provide a quote for selling $formattedSellAmount right now. Try a different amount or check back later.",
               onBack = props.onBack
             )
           }

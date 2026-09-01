@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose-uikitx64",
     "components": [
         {
-            "version": "2.9.5",
+            "version": "2.9.6",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-runtime-compose-uikitX64Main-2.9.5.klib": "c6f05c3d8d1b3e7867a89de8fd324892b3541148675dcfc6419a04af95373f42"
+                        "lifecycle-runtime-compose-uikitX64Main-2.9.6.klib": "c6f05c3d8d1b3e7867a89de8fd324892b3541148675dcfc6419a04af95373f42"
                     }
                 },
                 {
                     "artifacts": {
-                        "lifecycle-runtime-compose-uikitx64-2.9.5-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "lifecycle-runtime-compose-uikitx64-2.9.6-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 }
             ],

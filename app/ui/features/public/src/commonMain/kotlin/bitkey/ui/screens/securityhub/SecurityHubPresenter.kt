@@ -51,6 +51,7 @@ import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
 import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetStatusCardUiProps
@@ -108,6 +109,33 @@ class SecurityHubPresenter(
     var uiState: SecurityHubUiState by remember {
       mutableStateOf(screen.initialState)
     }
+
+    /**
+     * The Security Hub route to hand to other screens, and to return to when a nested flow
+     * exits.
+     *
+     * [screen] may carry a non-default [SecurityHubScreen.initialState] (for example
+     * [SecurityHubUiState.ProvisioningAppKeyState]). Destinations capture their origin and
+     * navigate back to it, and a re-composed presenter starts from `initialState`, so
+     * handing out [screen] directly would re-launch that nested flow on return.
+     */
+    val viewingScreen = remember(screen.account) {
+      SecurityHubScreen(account = screen.account)
+    }
+
+    /**
+     * Leave a nested flow (fingerprint reset, app key provisioning) back to the hub.
+     *
+     * Resets local state *and* normalizes the route. Both are needed: the flow can be
+     * entered either by local state change (route already equals [viewingScreen], and
+     * `Navigator.goTo` no-ops on an equal screen) or by navigating to a [SecurityHubScreen]
+     * carrying that state as its `initialState`.
+     */
+    val exitToViewingSecurityHub = {
+      uiState = SecurityHubUiState.ViewingSecurityHub
+      navigator.goTo(viewingScreen)
+    }
+
     val onCannotUnlockFingerprints = {
       uiState = SecurityHubUiState.FingerprintResetState
     }
@@ -138,7 +166,7 @@ class SecurityHubPresenter(
           when (it) {
             OfflineStatus -> navigator.goTo(
               AppFunctionalityStatusScreen(
-                originScreen = screen
+                originScreen = viewingScreen
               )
             )
             else -> {} // no-op since we are in Security Hub
@@ -183,7 +211,7 @@ class SecurityHubPresenter(
     val recoveryContactCardsModel = recoveryContactCardsModel(
       recoveryContactCardsUiStateMachine,
       navigator,
-      screen,
+      viewingScreen,
       setState = { uiState = it }
     )
 
@@ -230,21 +258,26 @@ class SecurityHubPresenter(
             uiState = SecurityHubUiState.FingerprintResetState
           }
           PROVISION_APP_KEY_TO_HARDWARE -> {
-            uiState = SecurityHubUiState.ProvisioningAppKeyState
+            navigator.goTo(
+              screen = SecurityHubEducationScreen.ProvisionAppKeyEducation(
+                originScreen = viewingScreen,
+                firmwareData = firmwareUpdateData.firmwareUpdateState
+              )
+            )
           }
           else -> {
             if (recommendation.hasEducation) {
               navigator.goTo(
                 screen = SecurityHubEducationScreen.RecommendationEducation(
                   recommendation = recommendation,
-                  originScreen = screen,
+                  originScreen = viewingScreen,
                   firmwareData = firmwareUpdateData.firmwareUpdateState
                 )
               )
             } else {
               navigator.navigateToScreen(
                 id = recommendation.navigationScreenId(),
-                originScreen = screen,
+                originScreen = viewingScreen,
                 firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
                 isFingerprintResetEnabled = isFingerprintResetEnabled,
                 canEditFingerprints = canEditFingerprints,
@@ -257,7 +290,7 @@ class SecurityHubPresenter(
       onSecurityActionClick = { securityAction ->
         navigator.navigateToScreen(
           id = securityAction.navigationScreenId(),
-          originScreen = screen,
+          originScreen = viewingScreen,
           firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
           isFingerprintResetEnabled = isFingerprintResetEnabled,
           canEditFingerprints = canEditFingerprints,
@@ -274,7 +307,7 @@ class SecurityHubPresenter(
         onClick = {
           navigator.navigateToScreen(
             id = NavigationScreenId.NAVIGATION_SCREEN_ID_SETTINGS,
-            originScreen = screen,
+            originScreen = viewingScreen,
             firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
             isFingerprintResetEnabled = isFingerprintResetEnabled,
             canEditFingerprints = canEditFingerprints,
@@ -324,18 +357,16 @@ class SecurityHubPresenter(
             onComplete = { enrolledFingerprints ->
               onEditFingerprints(
                 navigator,
-                screen,
+                viewingScreen,
                 firmwareUpdateData.firmwareUpdateState,
                 enrolledFingerprints
               )
             },
-            onCancel = {
-              uiState = SecurityHubUiState.ViewingSecurityHub
-            },
+            onCancel = exitToViewingSecurityHub,
             onFwUpRequired = {
               navigator.navigateToScreen(
                 id = NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE,
-                originScreen = screen,
+                originScreen = viewingScreen,
                 firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
                 isFingerprintResetEnabled = isFingerprintResetEnabled,
                 canEditFingerprints = canEditFingerprints
@@ -350,14 +381,12 @@ class SecurityHubPresenter(
           props = NfcSessionUIStateMachineProps(
             transaction = provisionAppAuthKeyTransactionProvider(
               appGlobalAuthPublicKey = screen.account.keybox.activeAppKeyBundle.authKey,
-              onSuccess = {
-                uiState = SecurityHubUiState.ViewingSecurityHub
-              },
-              onCancel = {
-                uiState = SecurityHubUiState.ViewingSecurityHub
-              }
+              onSuccess = exitToViewingSecurityHub,
+              onCancel = exitToViewingSecurityHub
             ),
             screenPresentationStyle = ScreenPresentationStyle.Modal,
+            segment = SettingsAppSegment.Device,
+            actionDescription = "Provisioning app auth key to hardware from Security Hub",
             eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_PROVISION_APP_AUTH_KEY,
             hardwareVerification = HardwareVerification.Required()
           )
@@ -371,6 +400,7 @@ class SecurityHubPresenter(
 private fun recoveryContactCardsModel(
   recoveryContactCardsUiStateMachine: RecoveryContactCardsUiStateMachine,
   navigator: Navigator,
+  /** Must be a viewing-state Security Hub route, so returning here doesn't re-enter a flow. */
   screen: SecurityHubScreen,
   setState: (SecurityHubUiState) -> Unit,
 ) = recoveryContactCardsUiStateMachine.model(
@@ -490,6 +520,12 @@ fun Navigator.navigateToScreen(
         origin = originScreen
       )
     )
+    NavigationScreenId.NAVIGATION_SCREEN_ID_DELAY_NOTIFY_PERIOD -> goTo(
+      screen = DelayNotifyPeriodScreen(
+        account = originScreen.account,
+        origin = originScreen
+      )
+    )
     else -> Router.route = Route.NavigationDeeplink(screen = id)
   }
 }
@@ -555,6 +591,7 @@ fun SecurityAction.navigationScreenId(): NavigationScreenId =
     HARDWARE_DEVICE -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE
     TRANSACTION_VERIFICATION -> NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY
     KEYSET_SYNC -> NavigationScreenId.NAVIGATION_SCREEN_ID_KEYSET_REPAIR
+    DELAY_NOTIFY_PERIOD -> NavigationScreenId.NAVIGATION_SCREEN_ID_DELAY_NOTIFY_PERIOD
   }
 
 fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =

@@ -241,6 +241,219 @@ class RelationshipsCryptoImplTests : FunSpec({
     ).getOrThrow().utf8().shouldBe(privateKeyMaterial)
   }
 
+  test("generateKeyCertificate refuses placeholder hw signatures") {
+    val (hwPubKey, _) = secp256k1KeyGenerator.generateKeypair()
+    val (appPubKey, appPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    appPrivateKeyDao.asymmetricKeys[appPubKey.toPublicKey<AppGlobalAuthKey>()] =
+      appPrivKey.toPrivateKey<AppGlobalAuthKey>()
+    val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
+
+    listOf(
+      AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER,
+      AppGlobalAuthKeyHwSignature.ORPHANED_KEY_RECOVERY_SENTINEL
+    ).forEach { sentinel ->
+      relationshipsCrypto.generateKeyCertificate(
+        delegatedDecryptionKey.publicKey,
+        HwAuthPublicKey(hwPubKey),
+        appPubKey.toPublicKey(),
+        AppGlobalAuthKeyHwSignature(sentinel)
+      ).shouldBeErr(RelationshipsCryptoError.PlaceholderHwSignature)
+    }
+  }
+
+  test("generateKeyCertificate allows only the W3 onboarding placeholder when explicitly requested") {
+    val (hwPubKey, _) = secp256k1KeyGenerator.generateKeypair()
+    val (appPubKey, appPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    appPrivateKeyDao.asymmetricKeys[appPubKey.toPublicKey<AppGlobalAuthKey>()] =
+      appPrivKey.toPrivateKey<AppGlobalAuthKey>()
+    val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
+
+    val certificate = relationshipsCrypto.generateKeyCertificate(
+      delegatedDecryptionKey = delegatedDecryptionKey.publicKey,
+      hwAuthKey = HwAuthPublicKey(hwPubKey),
+      appGlobalAuthKey = appPubKey.toPublicKey(),
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+      ),
+      allowW3OnboardingPlaceholder = true
+    ).getOrThrow()
+
+    certificate.appAuthGlobalKeyHwSignature.isW3OnboardingPlaceholder.shouldBe(true)
+    relationshipsCrypto.generateKeyCertificate(
+      delegatedDecryptionKey = delegatedDecryptionKey.publicKey,
+      hwAuthKey = HwAuthPublicKey(hwPubKey),
+      appGlobalAuthKey = appPubKey.toPublicKey(),
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.ORPHANED_KEY_RECOVERY_SENTINEL
+      ),
+      allowW3OnboardingPlaceholder = true
+    ).shouldBeErr(RelationshipsCryptoError.PlaceholderHwSignature)
+  }
+
+  test("verifyKeyCertificate reports the W3 placeholder distinctly") {
+    val (hwPubKey, hwPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    val (appPubKey, appPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    appPrivateKeyDao.asymmetricKeys[appPubKey.toPublicKey<AppGlobalAuthKey>()] =
+      appPrivKey.toPrivateKey<AppGlobalAuthKey>()
+    val hwSignature = messageSigner.signResult(appPubKey.value.encodeUtf8(), hwPrivKey).getOrThrow()
+    val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
+
+    val validCertificate = relationshipsCrypto.generateKeyCertificate(
+      delegatedDecryptionKey.publicKey,
+      HwAuthPublicKey(hwPubKey),
+      appPubKey.toPublicKey(),
+      AppGlobalAuthKeyHwSignature(hwSignature)
+    ).getOrThrow()
+
+    val w3PlaceholderCertificate = validCertificate.copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+      )
+    )
+    relationshipsCrypto.verifyKeyCertificate(
+      keyCertificate = w3PlaceholderCertificate,
+      hwAuthKey = HwAuthPublicKey(hwPubKey),
+      appGlobalAuthKey = appPubKey.toPublicKey()
+    ).shouldBeErr(RelationshipsCryptoError.KeyCertificateContainsPlaceholder)
+
+    val orphanedCertificate = validCertificate.copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.ORPHANED_KEY_RECOVERY_SENTINEL
+      )
+    )
+    shouldThrow<RelationshipsCryptoError.KeyCertificateVerificationFailed> {
+      relationshipsCrypto.verifyKeyCertificate(
+        keyCertificate = orphanedCertificate,
+        hwAuthKey = HwAuthPublicKey(hwPubKey),
+        appGlobalAuthKey = appPubKey.toPublicKey()
+      ).getOrThrow()
+    }
+
+    val garbageCertificate = validCertificate.copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature("not-a-real-signature")
+    )
+    shouldThrow<RelationshipsCryptoError.KeyCertificateVerificationFailed> {
+      relationshipsCrypto.verifyKeyCertificate(
+        keyCertificate = garbageCertificate,
+        hwAuthKey = HwAuthPublicKey(hwPubKey),
+        appGlobalAuthKey = appPubKey.toPublicKey()
+      ).getOrThrow()
+    }
+  }
+
+  test("placeholder certificates without a trusted app key fail closed as tampered") {
+    val (hwPubKey, _) = secp256k1KeyGenerator.generateKeypair()
+    // Use an untrusted app key with a valid self-signature.
+    val (attackerAppPubKey, attackerAppPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    appPrivateKeyDao.asymmetricKeys[attackerAppPubKey.toPublicKey<AppGlobalAuthKey>()] =
+      attackerAppPrivKey.toPrivateKey<AppGlobalAuthKey>()
+    val (trustedAppPubKey, _) = secp256k1KeyGenerator.generateKeypair()
+    val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
+
+    // Combine the trusted hardware key with the untrusted app key.
+    val forgedCertificate = relationshipsCrypto.generateKeyCertificate(
+      delegatedDecryptionKey.publicKey,
+      HwAuthPublicKey(hwPubKey),
+      attackerAppPubKey.toPublicKey(),
+      AppGlobalAuthKeyHwSignature("real-looking-signature")
+    ).getOrThrow().copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+      )
+    )
+
+    shouldThrow<RelationshipsCryptoError.KeyCertificateVerificationFailed> {
+      relationshipsCrypto.verifyKeyCertificate(
+        keyCertificate = forgedCertificate,
+        hwAuthKey = HwAuthPublicKey(hwPubKey),
+        appGlobalAuthKey = trustedAppPubKey.toPublicKey()
+      ).getOrThrow()
+    }
+
+    // Untrusted app keys cannot use placeholder regeneration.
+    shouldThrow<RelationshipsCryptoError.KeyCertificateVerificationFailed> {
+      relationshipsCrypto.verifyAndRegenerateKeyCertificate(
+        oldCertificate = forgedCertificate,
+        oldAppGlobalAuthKey = trustedAppPubKey.toPublicKey(),
+        oldHwAuthKey = HwAuthPublicKey(hwPubKey),
+        newAppGlobalAuthKey = trustedAppPubKey.toPublicKey(),
+        newAppGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("repaired-signature")
+      ).getOrThrow()
+    }
+  }
+
+  test("verifyAndRegenerateKeyCertificate regenerates placeholder certificates") {
+    val (hwPubKey, hwPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    val (appPubKey, appPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    appPrivateKeyDao.asymmetricKeys[appPubKey.toPublicKey<AppGlobalAuthKey>()] =
+      appPrivKey.toPrivateKey<AppGlobalAuthKey>()
+    val realHwSignature =
+      messageSigner.signResult(appPubKey.value.encodeUtf8(), hwPrivKey).getOrThrow()
+    val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
+
+    // Replace a valid certificate's hardware endorsement with the placeholder.
+    val placeholderCertificate = relationshipsCrypto.generateKeyCertificate(
+      delegatedDecryptionKey.publicKey,
+      HwAuthPublicKey(hwPubKey),
+      appPubKey.toPublicKey(),
+      AppGlobalAuthKeyHwSignature(realHwSignature)
+    ).getOrThrow().copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+      )
+    )
+
+    val regenerated = relationshipsCrypto.verifyAndRegenerateKeyCertificate(
+      oldCertificate = placeholderCertificate,
+      oldAppGlobalAuthKey = appPubKey.toPublicKey(),
+      oldHwAuthKey = HwAuthPublicKey(hwPubKey),
+      newAppGlobalAuthKey = appPubKey.toPublicKey(),
+      newAppGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(realHwSignature)
+    ).getOrThrow()
+
+    regenerated.delegatedDecryptionKey.shouldBe(delegatedDecryptionKey.publicKey)
+    regenerated.appAuthGlobalKeyHwSignature.shouldBe(AppGlobalAuthKeyHwSignature(realHwSignature))
+
+    relationshipsCrypto.verifyKeyCertificate(
+      keyCertificate = regenerated,
+      hwAuthKey = HwAuthPublicKey(hwPubKey),
+      appGlobalAuthKey = appPubKey.toPublicKey()
+    ).getOrThrow().shouldBe(delegatedDecryptionKey.publicKey)
+  }
+
+  test("verifyAndRegenerateKeyCertificate refuses placeholder certificates with invalid app signatures") {
+    val (hwPubKey, hwPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    val (appPubKey, appPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    appPrivateKeyDao.asymmetricKeys[appPubKey.toPublicKey<AppGlobalAuthKey>()] =
+      appPrivKey.toPrivateKey<AppGlobalAuthKey>()
+    val realHwSignature =
+      messageSigner.signResult(appPubKey.value.encodeUtf8(), hwPrivKey).getOrThrow()
+    val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
+
+    // Pair the placeholder with an invalid app signature.
+    val forgedCertificate = relationshipsCrypto.generateKeyCertificate(
+      delegatedDecryptionKey.publicKey,
+      HwAuthPublicKey(hwPubKey),
+      appPubKey.toPublicKey(),
+      AppGlobalAuthKeyHwSignature(realHwSignature)
+    ).getOrThrow().copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+      ),
+      trustedContactIdentityKeyAppSignature = TcIdentityKeyAppSignature(realHwSignature)
+    )
+
+    shouldThrow<RelationshipsCryptoError.KeyCertificateVerificationFailed> {
+      relationshipsCrypto.verifyAndRegenerateKeyCertificate(
+        oldCertificate = forgedCertificate,
+        oldAppGlobalAuthKey = appPubKey.toPublicKey(),
+        oldHwAuthKey = HwAuthPublicKey(hwPubKey),
+        newAppGlobalAuthKey = appPubKey.toPublicKey(),
+        newAppGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(realHwSignature)
+      ).getOrThrow()
+    }
+  }
+
   test("verifyKeyCertificate accepts W3 domain-separated appAuthGlobalKeyHwSignature") {
     val (hwPubKey, hwPrivKey) = secp256k1KeyGenerator.generateKeypair()
     val (appPubKey, appPrivKey) = secp256k1KeyGenerator.generateKeypair()

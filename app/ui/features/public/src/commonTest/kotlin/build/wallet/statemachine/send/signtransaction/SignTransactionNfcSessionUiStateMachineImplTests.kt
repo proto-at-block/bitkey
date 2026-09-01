@@ -1,4 +1,5 @@
 package build.wallet.statemachine.send.signtransaction
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 
 import app.cash.turbine.Turbine
 import bitkey.account.HardwareType
@@ -12,11 +13,13 @@ import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.keybox.EekKeyboxMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.Companion.LEGACY_EAK_PUBLIC_KEY
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifierMock
 import build.wallet.encrypt.SignatureVerifierMock.VerifyEcdsaCall
@@ -250,7 +253,7 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
       onHelpClick.shouldNotBeNull().invoke()
 
       awaitBody<NfcHelpBodyModel> {
-        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("How it works")
         onBack.shouldNotBeNull().invoke()
       }
 
@@ -841,6 +844,51 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
       // Verify the signature verifier was called with the keybox key
       signatureVerifierTurbine.awaitItem()
         .publicKey.shouldBe(KeyboxMock.activeHwKeyBundle.authKey.pubKey)
+
+      onErrorCalls.awaitItem()
+    }
+  }
+
+  // EEK Sentinel Tests
+  // EEK-restored keyboxes persist a sentinel string instead of a real hardware auth key,
+  // so the pairing check must fail open or EEK users cannot sign send/sweep transactions.
+
+  test("EEK sentinel keybox bypasses hardware pairing check") {
+    keyboxDao.activeKeybox.value = Ok(EekKeyboxMock)
+
+    nfcTransactor.transactResult = Err(NfcException.Timeout())
+
+    stateMachine.test(props) {
+      awaitBody<SignTransactionNfcBodyModel>()
+
+      val params = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+
+      params.requirePairedHardware.shouldBe(NfcSession.RequirePairedHardware.NotRequired)
+
+      onErrorCalls.awaitItem()
+    }
+  }
+
+  test("legacy EAK sentinel keybox bypasses hardware pairing check") {
+    // Keyboxes restored before the EAK -> EEK rename persist the legacy sentinel
+    keyboxDao.activeKeybox.value = Ok(
+      EekKeyboxMock.copy(
+        activeHwKeyBundle = EekKeyboxMock.activeHwKeyBundle.copy(
+          authKey = HwAuthPublicKey(Secp256k1PublicKey(LEGACY_EAK_PUBLIC_KEY))
+        )
+      )
+    )
+
+    nfcTransactor.transactResult = Err(NfcException.Timeout())
+
+    stateMachine.test(props) {
+      awaitBody<SignTransactionNfcBodyModel>()
+
+      val params = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+
+      params.requirePairedHardware.shouldBe(NfcSession.RequirePairedHardware.NotRequired)
 
       onErrorCalls.awaitItem()
     }

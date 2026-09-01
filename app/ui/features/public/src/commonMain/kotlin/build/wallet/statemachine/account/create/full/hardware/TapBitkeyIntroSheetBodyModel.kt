@@ -86,8 +86,7 @@ class TapBitkeyIntroSheetBodyModel(
 
         FooterContent(
           primaryButton = primaryButton,
-          secondaryButton = secondaryButton,
-          tertiaryButton = tertiaryButton
+          secondaryButton = secondaryButton
         )
       }
     }

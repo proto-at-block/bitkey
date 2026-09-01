@@ -56,7 +56,8 @@ class FingerprintResetGrantNfcHandlerTests : FunSpec({
       props.needsAuthentication shouldBe false
       props.shouldLock shouldBe false
       props.eventTrackerContext shouldBe testEventTrackerContext
-      props.hardwareVerification shouldBe NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+      props.hardwareVerification shouldBe
+        NfcSessionUIStateMachineProps.HardwareVerification.RequiredSerialOnly
     }
 
     test("should provide grant successfully when grant not yet delivered") {

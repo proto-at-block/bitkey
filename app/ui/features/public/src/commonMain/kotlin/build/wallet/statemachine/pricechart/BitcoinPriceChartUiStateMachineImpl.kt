@@ -236,6 +236,9 @@ class BitcoinPriceChartUiStateMachineImpl(
     onLoadFailed: (hasCachedData: Boolean) -> Unit,
     onLoadingFinished: () -> Unit,
   ) {
+    val currentOnDataLoaded by rememberUpdatedState(onDataLoaded)
+    val currentOnLoadFailed by rememberUpdatedState(onLoadFailed)
+    val currentOnLoadingFinished by rememberUpdatedState(onLoadingFinished)
     LaunchedEffect(selectedType, selectedRange, fiatCurrency) {
       val requestedType = selectedType
       val requestedRange = selectedRange
@@ -249,12 +252,12 @@ class BitcoinPriceChartUiStateMachineImpl(
           .onSuccess { chartData ->
             val immutableChartData = chartData.toImmutableDataPoints()
             rangeCaches.forType(requestedType)[requestedRange] = immutableChartData
-            onDataLoaded(immutableChartData, requestedFiatCurrency)
+            currentOnDataLoaded(immutableChartData, requestedFiatCurrency)
           }
           .onFailure {
-            onLoadFailed(rangeCaches.cachedData(requestedType, requestedRange) != null)
+            currentOnLoadFailed(rangeCaches.cachedData(requestedType, requestedRange) != null)
           }
-        onLoadingFinished()
+        currentOnLoadingFinished()
       }.launchIn(this)
     }
   }
@@ -272,6 +275,7 @@ class BitcoinPriceChartUiStateMachineImpl(
     prefetchScope: CoroutineScope,
     onSelectedRangePrefetched: (ImmutableList<DataPoint>, FiatCurrency) -> Unit,
   ) {
+    val currentOnSelectedRangePrefetched by rememberUpdatedState(onSelectedRangePrefetched)
     val latestSelectedRequest by rememberUpdatedState(
       ChartSelectionKey(
         type = selectedType,
@@ -303,7 +307,7 @@ class BitcoinPriceChartUiStateMachineImpl(
               )?.let { prefetchedData ->
                 activeCache[range] = prefetchedData
                 if (latestSelectedRequest == ChartSelectionKey(activeType, range, activeFiatCurrency)) {
-                  onSelectedRangePrefetched(prefetchedData, activeFiatCurrency)
+                  currentOnSelectedRangePrefetched(prefetchedData, activeFiatCurrency)
                 }
               }
             } finally {
@@ -326,6 +330,7 @@ class BitcoinPriceChartUiStateMachineImpl(
     selectedRangeLabel: String,
     onSelectedPointDataChange: (SelectedPointData?) -> Unit,
   ) {
+    val currentOnSelectedPointDataChange by rememberUpdatedState(onSelectedPointDataChange)
     LaunchedEffect(
       data,
       dataFiatCurrency,
@@ -338,7 +343,7 @@ class BitcoinPriceChartUiStateMachineImpl(
     ) {
       val hasStaleFiatData = data.isNotEmpty() && dataFiatCurrency != null && dataFiatCurrency != fiatCurrency
       if (isLoading || hasStaleFiatData) return@LaunchedEffect
-      onSelectedPointDataChange(
+      currentOnSelectedPointDataChange(
         buildSelectedPointData(
           data = data,
           selectedType = selectedType,

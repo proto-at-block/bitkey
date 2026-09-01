@@ -1,6 +1,7 @@
 package build.wallet.relationships
 
 import bitkey.account.AccountConfigService
+import bitkey.relationships.Relationships
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitkey.account.FullAccount
@@ -12,14 +13,29 @@ import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.ensure
 import build.wallet.f8e.relationships.EndorseTrustedContactsF8eClientProvider
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState.FOREGROUND
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlin.math.pow
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(AppScope::class)
 class EndorseTrustedContactsServiceImpl(
@@ -30,7 +46,16 @@ class EndorseTrustedContactsServiceImpl(
   private val relationshipsEnrollmentAuthenticationDao: RelationshipsEnrollmentAuthenticationDao,
   private val relationshipsCrypto: RelationshipsCrypto,
   private val endorseTrustedContactsF8eClientProvider: EndorseTrustedContactsF8eClientProvider,
+  private val appSessionManager: AppSessionManager,
+  private val placeholderRepairRetryDelay: Duration = 5.seconds,
+  private val placeholderRepairMaxRetryDelay: Duration = 1.minutes,
 ) : EndorseTrustedContactsService, EndorseTrustedContactsWorker {
+  companion object {
+    // Allow time for eventually consistent relationship reads to converge.
+    private const val PLACEHOLDER_REPAIR_SYNC_ATTEMPTS = 5
+    private val PLACEHOLDER_REPAIR_SYNC_DELAY = 250.milliseconds
+  }
+
   override suspend fun executeWork() {
     accountService.accountStatus()
       .collectLatest { result ->
@@ -38,15 +63,170 @@ class EndorseTrustedContactsServiceImpl(
           if (accountStatus is ActiveAccount) {
             val account = accountStatus.account
             if (account is FullAccount) {
-              relationshipsService.relationships
-                .filterNotNull()
-                .map { it.unendorsedTrustedContacts }
-                .distinctUntilChanged()
-                .collect { authenticateAndEndorse(it, account) }
+              processRelationships(account)
             }
           }
         }
       }
+  }
+
+  private suspend fun processRelationships(account: FullAccount) = coroutineScope {
+    val triggers = Channel<Trigger>(capacity = Channel.CONFLATED)
+    var retryJob: Job? = null
+    var retryAttempt = 0
+
+    launch {
+      relationshipsService.relationships
+        .filterNotNull()
+        .distinctUntilChanged()
+        .collect {
+          retryJob?.cancel()
+          retryJob = null
+          retryAttempt = 0
+          triggers.trySend(Trigger.RelationshipsChanged)
+        }
+    }
+
+    for (trigger in triggers) {
+      if (trigger == Trigger.RelationshipsChanged) retryAttempt = 0
+      appSessionManager.appSessionState.first { it == FOREGROUND }
+      if (processRelationshipAttempt(account)) {
+        retryJob = scheduleRetry(triggers, retryJob, retryAttempt)
+        retryAttempt++
+      } else {
+        retryAttempt = 0
+      }
+    }
+  }
+
+  private enum class Trigger {
+    RelationshipsChanged,
+    Retry,
+  }
+
+  private fun CoroutineScope.scheduleRetry(
+    triggers: Channel<Trigger>,
+    currentJob: Job?,
+    retryAttempt: Int,
+  ): Job? {
+    if (currentJob?.isActive == true) return currentJob
+    val retryDelay = minOf(
+      placeholderRepairRetryDelay * 2.0.pow(retryAttempt),
+      placeholderRepairMaxRetryDelay
+    )
+    return launch {
+      delay(retryDelay)
+      appSessionManager.appSessionState.first { it == FOREGROUND }
+      triggers.trySend(Trigger.Retry)
+    }
+  }
+
+  private suspend fun processRelationshipAttempt(account: FullAccount): Boolean {
+    val syncResult = relationshipsService.syncAndVerifyRelationships(account)
+      .logFailure { "Failed to refresh relationships for endorsement work" }
+    return syncResult.fold(
+      success = { relationships ->
+        // F8e does not store unendorsed authentication state. Merge the locally persisted state
+        // into the fresh server snapshot so terminal FAILED/PAKE_DATA_UNAVAILABLE contacts are not
+        // retried while newly arrived relationships are still processed.
+        val persistedAuthStates = relationshipsDao.relationships()
+          .first()
+          .getOrElse { return@fold relationshipsService.relationships.value?.hasPendingWork() == true }
+          .unendorsedTrustedContacts
+          .associate { it.id to it.authenticationState }
+        val relationshipsWithPersistedAuthStates = relationships.copy(
+          unendorsedTrustedContacts = relationships.unendorsedTrustedContacts.map { contact ->
+            contact.copy(
+              authenticationState = persistedAuthStates[contact.id] ?: contact.authenticationState
+            )
+          }
+        )
+        processPendingRelationships(relationshipsWithPersistedAuthStates, account)
+      },
+      failure = { relationshipsService.relationships.value?.hasPendingWork() == true }
+    )
+  }
+
+  private suspend fun processPendingRelationships(
+    relationships: Relationships,
+    account: FullAccount,
+  ): Boolean {
+    val endorsementResult = authenticateAndEndorse(
+      relationships.unendorsedTrustedContacts,
+      account
+    )
+    val repairResult = repairPlaceholderEndorsements(
+      relationships.endorsedTrustedContacts,
+      account
+    )
+    val endorsementFailed = relationships.hasPendingEndorsement() && endorsementResult.isErr
+    val repairFailed = relationships.hasPendingRepair() && repairResult.isErr
+    return endorsementFailed || repairFailed
+  }
+
+  private fun Relationships.hasPendingWork(): Boolean =
+    hasPendingEndorsement() || hasPendingRepair()
+
+  private fun Relationships.hasPendingEndorsement(): Boolean =
+    unendorsedTrustedContacts.any {
+      it.authenticationState == TrustedContactAuthenticationState.UNAUTHENTICATED
+    }
+
+  private fun Relationships.hasPendingRepair(): Boolean =
+    endorsedTrustedContacts.any { it.needsHwVerification }
+
+  /** Repairs endorsed contacts with placeholder hardware signatures. */
+  internal suspend fun repairPlaceholderEndorsements(
+    contacts: List<EndorsedTrustedContact>,
+    account: FullAccount,
+  ): Result<Unit, Error> {
+    // A real keybox signature is required to regenerate certificates.
+    if (account.keybox.appGlobalAuthKeyHwSignature.isPlaceholder) return Ok(Unit)
+
+    val placeholderContacts = contacts.filter { it.needsHwVerification }
+    if (placeholderContacts.isEmpty()) return Ok(Unit)
+
+    logInfo {
+      "[socrec_placeholder_repair] Regenerating ${placeholderContacts.size} TC key " +
+        "certificate(s) with placeholder HW endorsements using repaired keybox signature"
+    }
+
+    return coroutineBinding {
+      authenticateRegenerateAndEndorse(
+        accountId = account.accountId,
+        contacts = placeholderContacts,
+        oldAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
+        oldHwAuthKey = account.keybox.activeHwKeyBundle.authKey,
+        newAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
+        newAppGlobalAuthKeyHwSignature = account.keybox.appGlobalAuthKeyHwSignature,
+        newHwAuthKey = account.keybox.activeHwKeyBundle.authKey
+      ).bind()
+
+      // Wait for relationship reads to return the verified replacement certificates.
+      val repairedIds = placeholderContacts.map { it.id }.toSet()
+      var converged = false
+      for (attempt in 0 until PLACEHOLDER_REPAIR_SYNC_ATTEMPTS) {
+        val relationships = relationshipsService.syncAndVerifyRelationships(account).bind()
+        converged = repairedIds.all { relationshipId ->
+          relationships.endorsedTrustedContacts
+            .singleOrNull { it.id == relationshipId }
+            ?.let {
+              it.authenticationState == TrustedContactAuthenticationState.VERIFIED &&
+                !it.keyCertificate.appAuthGlobalKeyHwSignature.isPlaceholder
+            } == true
+        }
+        if (converged) break
+        if (attempt < PLACEHOLDER_REPAIR_SYNC_ATTEMPTS - 1) {
+          delay(PLACEHOLDER_REPAIR_SYNC_DELAY)
+        }
+      }
+      ensure(converged) {
+        Error("Placeholder TC endorsement update did not converge after upload")
+      }
+
+      // syncAndVerifyRelationships persists the converged verification state.
+      Unit
+    }.logFailure { "[socrec_placeholder_repair] Failed to repair placeholder TC endorsements" }
   }
 
   override suspend fun authenticateRegenerateAndEndorse(
@@ -57,6 +237,7 @@ class EndorseTrustedContactsServiceImpl(
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     newHwAuthKey: HwAuthPublicKey,
+    allowW3OnboardingPlaceholder: Boolean,
   ): Result<Unit, Error> =
     coroutineBinding {
       val endorsements = contacts.map { contact ->
@@ -66,7 +247,8 @@ class EndorseTrustedContactsServiceImpl(
           oldHwAuthKey = oldHwAuthKey,
           newAppGlobalAuthKey = newAppGlobalAuthKey,
           newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature,
-          newHwAuthKey = newHwAuthKey
+          newHwAuthKey = newHwAuthKey,
+          allowW3OnboardingPlaceholder = allowW3OnboardingPlaceholder
         ).logFailure {
           "Failed to verify contact ${contact.id.value} key certificate for certificate regeneration."
         }.onFailure {

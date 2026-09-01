@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.Res
-import build.wallet.ui.components.loading.LoadingIndicator
+import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.tokens.painter
@@ -45,7 +45,7 @@ fun UrlImage(
 ) {
   val loadingAnimationComposition by rememberLottieComposition {
     LottieCompositionSpec.JsonString(
-      Res.readBytes("files/loading.json").decodeToString()
+      Res.readBytes("files/loader_badge.json").decodeToString()
     )
   }
 
@@ -133,7 +133,7 @@ fun UrlImage(
 
   when (painterState) {
     is AsyncImagePainter.State.Loading ->
-      LoadingIndicator(modifier = Modifier.size(loadingSize.dp))
+      LoadingBadge(modifier = Modifier.size(loadingSize.dp))
 
     is AsyncImagePainter.State.Success ->
       Image(

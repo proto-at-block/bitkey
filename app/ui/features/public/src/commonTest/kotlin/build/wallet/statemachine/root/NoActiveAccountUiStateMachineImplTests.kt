@@ -1,6 +1,9 @@
 package build.wallet.statemachine.root
 
 import app.cash.turbine.plusAssign
+import bitkey.metrics.MetricOutcome
+import bitkey.metrics.MetricTrackerServiceFake
+import bitkey.metrics.TrackedMetric
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.EventTrackerMock
@@ -13,7 +16,12 @@ import build.wallet.bitkey.keybox.SoftwareAccountMock
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.AgeRangeVerificationFeatureFlag
+import build.wallet.feature.setFlagValue
+import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.router.Route
@@ -22,6 +30,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.ChooseAccountAccessUiProps
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
 import build.wallet.statemachine.core.AgeRestrictedBodyModel
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiProps
@@ -30,11 +39,14 @@ import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecov
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
+import build.wallet.statemachine.root.metrics.AgeRangeVerificationMetricDefinition
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import com.github.michaelbull.result.Ok
+import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.collections.immutable.toImmutableList
 
 class NoActiveAccountUiStateMachineImplTests : FunSpec({
@@ -44,6 +56,14 @@ class NoActiveAccountUiStateMachineImplTests : FunSpec({
   val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
   val accountService = AccountServiceFake()
   val deviceInfoProvider = DeviceInfoProviderMock()
+  val metricTrackerService = MetricTrackerServiceFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+  // Defaults to enabled for Development variant.
+  val ageRangeVerificationFeatureFlag = AgeRangeVerificationFeatureFlag(
+    featureFlagDao = featureFlagDao,
+    appVariant = AppVariant.Development
+  )
+  val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
   val chooseAccountAccessUiStateMachine =
     object : ChooseAccountAccessUiStateMachine,
@@ -83,6 +103,10 @@ class NoActiveAccountUiStateMachineImplTests : FunSpec({
     recoveryStatusService.reset()
     accountService.reset()
     deviceInfoProvider.reset()
+    metricTrackerService.reset()
+    featureFlagDao.reset()
+    ageRangeVerificationFeatureFlag.reset()
+    inAppBrowserNavigator.reset()
     Router.reset()
 
     stateMachine = NoActiveAccountUiStateMachineImpl(
@@ -93,6 +117,10 @@ class NoActiveAccountUiStateMachineImplTests : FunSpec({
       accountService = accountService,
       deviceInfoProvider = deviceInfoProvider,
       ageRangeVerificationService = ageRangeVerificationService,
+      ageRangeVerificationFeatureFlag = ageRangeVerificationFeatureFlag,
+      appVariant = AppVariant.Development,
+      metricTrackerService = metricTrackerService,
+      inAppBrowserNavigator = inAppBrowserNavigator,
       eventTracker = eventTracker,
       recoveryStatusService = recoveryStatusService
     )
@@ -119,6 +147,64 @@ class NoActiveAccountUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel>()
+      awaitBody<AgeRestrictedBodyModel>()
+      awaitAnalyticsEvent()
+    }
+  }
+
+  test("retry on age restricted screen re-runs age verification") {
+    ageRangeVerificationService.result = AgeRangeVerificationResult.Denied
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBody<AgeRestrictedBodyModel> {
+        // Verification now passes (e.g. user resolved their age status with the platform).
+        ageRangeVerificationService.result = AgeRangeVerificationResult.Allowed
+        onRetry()
+      }
+      // Verification is re-run and now passes, so the user can proceed.
+      awaitBodyMock<ChooseAccountAccessUiProps>()
+      awaitAnalyticsEvent()
+    }
+  }
+
+  test("retry on age restricted screen stays blocked when still denied") {
+    ageRangeVerificationService.result = AgeRangeVerificationResult.Denied
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBody<AgeRestrictedBodyModel> {
+        onRetry()
+      }
+      awaitAnalyticsEvent()
+
+      // Verification was re-run but still denied; the screen model is unchanged
+      // (an identical AgeRestrictedBodyModel), so no new emission is expected.
+      // The re-run happens asynchronously after recomposition, so poll for it.
+      eventually(3.seconds) {
+        ageRangeVerificationService.verifyAgeRangeCalls.shouldBe(2)
+      }
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("learn more on age restricted screen opens help center in in-app browser") {
+    ageRangeVerificationService.result = AgeRangeVerificationResult.Denied
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBody<AgeRestrictedBodyModel> {
+        onLearnMore()
+      }
+      awaitBody<InAppBrowserModel> {
+        open()
+      }
+      inAppBrowserNavigator.onOpenCalls.awaitItem()
+        .shouldBe("https://bitkey.world/hc/age-requirement")
+
+      // Closing the browser returns to the age restricted screen.
+      inAppBrowserNavigator.onCloseCallback?.invoke()
       awaitBody<AgeRestrictedBodyModel>()
       awaitAnalyticsEvent()
     }
@@ -440,6 +526,88 @@ class NoActiveAccountUiStateMachineImplTests : FunSpec({
         inviteCode.shouldBe("cold-start-code")
       }
       awaitAnalyticsEvent()
+    }
+  }
+
+  test("age verification metric is completed with Succeeded when verification allows") {
+    ageRangeVerificationFeatureFlag.setFlagValue(true)
+    ageRangeVerificationService.result = AgeRangeVerificationResult.Allowed
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBodyMock<ChooseAccountAccessUiProps>()
+      awaitAnalyticsEvent()
+
+      metricTrackerService.completedMetrics.shouldBe(
+        listOf(
+          MetricTrackerServiceFake.CompletedMetric(
+            metric = TrackedMetric(
+              name = AgeRangeVerificationMetricDefinition.name,
+              variant = null
+            ),
+            outcome = MetricOutcome.Succeeded
+          )
+        )
+      )
+    }
+  }
+
+  test("no age verification metric is emitted when verification denies (privacy)") {
+    ageRangeVerificationFeatureFlag.setFlagValue(true)
+    ageRangeVerificationService.result = AgeRangeVerificationResult.Denied
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBody<AgeRestrictedBodyModel>()
+      awaitAnalyticsEvent()
+
+      // Denied checks intentionally emit NO telemetry ("no tracking of blocked users").
+      metricTrackerService.metrics.value.shouldBe(emptyList())
+      metricTrackerService.completedMetrics.shouldBe(emptyList())
+    }
+  }
+
+  test("age verification metric is not tracked when feature flag is disabled") {
+    ageRangeVerificationFeatureFlag.setFlagValue(false)
+    ageRangeVerificationService.result = AgeRangeVerificationResult.Allowed
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBodyMock<ChooseAccountAccessUiProps>()
+      awaitAnalyticsEvent()
+
+      metricTrackerService.metrics.value.shouldBe(emptyList())
+      metricTrackerService.completedMetrics.shouldBe(emptyList())
+    }
+  }
+
+  test("age verification metric is not tracked for Emergency app variant") {
+    ageRangeVerificationFeatureFlag.setFlagValue(true)
+    ageRangeVerificationService.result = AgeRangeVerificationResult.Allowed
+
+    val emergencyStateMachine = NoActiveAccountUiStateMachineImpl(
+      lostAppRecoveryUiStateMachine = lostAppRecoveryUiStateMachine,
+      chooseAccountAccessUiStateMachine = chooseAccountAccessUiStateMachine,
+      accessCloudBackupUiStateMachine = accessCloudBackupUiStateMachine,
+      emergencyExitKitRecoveryUiStateMachine = emergencyExitKitRecoveryUiStateMachine,
+      accountService = accountService,
+      deviceInfoProvider = deviceInfoProvider,
+      ageRangeVerificationService = ageRangeVerificationService,
+      ageRangeVerificationFeatureFlag = ageRangeVerificationFeatureFlag,
+      appVariant = AppVariant.Emergency,
+      metricTrackerService = metricTrackerService,
+      inAppBrowserNavigator = inAppBrowserNavigator,
+      eventTracker = eventTracker,
+      recoveryStatusService = recoveryStatusService
+    )
+
+    emergencyStateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBodyMock<ChooseAccountAccessUiProps>()
+      awaitAnalyticsEvent()
+
+      metricTrackerService.metrics.value.shouldBe(emptyList())
+      metricTrackerService.completedMetrics.shouldBe(emptyList())
     }
   }
 

@@ -77,7 +77,6 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       PaintBrush -> Res.drawable.market_palette
       Phone -> Res.drawable.market_phone
       Plus -> Res.drawable.market_plus
-      QrCode -> Res.drawable.small_icon_qr_code
       Question -> Res.drawable.market_question_mark_circle
       Recovery -> Res.drawable.market_float
       Refresh -> Res.drawable.market_arrow_rotate_counterclockwise
@@ -94,7 +93,6 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       SmallIconWarning -> Res.drawable.market_exclamation_circle
       SmallIconWarningFilled -> Res.drawable.small_icon_warning_filled
       X -> Res.drawable.small_icon_x
-      XFilled -> Res.drawable.small_icon_xfilled
       DotAddressVerification -> Res.drawable.dot_address_verification
       DotAppKey -> Res.drawable.dot_app_key
       DotAppSecurity -> Res.drawable.dot_app_security

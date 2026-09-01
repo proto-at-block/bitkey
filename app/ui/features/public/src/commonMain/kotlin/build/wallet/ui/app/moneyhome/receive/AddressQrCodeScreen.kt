@@ -38,7 +38,7 @@ import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.Error
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.button.buttonStyle
-import build.wallet.ui.components.card.Card
+import build.wallet.ui.components.card.CardContainer
 import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
@@ -214,14 +214,14 @@ private fun QrCodeWithAddressCard(
   val cardBackgroundColor = WalletTheme.colors.subtleBackground
   val interactionSource = remember { MutableInteractionSource() }
 
-  Card(
+  CardContainer(
     modifier = Modifier
       .fillMaxWidth()
       .clickable(
         interactionSource = interactionSource,
         indication = null,
         onClick = { onCopyClick() }
-    ),
+      ),
     backgroundColor = cardBackgroundColor,
     cornerRadius = 12.dp,
     borderWidth = 0.dp,

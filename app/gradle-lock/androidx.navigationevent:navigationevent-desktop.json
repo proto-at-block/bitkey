@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.navigationevent:navigationevent-desktop",
+    "components": [
+        {
+            "version": "1.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "navigationevent-desktop-1.0.1.jar": "43deeb5774fd737fa945e09a47f93b6f1a508d17fac8f3b65f1c863e7f7d0660"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

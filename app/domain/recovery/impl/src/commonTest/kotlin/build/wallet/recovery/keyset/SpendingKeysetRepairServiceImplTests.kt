@@ -11,6 +11,7 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.bitkey.keybox.PrivateWalletKeyboxMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
+import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.f8e.auth.ActionProofHeader
 import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
@@ -44,6 +45,8 @@ import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -194,6 +197,157 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       status.shouldBeInstanceOf<SpendingKeysetSyncStatus.IncompleteKeysetList>()
       status.activeKeysetId.shouldBe(activePrivateKeysetId)
       status.missingKeysetIds.shouldBe(setOf(missingKeysetId))
+    }
+
+    test("returns IncompleteKeysetListUnrecoverable when only some missing keysets are recoverable") {
+      // Mixed set: a legacy keyset that could be rebuilt, plus a private keyset that cannot.
+      // determineRepairDataSource aborts on the latter, so advertising an actionable repair here
+      // would show a banner for a flow that always terminates.
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = true
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+      val activePrivateKeysetId =
+        privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      val recoverableLegacyKeysetId = "missing-legacy-keyset"
+      val unrecoverablePrivateKeysetId = "missing-private-keyset-no-backup"
+
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            PrivateMultisigRemoteKeyset(
+              keysetId = activePrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            ),
+            createFakeLegacyRemoteKeyset(recoverableLegacyKeysetId),
+            PrivateMultisigRemoteKeyset(
+              keysetId = unrecoverablePrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = activePrivateKeysetId
+        )
+      )
+
+      val service = service()
+      service.executeWork()
+
+      val status = service.syncStatus.value
+      status.shouldBeInstanceOf<SpendingKeysetSyncStatus.IncompleteKeysetListUnrecoverable>()
+      status.missingKeysetIds.shouldContainExactly(
+        setOf(recoverableLegacyKeysetId, unrecoverablePrivateKeysetId)
+      )
+    }
+
+    test("returns IncompleteKeysetListUnrecoverable when missing private keysets have no descriptor backups") {
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = true
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+      val activePrivateKeysetId =
+        privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      val missingPrivateKeysetId = "missing-private-keyset-id"
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            PrivateMultisigRemoteKeyset(
+              keysetId = activePrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            ),
+            PrivateMultisigRemoteKeyset(
+              keysetId = missingPrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          wrappedSsek = null,
+          // No descriptor backup for the missing keyset: it cannot be rebuilt from server state.
+          descriptorBackups = emptyList(),
+          activeKeysetId = activePrivateKeysetId
+        )
+      )
+
+      val service = service()
+      service.executeWork()
+
+      val status = service.syncStatus.value
+      status.shouldBeInstanceOf<SpendingKeysetSyncStatus.IncompleteKeysetListUnrecoverable>()
+      status.activeKeysetId.shouldBe(activePrivateKeysetId)
+      status.missingKeysetIds.shouldBe(setOf(missingPrivateKeysetId))
+    }
+
+    test("returns IncompleteKeysetList when missing private keyset has a descriptor backup") {
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = true
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+      val activePrivateKeysetId =
+        privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      val missingPrivateKeysetId = "missing-private-keyset-with-backup"
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            PrivateMultisigRemoteKeyset(
+              keysetId = activePrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            ),
+            PrivateMultisigRemoteKeyset(
+              keysetId = missingPrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          wrappedSsek = SealedSsekFake,
+          descriptorBackups = listOf(
+            DescriptorBackup(
+              keysetId = missingPrivateKeysetId,
+              sealedDescriptor = XCiphertext("fake-sealed-descriptor"),
+              privateWalletRootXpub = XCiphertext("fake-private-wallet-root-xpub")
+            )
+          ),
+          activeKeysetId = activePrivateKeysetId
+        )
+      )
+
+      val service = service()
+      service.executeWork()
+
+      val status = service.syncStatus.value
+      status.shouldBeInstanceOf<SpendingKeysetSyncStatus.IncompleteKeysetList>()
+      status.missingKeysetIds.shouldBe(setOf(missingPrivateKeysetId))
     }
 
     test("returns Synced when server has keysets missing locally but local keysets are not authoritative") {
@@ -451,7 +605,7 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       info.shouldBeInstanceOf<PrivateKeysetInfo.NeedsUnsealing>()
     }
 
-    test("returns error when private keysets require descriptor backups but none are available") {
+    test("returns terminal UnresolvableKeysets when private keysets require descriptor backups but none are available") {
       val privateAccount = FullAccountMock.copy(
         keybox = PrivateWalletKeyboxMock.copy(
           keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
@@ -487,7 +641,9 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
 
       val result = service().checkPrivateKeysets(privateAccount)
 
-      result.shouldBeErrOfType<KeysetRepairError.FetchKeysetsFailed>()
+      // Terminal, not retryable: private keyset chaincodes never leave the client, so there
+      // is no server-side data that a retry could use.
+      result.shouldBeErrOfType<KeysetRepairError.UnresolvableKeysets>()
     }
 
     test("returns error when network request fails") {
@@ -552,6 +708,215 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
         serverActiveKeysetId
       )
       fullAccountCloudBackupCreator.createCalls.awaitItem()
+    }
+
+    test("checkPrivateKeysets returns terminal error when backups cover only some private keysets") {
+      // Partial coverage: one private keyset has a usable backup, another is neither local nor
+      // backed up. Accepting this would prompt for a hardware tap and then abort mid-repair on the
+      // keyset the backups never covered.
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = true
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+      val activePrivateKeysetId =
+        privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      val backedUpKeysetId = "private-keyset-with-backup"
+      val uncoveredKeysetId = "private-keyset-without-backup"
+
+      fun remotePrivateKeyset(keysetId: String) =
+        PrivateMultisigRemoteKeyset(
+          keysetId = keysetId,
+          networkType = "SIGNET",
+          appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+          hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+          serverPublicKey =
+            privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+        )
+
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            remotePrivateKeyset(activePrivateKeysetId),
+            remotePrivateKeyset(backedUpKeysetId),
+            remotePrivateKeyset(uncoveredKeysetId)
+          ),
+          wrappedSsek = SealedSsekFake,
+          descriptorBackups = listOf(
+            DescriptorBackup(
+              keysetId = backedUpKeysetId,
+              sealedDescriptor = XCiphertext("fake-sealed-descriptor"),
+              privateWalletRootXpub = XCiphertext("fake-private-wallet-root-xpub")
+            )
+          ),
+          activeKeysetId = activePrivateKeysetId
+        )
+      )
+
+      val result = service().checkPrivateKeysets(account = privateAccount)
+
+      val error = result.shouldBeErrOfType<KeysetRepairError.UnresolvableKeysets>()
+      error.unresolvedKeysetIds.shouldContainExactly(setOf(uncoveredKeysetId))
+    }
+
+    test("checkPrivateKeysets allows repair without unsealing when all private keysets are already local") {
+      // Stale active pointer with a complete local keyset list: nothing needs reconstructing, so
+      // this is repairable from local data. Blocking it would strand the customer on the terminal
+      // screen while every required descriptor is already present.
+      val secondPrivateKeyset = PrivateSpendingKeysetMock.copy(
+        localId = "second-private-local-id",
+        f8eSpendingKeyset = PrivateSpendingKeysetMock.f8eSpendingKeyset.copy(
+          keysetId = "second-private-keyset"
+        )
+      )
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset, secondPrivateKeyset),
+          canUseKeyboxKeysets = true
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+      val activePrivateKeysetId =
+        privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            PrivateMultisigRemoteKeyset(
+              keysetId = activePrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            ),
+            PrivateMultisigRemoteKeyset(
+              keysetId = secondPrivateKeyset.f8eSpendingKeyset.keysetId,
+              networkType = "SIGNET",
+              appPublicKey = secondPrivateKeyset.appKey.key.dpub,
+              hardwarePublicKey = secondPrivateKeyset.hardwareKey.key.dpub,
+              serverPublicKey = secondPrivateKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          // No backups and no SSEK, but both private keysets are already held locally.
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = secondPrivateKeyset.f8eSpendingKeyset.keysetId
+        )
+      )
+
+      val result = service().checkPrivateKeysets(account = privateAccount)
+
+      // No unsealing required, so no hardware tap is requested.
+      result.shouldBeOk().shouldBeInstanceOf<PrivateKeysetInfo.None>()
+    }
+
+    test("checkPrivateKeysets returns terminal UnresolvableKeysets when private keysets have no usable backups") {
+      // The preflight runs before attemptRepair, so if it returns a generic FetchKeysetsFailed the
+      // UI offers Retry and the customer never reaches the terminal support state -- the repair can
+      // never succeed, because private keyset chaincodes never leave the client.
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = true
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+      val activePrivateKeysetId =
+        privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      val missingPrivateKeysetId = "private-keyset-without-backup"
+
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            PrivateMultisigRemoteKeyset(
+              keysetId = activePrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            ),
+            PrivateMultisigRemoteKeyset(
+              keysetId = missingPrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          // Two private keysets and no descriptor backups: nothing to unseal.
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = activePrivateKeysetId
+        )
+      )
+
+      val result = service().checkPrivateKeysets(account = privateAccount)
+
+      val error = result.shouldBeErrOfType<KeysetRepairError.UnresolvableKeysets>()
+      error.unresolvedKeysetIds.shouldContain(missingPrivateKeysetId)
+    }
+
+    test("returns terminal UnresolvableKeysets, not a retryable error, when the server active keyset is unresolvable") {
+      // The unresolved check must run before the active-keyset lookup. Otherwise a server-active
+      // private keyset with no descriptor backup fails that lookup with a generic
+      // FetchKeysetsFailed, which the UI presents as retryable -- sending the customer back through
+      // a flow that can never succeed.
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = true
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+      val unresolvableActiveKeysetId = "server-active-private-keyset-without-backup"
+      val backedUpKeysetId = "other-private-keyset-with-backup"
+
+      val cachedData = KeysetRepairCachedData(
+        response = ListKeysetsResponse(
+          keysets = listOf(
+            PrivateMultisigRemoteKeyset(
+              keysetId = unresolvableActiveKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            ),
+            PrivateMultisigRemoteKeyset(
+              keysetId = backedUpKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          wrappedSsek = SealedSsekFake,
+          // Only the non-active keyset has a backup, so the active one cannot be reconstructed.
+          descriptorBackups = listOf(
+            DescriptorBackup(
+              keysetId = backedUpKeysetId,
+              sealedDescriptor = XCiphertext("fake-sealed-descriptor"),
+              privateWalletRootXpub = XCiphertext("fake-private-wallet-root-xpub")
+            )
+          ),
+          activeKeysetId = unresolvableActiveKeysetId
+        ),
+        serverActiveKeysetId = unresolvableActiveKeysetId
+      )
+
+      val result = service().attemptRepair(
+        account = privateAccount,
+        cachedData = cachedData
+      )
+
+      val error = result.shouldBeErrOfType<KeysetRepairError.UnresolvableKeysets>()
+      error.unresolvedKeysetIds.shouldContain(unresolvableActiveKeysetId)
     }
 
     test("returns error when server active keyset not found") {

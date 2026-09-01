@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.animation:animation-core",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-core-1.9.1.jar": "d7ee028f598c187f4879b5f6f666bb0872722333cf6eb94ce7371cd313b77352"
+                        "animation-core-1.10.0-rc02.jar": "bfc4f43d664575ac10db61649212f45392f968247f96ae91e1a73e4bd0a204f3"
                     }
                 }
             ],

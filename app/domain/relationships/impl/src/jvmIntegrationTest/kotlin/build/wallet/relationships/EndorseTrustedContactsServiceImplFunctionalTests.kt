@@ -7,6 +7,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.*
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.signResult
 import build.wallet.f8e.auth.PrivilegedActionProof
@@ -25,10 +26,15 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
@@ -49,8 +55,13 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   val clock = ClockFake()
 
-  suspend fun TestScope.launchAndPrepareApp() {
-    app = launchNewApp(isUsingSocRecFakes = true)
+  suspend fun TestScope.launchAndPrepareApp(
+    placeholderRepairRetryDelay: Duration = 10.milliseconds,
+  ) {
+    app = launchNewApp(
+      isUsingSocRecFakes = true,
+      executeWorkers = false
+    )
 
     relationshipsF8eClientFake =
       (app.relationshipsF8eClientProvider.get() as RelationshipsF8eClientFake)
@@ -83,7 +94,9 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       relationshipsCrypto = relationshipsCrypto,
       endorseTrustedContactsF8eClientProvider = { relationshipsF8eClientFake },
       accountService = accountService,
-      accountConfigService = accountConfigService
+      accountConfigService = accountConfigService,
+      appSessionManager = app.appSessionManager,
+      placeholderRepairRetryDelay = placeholderRepairRetryDelay
     )
   }
 
@@ -165,7 +178,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       .shouldBe(tcIdentityKey)
 
     // Fetch relationships
-    val relationships = relationshipsDao.relationships().first().getOrThrow()
+    val relationships = relationshipsService.syncAndVerifyRelationships(account).getOrThrow()
 
     // TC should be completely endorsed
     relationships
@@ -179,6 +192,103 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
     relationships.unendorsedTrustedContacts.shouldBeEmpty()
     relationships.invitations.shouldBeEmpty()
     relationships.protectedCustomers.shouldBeEmpty()
+  }
+
+  test("worker does not poll when placeholder repair is not pending") {
+    launchAndPrepareApp(placeholderRepairRetryDelay = 100.milliseconds)
+    val account = app.onboardFullAccountWithFakeHardware()
+    accountService.setActiveAccount(account)
+
+    val callsBeforeWorker = relationshipsF8eClientFake.getRelationshipsCallCount
+    createBackgroundScope().launch {
+      endorseTrustedContactsService.executeWork()
+    }
+    withTimeout(5.seconds) {
+      while (relationshipsF8eClientFake.getRelationshipsCallCount == callsBeforeWorker) {
+        delay(10.milliseconds)
+      }
+    }
+    delay(300.milliseconds)
+    val callsAfterInitialSync = relationshipsF8eClientFake.getRelationshipsCallCount
+
+    delay(350.milliseconds)
+
+    relationshipsF8eClientFake.getRelationshipsCallCount.shouldBe(callsAfterInitialSync)
+  }
+
+  test("worker retries a transient unendorsed contact failure") {
+    launchAndPrepareApp(placeholderRepairRetryDelay = 10.milliseconds)
+    val account = app.onboardFullAccountWithFakeHardware()
+    simulateAcceptedInvite(account)
+    accountService.setActiveAccount(account)
+    relationshipsF8eClientFake.endorseTrustedContactsFailuresRemaining = 1
+
+    createBackgroundScope().launch {
+      endorseTrustedContactsService.executeWork()
+    }
+
+    withTimeout(5.seconds) {
+      while (
+        relationshipsF8eClientFake.unendorsedTrustedContacts.isNotEmpty() ||
+        relationshipsF8eClientFake.endorsedTrustedContacts.isEmpty()
+      ) {
+        delay(10.milliseconds)
+      }
+    }
+  }
+
+  test("worker preserves terminal unendorsed authentication state from the DAO") {
+    launchAndPrepareApp()
+    val account = app.onboardFullAccountWithFakeHardware()
+    val (contact, _) = simulateAcceptedInvite(account)
+    relationshipsService.syncAndVerifyRelationships(account).getOrThrow()
+    relationshipsDao.setUnendorsedTrustedContactAuthenticationState(
+      recoveryRelationshipId = contact.id.value,
+      authenticationState = TrustedContactAuthenticationState.FAILED
+    ).getOrThrow()
+    accountService.setActiveAccount(account)
+
+    createBackgroundScope().launch {
+      endorseTrustedContactsService.executeWork()
+    }
+
+    delay(200.milliseconds)
+
+    relationshipsF8eClientFake.unendorsedTrustedContacts.single().id.shouldBe(contact.id)
+    relationshipsF8eClientFake.endorsedTrustedContacts.shouldBeEmpty()
+    relationshipsDao.relationships().first().getOrThrow()
+      .unendorsedTrustedContacts.single().authenticationState
+      .shouldBe(TrustedContactAuthenticationState.FAILED)
+  }
+
+  test("worker pauses retries while the app is backgrounded") {
+    launchAndPrepareApp(placeholderRepairRetryDelay = 50.milliseconds)
+    val account = app.onboardFullAccountWithFakeHardware()
+    simulateAcceptedInvite(account)
+    accountService.setActiveAccount(account)
+    relationshipsF8eClientFake.endorseTrustedContactsFailuresRemaining = 2
+
+    createBackgroundScope().launch {
+      endorseTrustedContactsService.executeWork()
+    }
+
+    withTimeout(5.seconds) {
+      while (relationshipsF8eClientFake.endorseTrustedContactsFailuresRemaining == 2) {
+        delay(10.milliseconds)
+      }
+    }
+    app.appSessionManager.appDidEnterBackground()
+    val callsAfterInitialAttempt = relationshipsF8eClientFake.getRelationshipsCallCount
+
+    delay(200.milliseconds)
+    relationshipsF8eClientFake.getRelationshipsCallCount.shouldBe(callsAfterInitialAttempt)
+
+    app.appSessionManager.appDidEnterForeground()
+    withTimeout(5.seconds) {
+      while (relationshipsF8eClientFake.endorseTrustedContactsFailuresRemaining != 0) {
+        delay(10.milliseconds)
+      }
+    }
   }
 
   test("Authenticate/regenerate/endorse - Empty") {
@@ -292,6 +402,186 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       TrustedContactAuthenticationState.TAMPERED
     )
     result.shouldBeOk()
+  }
+
+  test("placeholder repair retries after a transient upload failure") {
+    launchAndPrepareApp()
+
+    val account = app.onboardFullAccountWithFakeHardware()
+
+    val (_, tcIdentityKey) = simulateAcceptedInvite(account)
+    endorseTrustedContactsService.authenticateAndEndorse(
+      relationshipsF8eClientFake.unendorsedTrustedContacts,
+      account
+    )
+
+    // Replace the hardware endorsement with the W3 placeholder.
+    val endorsed = relationshipsF8eClientFake.endorsedTrustedContacts.single()
+    val placeholderCertificate = endorsed.keyCertificate.copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+      )
+    )
+    relationshipsF8eClientFake.endorsedTrustedContacts.clear()
+    relationshipsF8eClientFake.endorsedTrustedContacts.add(
+      endorsed.copy(keyCertificate = placeholderCertificate)
+    )
+    relationshipsF8eClientFake.keyCertificates.clear()
+    relationshipsF8eClientFake.keyCertificates.add(placeholderCertificate)
+
+    val placeholderContact = relationshipsService.syncAndVerifyRelationships(account)
+      .getOrThrow()
+      .endorsedTrustedContacts
+      .single()
+    placeholderContact.needsHwVerification.shouldBe(true)
+
+    val placeholderAccount = account.copy(
+      keybox = account.keybox.copy(
+        appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+          AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+        )
+      )
+    )
+    accountService.setActiveAccount(placeholderAccount)
+    relationshipsF8eClientFake.endorseTrustedContactsFailuresRemaining = 1
+    createBackgroundScope().launch {
+      endorseTrustedContactsService.executeWork()
+    }
+
+    relationshipsF8eClientFake.getRelationshipsFailuresRemaining = 1
+    accountService.setActiveAccount(account)
+
+    relationshipsDao.relationships()
+      .first { result ->
+        result.getOrThrow().endorsedTrustedContacts.singleOrNull()
+          ?.authenticationState == TrustedContactAuthenticationState.VERIFIED
+      }
+
+    // Repair preserves the contact identity key.
+    val repairedCertificate = relationshipsF8eClientFake.keyCertificates.last()
+    repairedCertificate.appAuthGlobalKeyHwSignature
+      .shouldBe(account.keybox.appGlobalAuthKeyHwSignature)
+    repairedCertificate.delegatedDecryptionKey.shouldBe(tcIdentityKey)
+
+    // Service and persisted state return to verified.
+    relationshipsService.syncAndVerifyRelationships(account).getOrThrow()
+      .endorsedTrustedContacts
+      .single()
+      .run {
+        authenticationState.shouldBe(TrustedContactAuthenticationState.VERIFIED)
+      }
+    relationshipsDao.relationships()
+      .first { result ->
+        result.getOrThrow().endorsedTrustedContacts.singleOrNull()?.let {
+          it.authenticationState == TrustedContactAuthenticationState.VERIFIED &&
+            !it.keyCertificate.appAuthGlobalKeyHwSignature.isPlaceholder
+        } == true
+      }
+      .getOrThrow()
+      .endorsedTrustedContacts
+      .single()
+      .run {
+        authenticationState.shouldBe(TrustedContactAuthenticationState.VERIFIED)
+      }
+  }
+
+  test("pending placeholder repair does not block newer relationships") {
+    launchAndPrepareApp(placeholderRepairRetryDelay = 100.milliseconds)
+
+    val account = app.onboardFullAccountWithFakeHardware()
+    simulateAcceptedInvite(account)
+    endorseTrustedContactsService.authenticateAndEndorse(
+      relationshipsF8eClientFake.unendorsedTrustedContacts,
+      account
+    )
+
+    val endorsed = relationshipsF8eClientFake.endorsedTrustedContacts.single()
+    val placeholderCertificate = endorsed.keyCertificate.copy(
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+        AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+      )
+    )
+    relationshipsF8eClientFake.endorsedTrustedContacts.clear()
+    relationshipsF8eClientFake.endorsedTrustedContacts.add(
+      endorsed.copy(keyCertificate = placeholderCertificate)
+    )
+    relationshipsService.syncAndVerifyRelationships(account).getOrThrow()
+
+    accountService.setActiveAccount(account)
+    val callsBeforeRepair = relationshipsF8eClientFake.endorseTrustedContactsCallCount
+    relationshipsF8eClientFake.failReendorsements = true
+    createBackgroundScope().launch {
+      endorseTrustedContactsService.executeWork()
+    }
+    withTimeout(5.seconds) {
+      while (relationshipsF8eClientFake.endorseTrustedContactsCallCount == callsBeforeRepair) {
+        delay(10.milliseconds)
+      }
+    }
+
+    // Keep the worker from racing the test-only deterministic crypto fake while constructing the
+    // newly accepted relationship, then let the queued relationship change resume processing.
+    app.appSessionManager.appDidEnterBackground()
+    simulateAcceptedInvite(account)
+    app.appSessionManager.appDidEnterForeground()
+
+    val completed = withTimeoutOrNull(5.seconds) {
+      while (
+        relationshipsF8eClientFake.unendorsedTrustedContacts.isNotEmpty() ||
+        relationshipsF8eClientFake.endorsedTrustedContacts.size != 2
+      ) {
+        delay(10.milliseconds)
+      }
+      true
+    }
+    check(completed == true) {
+      "Repair did not process latest snapshot: " +
+        "unendorsed=${relationshipsF8eClientFake.unendorsedTrustedContacts.size}, " +
+        "endorsed=${relationshipsF8eClientFake.endorsedTrustedContacts.size}, " +
+        "endorseCalls=${relationshipsF8eClientFake.endorseTrustedContactsCallCount}"
+    }
+    relationshipsF8eClientFake.unendorsedTrustedContacts.shouldBeEmpty()
+    relationshipsF8eClientFake.endorsedTrustedContacts.size.shouldBe(2)
+    relationshipsF8eClientFake.endorsedTrustedContacts
+      .any { it.keyCertificate.appAuthGlobalKeyHwSignature.isPlaceholder }
+      .shouldBe(true)
+  }
+
+  test("repairPlaceholderEndorsements no-ops while the keybox still holds a placeholder") {
+    launchAndPrepareApp()
+
+    val account = app.onboardFullAccountWithFakeHardware()
+
+    simulateAcceptedInvite(account)
+    endorseTrustedContactsService.authenticateAndEndorse(
+      relationshipsF8eClientFake.unendorsedTrustedContacts,
+      account
+    )
+    val endorsed = relationshipsF8eClientFake.endorsedTrustedContacts.single()
+    val placeholderContact = endorsed.copy(
+      keyCertificate = endorsed.keyCertificate.copy(
+        appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(
+          AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+        )
+      )
+    )
+    val certificatesBefore = relationshipsF8eClientFake.keyCertificates.toList()
+
+    // Repair waits until the keybox has a real signature.
+    val placeholderKeyboxAccount = account.copy(
+      keybox = account.keybox.copy(
+        appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+          AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+        )
+      )
+    )
+
+    endorseTrustedContactsService.repairPlaceholderEndorsements(
+      contacts = listOf(placeholderContact),
+      account = placeholderKeyboxAccount
+    ).shouldBeOk()
+
+    relationshipsF8eClientFake.keyCertificates.shouldBe(certificatesBefore)
   }
 
   test("missing pake data") {

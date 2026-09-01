@@ -44,6 +44,7 @@ open class NfcCommandsMock(
   val getAuthenticationKeyCalls = turbine.invoke("GetAuthenticationKey calls")
   val lostAppRecoveryCalls = turbine.invoke("LostAppRecovery calls")
   val lostAppRecoveryContinueParamsCalls = turbine.invoke("LostAppRecoveryContinueParams calls")
+  val signActionProofCalls = turbine.invoke("SignActionProof calls")
   val rotateAppAuthKeysCalls = turbine.invoke("RotateAppAuthKeys calls")
   val upgradeRotateAppAuthKeysCalls = turbine.invoke("UpgradeRotateAppAuthKeys calls")
   var lastSignTransactionAllowUnfinalized: Boolean? = null
@@ -94,6 +95,10 @@ open class NfcCommandsMock(
       amountSats = 10000UL
     )
   )
+  private val defaultSignActionProofResult = HardwareInteraction.Completed(
+    // Valid 64-byte hex-encoded signature (128 lowercase hex chars) for action proof headers.
+    "0".repeat(128)
+  )
   private val defaultConfirmationResult: ConfirmationResult =
     ConfirmationResult.WipeDevice(success = true)
 
@@ -104,6 +109,7 @@ open class NfcCommandsMock(
   private var startFingerprintEnrollmentResult = defaultStartFingerprintEnrollmentResult
   private var deleteFingerprintResult = defaultDeleteFingerprintResult
   var signTransactionResult: HardwareInteraction<Psbt> = defaultSignTransactionResult
+  var signActionProofResult: HardwareInteraction<String> = defaultSignActionProofResult
   var confirmationResult: ConfirmationResult = defaultConfirmationResult
   var shouldInvokeLostAppRecoveryContinue = false
   var lostAppRecoveryUnsealedSsek: SymmetricKey = SymmetricKeyImpl("unsealed-ssek".encodeUtf8())
@@ -356,11 +362,10 @@ open class NfcCommandsMock(
     action: ActionProofAction,
     value: String?,
     bindings: String,
-  ): HardwareInteraction<String> =
-    HardwareInteraction.Completed(
-      // Valid 65-byte hex-encoded signature (130 lowercase hex chars) for test compatibility
-      "0".repeat(130)
-    )
+  ): HardwareInteraction<String> {
+    signActionProofCalls.add(SignActionProofCall(version, action, value, bindings))
+    return signActionProofResult
+  }
 
   override suspend fun eekRestorationUnsealSymmetricKey(
     session: NfcSession,
@@ -571,6 +576,7 @@ open class NfcCommandsMock(
     startFingerprintEnrollmentResult = defaultStartFingerprintEnrollmentResult
     deleteFingerprintResult = defaultDeleteFingerprintResult
     signTransactionResult = defaultSignTransactionResult
+    signActionProofResult = defaultSignActionProofResult
     confirmationResult = defaultConfirmationResult
     shouldInvokeLostAppRecoveryContinue = false
     lostAppRecoveryUnsealedSsek = SymmetricKeyImpl("unsealed-ssek".encodeUtf8())
@@ -584,6 +590,13 @@ open class NfcCommandsMock(
 class W3NfcCommandsMock(
   turbine: ((String) -> Turbine<Any>),
 ) : NfcCommandsMock(turbine), W3NfcCommands
+
+data class SignActionProofCall(
+  val version: UInt,
+  val action: ActionProofAction,
+  val value: String?,
+  val bindings: String,
+)
 
 private fun spendingPublicKey(index: Int) =
   HwSpendingPublicKey(DescriptorPublicKeyMock(identifier = "hardware-dpub-$index"))

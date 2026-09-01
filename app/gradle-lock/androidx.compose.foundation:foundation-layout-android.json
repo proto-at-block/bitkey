@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.foundation:foundation-layout-android",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-layout.aar": "6dee097fcc27e0d9281f4df27c3c8f92716155a0df229835cd5a38d30fbbd165"
+                        "foundation-layout.aar": "85513652dc9e458be47683dc0e61473e0bbbe24417d18c4eaf15b0c25a60318c"
                     }
                 }
             ],

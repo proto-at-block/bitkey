@@ -158,6 +158,7 @@ private fun NavigatorModelEffect(
   model: ScreenModel,
   updatePresentationStyle: (ScreenPresentationStyle) -> Unit,
 ) {
+  val currentUpdatePresentationStyle by rememberUpdatedState(updatePresentationStyle)
   LaunchedEffect(model) {
     if (navigator.shouldReplaceModel(model)) {
       // Don't perform any animation if the model should just be directly replaced.
@@ -170,11 +171,11 @@ private fun NavigatorModelEffect(
         // and update the model to the current given one
         navigator.popUntil { it.key == model.key }
         navigator.currentScreen().model = model
-        updatePresentationStyle(model.presentationStyle)
+        currentUpdatePresentationStyle(model.presentationStyle)
       } else {
         // Push the new model
         navigator.push(item = UiModelContentScreen(model = model))
-        updatePresentationStyle(model.presentationStyle)
+        currentUpdatePresentationStyle(model.presentationStyle)
       }
     } else {
       // when the screen model is updating and not navigating to a different screen, we need to

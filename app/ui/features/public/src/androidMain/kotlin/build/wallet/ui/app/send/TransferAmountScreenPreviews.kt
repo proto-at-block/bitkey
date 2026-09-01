@@ -2,14 +2,12 @@ package build.wallet.ui.app.send
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import build.wallet.statemachine.core.Icon.Bitkey
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.Color.ON60
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
-import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
 import build.wallet.statemachine.send.TransferAmountBodyModel
+import build.wallet.statemachine.send.amountentry.SmartBarModel
 import build.wallet.ui.tokens.lightStyleDictionaryColors
 import build.wallet.ui.tooling.PreviewWalletTheme
 
@@ -32,7 +30,7 @@ fun TransferAmountScreenNoEntryPreview() {
             showDecimal = false,
             onButtonPress = {}
           ),
-        cardModel = null,
+        smartBarModel = null,
         continueButtonEnabled = true,
         amountDisabled = false,
         onContinueClick = {},
@@ -61,46 +59,7 @@ fun TransferAmountScreenWithEntryPreview() {
             showDecimal = false,
             onButtonPress = {}
           ),
-        cardModel = null,
-        continueButtonEnabled = true,
-        amountDisabled = false,
-        onContinueClick = {},
-        onSwapCurrencyClick = {}
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun TransferAmountScreenWithBannerPreview() {
-  PreviewWalletTheme {
-    TransferAmountScreen(
-      model = TransferAmountBodyModel(
-        onBack = {},
-        balanceTitle = "$961.24 available",
-        amountModel =
-          MoneyAmountEntryModel(
-            primaryAmount = "$4.00",
-            primaryAmountGhostedSubstringRange = null,
-            secondaryAmount = "70,000 sats"
-          ),
-        cardModel = CardModel(
-          title =
-            LabelModel.StringWithStyledSubstringModel.from(
-              string = "Bitkey approval required",
-              substringToColor = emptyMap()
-            ),
-          subtitle = null,
-          leadingImage = CardModel.CardImage.StaticImage(Bitkey),
-          content = null,
-          style = Outline()
-        ),
-        keypadModel =
-          KeypadModel(
-            showDecimal = false,
-            onButtonPress = {}
-          ),
+        smartBarModel = null,
         continueButtonEnabled = true,
         amountDisabled = false,
         onContinueClick = {},
@@ -124,58 +83,11 @@ fun TransferAmountScreenWithSmartBarPreview() {
             primaryAmountGhostedSubstringRange = null,
             secondaryAmount = "70,000 sats"
           ),
-        cardModel = CardModel(
-          title =
-            LabelModel.StringWithStyledSubstringModel.from(
-              string = "Bitkey approval required",
-              substringToColor = emptyMap()
-            ),
-          subtitle = null,
-          leadingImage = CardModel.CardImage.StaticImage(Bitkey),
-          content = null,
-          style = Outline()
-        ),
-        keypadModel =
-          KeypadModel(
-            showDecimal = false,
-            onButtonPress = {}
+        smartBarModel = SmartBarModel(
+          title = LabelModel.StringWithStyledSubstringModel.from(
+            string = "Send Max (balance minus fees)",
+            substringToColor = mapOf("(balance minus fees)" to ON60)
           ),
-        continueButtonEnabled = true,
-        amountDisabled = false,
-        onContinueClick = {},
-        onSwapCurrencyClick = {}
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun TransferAmountScreenWithEqualOrMoreBannerPreview() {
-  PreviewWalletTheme {
-    TransferAmountScreen(
-      model = TransferAmountBodyModel(
-        onBack = {},
-        balanceTitle = "$961.24 available",
-        amountModel =
-          MoneyAmountEntryModel(
-            primaryAmount = "$4.00",
-            primaryAmountGhostedSubstringRange = null,
-            secondaryAmount = "70,000 sats"
-          ),
-        cardModel = CardModel(
-          title =
-            LabelModel.StringWithStyledSubstringModel.from(
-              string = "Send Max (balance minus fees)",
-              substringToColor =
-                mapOf(
-                  "(balance minus fees)" to ON60
-                )
-            ),
-          subtitle = null,
-          leadingImage = null,
-          content = null,
-          style = Outline(),
           onClick = {}
         ),
         keypadModel =
@@ -208,17 +120,7 @@ fun TransferAmountScreenPreview() {
             primaryAmountGhostedSubstringRange = null,
             secondaryAmount = "70,000 sats"
           ),
-        cardModel = CardModel(
-          title =
-            LabelModel.StringWithStyledSubstringModel.from(
-              string = "Bitkey approval required",
-              substringToColor = emptyMap()
-            ),
-          subtitle = null,
-          leadingImage = CardModel.CardImage.StaticImage(Bitkey),
-          content = null,
-          style = Outline()
-        ),
+        smartBarModel = null,
         keypadModel =
           KeypadModel(
             showDecimal = true,

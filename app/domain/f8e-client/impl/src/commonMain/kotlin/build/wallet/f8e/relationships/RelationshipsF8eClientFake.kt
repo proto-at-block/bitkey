@@ -62,6 +62,12 @@ class RelationshipsF8eClientFake(
   val endorsedTrustedContacts = mutableListOf<EndorsedTrustedContact>()
   val protectedCustomers = mutableListOf<ProtectedCustomer>()
   var fakeNetworkingError: NetworkingError? = null
+  var endorseTrustedContactsResult: Result<Unit, Error>? = null
+  var endorseTrustedContactsFailuresRemaining = 0
+  var endorseTrustedContactsCallCount = 0
+  var getRelationshipsCallCount = 0
+  var getRelationshipsFailuresRemaining = 0
+  var failReendorsements = false
 
   var acceptInvitationDelay: Duration = 10.seconds
   var invitationExpirationOverride: Instant? = null
@@ -157,6 +163,11 @@ class RelationshipsF8eClientFake(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
   ): Result<Relationships, NetworkingError> {
+    getRelationshipsCallCount++
+    if (getRelationshipsFailuresRemaining > 0) {
+      getRelationshipsFailuresRemaining--
+      return Err(UnhandledException(Error("Get relationships failed")))
+    }
     return fakeNetworkingError?.let(::Err) ?: Ok(
       Relationships(
         invitations = invitations.map { it.outgoing },
@@ -229,10 +240,26 @@ class RelationshipsF8eClientFake(
     f8eEnvironment: F8eEnvironment,
     endorsements: List<TrustedContactEndorsement>,
   ): Result<Unit, Error> {
+    endorseTrustedContactsCallCount++
+    if (
+      failReendorsements &&
+      endorsements.any { endorsement ->
+        endorsedTrustedContacts.any { it.id == endorsement.relationshipId }
+      }
+    ) {
+      return Err(Error("Re-endorsement failed"))
+    }
+    if (endorseTrustedContactsFailuresRemaining > 0) {
+      endorseTrustedContactsFailuresRemaining--
+      return endorseTrustedContactsResult ?: Err(Error("Endorsement failed"))
+    }
+    endorseTrustedContactsResult?.let { return it }
     endorsements.forEach { (relationshipId, certificate) ->
       // Find known unendorsed trusted contacts based on given endorsement
       val unendorsedContact =
         unendorsedTrustedContacts.find { it.id == relationshipId }
+      val endorsedContact =
+        endorsedTrustedContacts.find { it.id == relationshipId }
 
       if (unendorsedContact != null) {
         // Add new certificates
@@ -248,6 +275,13 @@ class RelationshipsF8eClientFake(
             keyCertificate = certificate,
             roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
+        )
+      } else if (endorsedContact != null) {
+        // Replace the certificate when re-endorsing an existing contact.
+        keyCertificates += certificate
+        endorsedTrustedContacts.remove(endorsedContact)
+        endorsedTrustedContacts.add(
+          endorsedContact.copy(keyCertificate = certificate)
         )
       }
     }
@@ -288,6 +322,12 @@ class RelationshipsF8eClientFake(
     protectedCustomers.clear()
     keyCertificates.clear()
     fakeNetworkingError = null
+    endorseTrustedContactsResult = null
+    endorseTrustedContactsFailuresRemaining = 0
+    endorseTrustedContactsCallCount = 0
+    getRelationshipsCallCount = 0
+    getRelationshipsFailuresRemaining = 0
+    failReendorsements = false
     invitationExpirationOverride = null
     createInvitationOverride = null
   }

@@ -54,13 +54,23 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun sellBitcoinMaxAmountFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    SellBitcoinMaxAmountFeatureFlag(featureFlagDao)
+  fun transactionNotesFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    TransactionNotesFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
-  fun sellBitcoinMinAmountFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    SellBitcoinMinAmountFeatureFlag(featureFlagDao)
+  fun transactionNotesSyncFrequencySecondsFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    TransactionNotesSyncFrequencySecondsFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun configurableDelayNotifyFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    ConfigurableDelayNotifyFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun configurableDelayNotifyW3MinFirmwareVersionFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    ConfigurableDelayNotifyW3MinFirmwareVersionFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -79,7 +89,14 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun usSmsFeatureFlag(featureFlagDao: FeatureFlagDao) = UsSmsFeatureFlag(featureFlagDao)
+  fun sellBitcoinMinAmountFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    SellBitcoinMinAmountFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun sellBitcoinMaxAmountFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    SellBitcoinMaxAmountFeatureFlag(featureFlagDao)
+
 
   @Provides
   @SingleIn(AppScope::class)
@@ -95,11 +112,6 @@ interface FeatureFlagsComponent {
   @SingleIn(AppScope::class)
   fun fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag(featureFlagDao: FeatureFlagDao) =
     FwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun onboardingCompletionFailsafeFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    OnboardingCompletionFailsafeFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -133,11 +145,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun privateWalletMigrationFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    PrivateWalletMigrationFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun replaceFullWithLiteAccountFeatureFlag(featureFlagDao: FeatureFlagDao) =
     ReplaceFullWithLiteAccountFeatureFlag(featureFlagDao)
 
@@ -148,23 +155,8 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun descriptorBackupFailsafeFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    DescriptorBackupFailsafeFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun updateToPrivateWalletOnRecoveryFeatureFlag(featureFlagDao: FeatureFlagDao) =
     UpdateToPrivateWalletOnRecoveryFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun privateWalletMigrationBalanceThresholdFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    PrivateWalletMigrationBalanceThresholdFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun publicCustomerSupportFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    PublicCustomerSupportFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -182,10 +174,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun bip177FeatureFlag(featureFlagDao: FeatureFlagDao) = Bip177FeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun ageRangeVerificationFeatureFlag(
     featureFlagDao: FeatureFlagDao,
     appVariant: AppVariant,
@@ -193,18 +181,13 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun cloudBackupHealthLoggingFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    CloudBackupHealthLoggingFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun augurFeesEstimationFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    AugurFeesEstimationFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun keysetRepairFeatureFlag(featureFlagDao: FeatureFlagDao) =
     KeysetRepairFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun sweepKeysetReconciliationFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    SweepKeysetReconciliationFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -218,18 +201,8 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun w3OnboardingFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    W3OnboardingFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun w3MidUpgradeRecoveryGuardFeatureFlag(featureFlagDao: FeatureFlagDao) =
     W3MidUpgradeRecoveryGuardFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun w3UpgradeBlockerFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    W3UpgradeBlockerFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -242,18 +215,8 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun defaultBitcoinDisplayUnitFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    DefaultBitcoinDisplayUnitFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun wipeHardwareLoggedOutFeatureFlag(featureFlagDao: FeatureFlagDao) =
     WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun wipeOldW1DeviceFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    WipeOldW1DeviceFeatureFlag(featureFlagDao)
 
   @Provides
   fun featureFlags(
@@ -262,12 +225,11 @@ interface FeatureFlagsComponent {
     expectedTransactionsPhase2FeatureFlag: ExpectedTransactionsPhase2FeatureFlag,
     firmwareCommsLoggingFeatureFlag: FirmwareCommsLoggingFeatureFlag,
     nfcHapticsOnConnectedIsEnabledFeatureFlag: NfcHapticsOnConnectedIsEnabledFeatureFlag,
-    sellBitcoinMaxAmountFeatureFlag: SellBitcoinMaxAmountFeatureFlag,
-    sellBitcoinMinAmountFeatureFlag: SellBitcoinMinAmountFeatureFlag,
     softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
     utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
     mobileRealTimeMetricsFeatureFlag: MobileRealTimeMetricsFeatureFlag,
-    usSmsFeatureFlag: UsSmsFeatureFlag,
+    sellBitcoinMinAmountFeatureFlag: SellBitcoinMinAmountFeatureFlag,
+    sellBitcoinMaxAmountFeatureFlag: SellBitcoinMaxAmountFeatureFlag,
     nfcSessionRetryAttemptsFeatureFlag: NfcSessionRetryAttemptsFeatureFlag,
     fwupNfcCooldownPeriodSecondsFeatureFlag: FwupNfcCooldownPeriodSecondsFeatureFlag,
     fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag:
@@ -275,37 +237,30 @@ interface FeatureFlagsComponent {
     fingerprintResetMinFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
     w3PairingMinFirmwareVersionFeatureFlag: W3PairingMinFirmwareVersionFeatureFlag,
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
+    transactionNotesFeatureFlag: TransactionNotesFeatureFlag,
+    transactionNotesSyncFrequencySecondsFeatureFlag: TransactionNotesSyncFrequencySecondsFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
     chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
+    configurableDelayNotifyFeatureFlag: ConfigurableDelayNotifyFeatureFlag,
+    configurableDelayNotifyW3MinFirmwareVersionFeatureFlag:
+      ConfigurableDelayNotifyW3MinFirmwareVersionFeatureFlag,
     onboardingCanUseKeyboxKeysetsFeatureFlag: OnboardingCanUseKeyboxKeysetsFeatureFlag,
-    onboardingCompletionFailsafeFeatureFlag: OnboardingCompletionFailsafeFeatureFlag,
     appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
-    privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
     replaceFullWithLiteAccountFeatureFlag: ReplaceFullWithLiteAccountFeatureFlag,
     orphanedKeyRecoveryFeatureFlag: OrphanedKeyRecoveryFeatureFlag,
-    descriptorBackupFailsafeFeatureFlag: DescriptorBackupFailsafeFeatureFlag,
     updateToPrivateWalletOnRecoveryFeatureFlag: UpdateToPrivateWalletOnRecoveryFeatureFlag,
-    privateWalletMigrationBalanceThresholdFeatureFlag:
-      PrivateWalletMigrationBalanceThresholdFeatureFlag,
-    publicCustomerSupportFeatureFlag: PublicCustomerSupportFeatureFlag,
     sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag,
     bdk2FeatureFlag: Bdk2FeatureFlag,
     cashAppFeePromotionFeatureFlag: CashAppFeePromotionFeatureFlag,
-    bip177FeatureFlag: Bip177FeatureFlag,
-    cloudBackupHealthLoggingFeatureFlag: CloudBackupHealthLoggingFeatureFlag,
-    augurFeesEstimationFeatureFlag: AugurFeesEstimationFeatureFlag,
     keysetRepairFeatureFlag: KeysetRepairFeatureFlag,
+    sweepKeysetReconciliationFeatureFlag: SweepKeysetReconciliationFeatureFlag,
     ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag,
     preBuiltPsbtFlowFeatureFlag: PreBuiltPsbtFlowFeatureFlag,
     cloudBackupForceReuploadTimestampFeatureFlag: CloudBackupForceReuploadTimestampFeatureFlag,
-    w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
     w3MidUpgradeRecoveryGuardFeatureFlag: W3MidUpgradeRecoveryGuardFeatureFlag,
-    w3UpgradeBlockerFeatureFlag: W3UpgradeBlockerFeatureFlag,
     iosCloudKitBackupFeatureFlag: IosCloudKitBackupFeatureFlag,
     vaultsFeatureFlag: VaultsFeatureFlag,
-    defaultBitcoinDisplayUnitFeatureFlag: DefaultBitcoinDisplayUnitFeatureFlag,
     wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
-    wipeOldW1DeviceFeatureFlag: WipeOldW1DeviceFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       bdk2FeatureFlag,
@@ -313,34 +268,30 @@ interface FeatureFlagsComponent {
       softwareWalletIsEnabledFeatureFlag,
       expectedTransactionsPhase2FeatureFlag,
       mobileRealTimeMetricsFeatureFlag,
-      usSmsFeatureFlag,
+      sellBitcoinMinAmountFeatureFlag,
+      sellBitcoinMaxAmountFeatureFlag,
       fingerprintResetMinFirmwareVersionFeatureFlag,
       w3PairingMinFirmwareVersionFeatureFlag,
       atRiskNotificationsFeatureFlag,
       chaincodeDelegationFeatureFlag,
+      configurableDelayNotifyFeatureFlag,
+      configurableDelayNotifyW3MinFirmwareVersionFeatureFlag,
       onboardingCanUseKeyboxKeysetsFeatureFlag,
-      onboardingCompletionFailsafeFeatureFlag,
-      w3OnboardingFeatureFlag,
       w3MidUpgradeRecoveryGuardFeatureFlag,
-      w3UpgradeBlockerFeatureFlag,
       txVerificationFeatureFlag,
+      transactionNotesFeatureFlag,
+      transactionNotesSyncFrequencySecondsFeatureFlag,
       appUpdateModalFeatureFlag,
-      privateWalletMigrationFeatureFlag,
       replaceFullWithLiteAccountFeatureFlag,
       orphanedKeyRecoveryFeatureFlag,
-      descriptorBackupFailsafeFeatureFlag,
       updateToPrivateWalletOnRecoveryFeatureFlag,
-      privateWalletMigrationBalanceThresholdFeatureFlag,
-      publicCustomerSupportFeatureFlag,
       sharedCloudBackupsFeatureFlag,
       cashAppFeePromotionFeatureFlag,
-      augurFeesEstimationFeatureFlag,
       keysetRepairFeatureFlag,
+      sweepKeysetReconciliationFeatureFlag,
       ageRangeVerificationFeatureFlag,
       iosCloudKitBackupFeatureFlag,
       utxoMaxConsolidationCountFeatureFlag,
-      sellBitcoinMinAmountFeatureFlag,
-      sellBitcoinMaxAmountFeatureFlag,
       coachmarksGlobalFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       nfcSessionRetryAttemptsFeatureFlag,
@@ -348,13 +299,9 @@ interface FeatureFlagsComponent {
       fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag,
       firmwareCommsLoggingFeatureFlag,
       asyncNfcSigningFeatureFlag,
-      bip177FeatureFlag,
-      cloudBackupHealthLoggingFeatureFlag,
       cloudBackupForceReuploadTimestampFeatureFlag,
       vaultsFeatureFlag,
-      defaultBitcoinDisplayUnitFeatureFlag,
-      wipeHardwareLoggedOutFeatureFlag,
-      wipeOldW1DeviceFeatureFlag
+      wipeHardwareLoggedOutFeatureFlag
     )
   }
 }

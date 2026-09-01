@@ -39,6 +39,9 @@ sealed interface BannerType {
 
   /** Shown when there's a keyset mismatch between local and server state that needs repair. */
   data object SpendingKeysetMismatch : BannerType
+
+  /** Shown when the W3 hardware signature needs repair. */
+  data object UnverifiedHardwareSignature : BannerType
 }
 
 enum class BannerContext {

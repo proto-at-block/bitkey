@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * A wallet holder whose wallet is protected by one or more [EndorsedTrustedContact]s on the other side of the recovery relationship.
+ * A wallet holder whose wallet this account protects or will protect once setup is complete.
  */
 @Serializable
 data class ProtectedCustomer(
@@ -14,6 +14,8 @@ data class ProtectedCustomer(
   val alias: ProtectedCustomerAlias,
   @SerialName("trusted_contact_roles")
   val roles: Set<TrustedContactRole>,
+  @SerialName("relationship_status")
+  val relationshipStatus: ProtectedCustomerRelationshipStatus = ProtectedCustomerRelationshipStatus.ENDORSED,
 ) : RecoveryEntity
 
 /**

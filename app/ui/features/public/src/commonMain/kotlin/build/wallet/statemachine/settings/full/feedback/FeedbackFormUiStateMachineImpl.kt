@@ -502,14 +502,16 @@ class FeedbackFormUiStateMachineImpl(
     onSuccess: () -> Unit,
     onError: (SupportTicketError) -> Unit,
   ): ScreenModel {
+    val currentOnSuccess by rememberUpdatedState(onSuccess)
+    val currentOnError by rememberUpdatedState(onError)
     LaunchedEffect(data) {
       supportTicketRepository.createTicket(
         form = structure,
         data = data
       )
-        .onSuccess { onSuccess() }
+        .onSuccess { currentOnSuccess() }
         .onFailure { error ->
-          onError(error)
+          currentOnError(error)
         }
     }
 
@@ -520,9 +522,10 @@ class FeedbackFormUiStateMachineImpl(
 
   @Composable
   private fun SubmitSuccessful(onClose: () -> Unit): ScreenModel {
+    val currentOnClose by rememberUpdatedState(onClose)
     LaunchedEffect("feedback-submit-success") {
       delay(actionSuccessDuration.value)
-      onClose()
+      currentOnClose()
     }
 
     return SuccessBodyModel(

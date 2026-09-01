@@ -225,8 +225,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactEnrollmentSc
     cardsModel.cards.count()
       .shouldBe(3)
     cardsModel.cards.first()
-      .content.shouldNotBeNull()
-      .shouldBeTypeOf<CardModel.CardContent.DrillList>()
+      .shouldBeTypeOf<CardModel.DrillList>()
       .items.first().onClick.shouldNotBeNull().invoke()
   }
 }

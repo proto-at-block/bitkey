@@ -1,6 +1,7 @@
 package build.wallet.cloud.backup.csek
 
 import bitkey.data.PrivateData
+import build.wallet.catchingResult
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -35,6 +36,23 @@ class SsekDaoImpl(
     val ssekHex = value.key.raw.hex()
     return secureStore().putStringWithResult(key = key.forStore, value = ssekHex)
   }
+
+  override suspend fun getAll(): Result<Map<SealedSsek, Ssek>, Throwable> =
+    catchingResult {
+      val store = secureStore()
+      store.keys().associate { keyHex ->
+        val sealedSsek = keyHex.decodeHex()
+        val rawKeyHex = requireNotNull(store.getStringOrNull(keyHex)) {
+          "SSEK store entry disappeared during enumeration"
+        }
+        sealedSsek to Ssek(key = SymmetricKeyImpl(raw = rawKeyHex.decodeHex()))
+      }
+    }
+
+  override suspend fun getAllSealedIds(): Result<Set<SealedSsek>, Throwable> =
+    catchingResult {
+      secureStore().keys().map { it.decodeHex() }.toSet()
+    }
 
   override suspend fun clear(): Result<Unit, Throwable> = secureStore().clearWithResult()
 }

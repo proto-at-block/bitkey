@@ -4,17 +4,17 @@ import app.cash.turbine.plusAssign
 import bitkey.securitycenter.SecurityActionsServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.availability.AppFunctionalityServiceFake
+import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.TransactionsActivityServiceFake
 import build.wallet.bitcoin.transactions.TransactionsDataMock
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.Failed
+import build.wallet.bitcoin.wallet.WalletInitialSyncStatus.Syncing
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.inappsecurity.MoneyHomeHiddenStatusProviderFake
@@ -23,12 +23,18 @@ import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.platform.haptics.HapticsMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.SheetStateMachineMock
 import build.wallet.statemachine.StateMachineMock
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsUiStateMachine
+import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
+import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachine
+import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedSectionModel
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
@@ -49,13 +55,17 @@ import build.wallet.wallet.migration.MigrationServiceFake
 import build.wallet.wallet.migration.MigrationType
 import build.wallet.worker.RefreshExecutor
 import build.wallet.worker.RefreshOperation
+import io.kotest.assertions.nondeterministic.eventually
+import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlin.time.Duration.Companion.milliseconds
 
 class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
   val coachmarkService = CoachmarkServiceMock(
@@ -72,12 +82,11 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
   val securityActionsService = SecurityActionsServiceFake()
   val firmwareDataService = FirmwareDataServiceFake()
   val migrationService = MigrationServiceFake()
-  val featureFlagDao = FeatureFlagDaoMock()
-  val bip177FeatureFlag = Bip177FeatureFlag(featureFlagDao)
   val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake()
 
   val setStateCalls = turbines.create<MoneyHomeUiState>("setState calls")
   val onSettingsCalls = turbines.create<Unit>("onSettings calls")
+  val onContactSupportCalls = turbines.create<Unit>("onContactSupport calls")
   val transactionsActivityService = TransactionsActivityServiceFake()
 
   val transactionsActivityUiStateMachine = object : TransactionsActivityUiStateMachine,
@@ -93,18 +102,21 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     onStartSweepFlow = {},
     onGoToSecurityHub = {},
     onGoToPrivateWalletMigration = {},
+    onContactSupport = { onContactSupportCalls += Unit },
     onPurchaseAmountConfirmed = {}
   )
 
   val stateMachine = MoneyHomeViewingBalanceUiStateMachineImpl(
     addBitcoinUiStateMachine = object : AddBitcoinUiStateMachine,
-      ScreenStateMachineMock<AddBitcoinUiProps>("add-bitcoin") {},
+      SheetStateMachineMock<AddBitcoinUiProps>("add-bitcoin") {},
     appFunctionalityService = appFunctionalityService,
     eventTracker = eventTracker,
     moneyDisplayFormatter = moneyDisplayFormatter,
     gettingStartedTaskDao = gettingStartedTaskDao,
     moneyHomeCardsUiStateMachine = object : MoneyHomeCardsUiStateMachine,
       StateMachineMock<MoneyHomeCardsProps, CardListModel>(CardListModel(cards = immutableListOf())) {},
+    gettingStartedCardUiStateMachine = object : GettingStartedCardUiStateMachine,
+      StateMachineMock<GettingStartedCardUiProps, GettingStartedSectionModel?>(initialModel = null) {},
     transactionsActivityUiStateMachine = transactionsActivityUiStateMachine,
     viewingInvitationUiStateMachine = object : ViewingInvitationUiStateMachine,
       ScreenStateMachineMock<ViewingInvitationProps>("viewing-invitation") {},
@@ -126,7 +138,6 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     partnerTransferLinkUiStateMachine = object : PartnerTransferLinkUiStateMachine,
       ScreenStateMachineMock<PartnerTransferLinkProps>("partner-transfer-link") {},
     migrationService = migrationService,
-    bip177FeatureFlag = bip177FeatureFlag,
     bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository
   )
 
@@ -189,6 +200,54 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
       awaitBody<MoneyHomeBodyModel> {
         coachmark.shouldNotBeNull()
         coachmark.identifier.shouldBe(CoachmarkIdentifier.Bip177Coachmark)
+      }
+    }
+  }
+
+  test("shows wallet history reload screen during initial sync") {
+    bitcoinWalletService.initialSyncStatus.value = Syncing
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        message.shouldBe("Updating your wallet")
+        description.shouldBe(
+          "Bitkey was updated and needs to reload your transaction history. Keep the app open until this finishes."
+        )
+      }
+    }
+  }
+
+  test("shows retry screen when initial sync fails") {
+    val rawFailureMessage = "electrum.example.com:50002"
+    bitcoinWalletService.initialSyncStatus.value = Failed(
+      BdkError.Electrum(
+        cause = RuntimeException(rawFailureMessage),
+        message = rawFailureMessage
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        header?.headline.shouldBe("We couldn't update your wallet")
+        primaryButton.shouldNotBeNull().text.shouldBe("Retry")
+        secondaryButton.shouldNotBeNull().text.shouldBe("Contact support")
+        errorData.shouldNotBeNull().cause.message.shouldNotContain(rawFailureMessage)
+        errorData.shouldNotBeNull().cause.cause.shouldBeNull()
+
+        primaryButton.shouldNotBeNull().onClick()
+
+        eventually(
+          eventuallyConfig {
+            duration = 500.milliseconds
+            interval = 50.milliseconds
+          }
+        ) {
+          bitcoinWalletService.syncCalls.shouldBe(1)
+        }
+
+        secondaryButton.shouldNotBeNull().onClick()
+        onContactSupportCalls.awaitItem()
       }
     }
   }

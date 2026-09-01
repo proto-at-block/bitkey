@@ -961,6 +961,17 @@ static void create_action_page(lv_obj_t* parent,
   create_check_button(parent);
 }
 
+static void format_privileged_action_value(const fwpb_display_params_privileged_action* params,
+                                           char* output, size_t output_size) {
+  if (params->sap_action == SAP_ACTION_SET_DELAY_NOTIFY_PERIOD) {
+    snprintf(output, output_size, "%s %s", params->action.confirm_string.value,
+             langpack_get_string(LANGPACK_ID_SAP_DELAY_NOTIFY_PERIOD_DAYS));
+  } else {
+    strncpy(output, params->action.confirm_string.value, output_size - 1);
+    output[output_size - 1] = '\0';
+  }
+}
+
 static void create_string_page(lv_obj_t* parent,
                                const fwpb_display_params_privileged_action* params) {
   if (params->which_action != fwpb_display_params_privileged_action_confirm_string_tag) {
@@ -990,11 +1001,14 @@ static void create_string_page(lv_obj_t* parent,
     lv_label_set_text(title, get_privileged_action_title(params));
   }
 
+  char display_value[sizeof(params->action.confirm_string.value) + 16] = {0};
+  format_privileged_action_value(params, display_value, sizeof(display_value));
+
   lv_obj_t* value_label = lv_label_create(content_container);
   if (value_label) {
     lv_obj_set_style_text_color(value_label, lv_color_white(), 0);
     lv_obj_set_style_text_font(value_label, FONT_TEXT, 0);
-    lv_label_set_text(value_label, params->action.confirm_string.value);
+    lv_label_set_text(value_label, display_value);
     lv_obj_set_width(value_label, 400);
     lv_label_set_long_mode(value_label, LV_LABEL_LONG_WRAP);
     lv_obj_set_style_text_align(value_label, LV_TEXT_ALIGN_CENTER, 0);

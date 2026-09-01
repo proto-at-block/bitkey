@@ -3,6 +3,7 @@ import build.wallet.gradle.logic.extensions.allTargets
 plugins {
   id("build.wallet.kmp")
   id("build.wallet.di")
+  alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -14,6 +15,7 @@ kotlin {
         implementation(projects.domain.databasePublic)
         implementation(projects.domain.debugPublic)
         implementation(projects.domain.f8eClientPublic)
+        implementation(projects.domain.featureFlagPublic)
         implementation(projects.domain.notificationsPublic)
         implementation(projects.domain.privilegedActionsPublic)
         implementation(projects.domain.walletPublic)
@@ -37,6 +39,7 @@ kotlin {
         implementation(projects.domain.f8eClientImpl)
         implementation(projects.domain.privilegedActionsFake)
         implementation(projects.libs.ktorClientFake)
+        implementation(projects.libs.keyValueStoreFake)
         implementation(projects.libs.platformFake)
         implementation(projects.domain.recoveryFake)
         implementation(projects.libs.testingPublic)

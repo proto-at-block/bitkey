@@ -11,8 +11,12 @@ import build.wallet.analytics.v1.Action.ACTION_APP_FWUP_COMPLETE
 import build.wallet.analytics.v1.Action.ACTION_APP_FWUP_MCU_UPDATE_FAILED
 import build.wallet.analytics.v1.Action.ACTION_APP_FWUP_MCU_UPDATE_STARTED
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
+import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.keybox.EekKeyboxMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.Companion.LEGACY_EAK_PUBLIC_KEY
+import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifierMock
 import build.wallet.encrypt.SignatureVerifierMock.VerifyEcdsaCall
 import build.wallet.feature.FeatureFlagDaoFake
@@ -211,6 +215,59 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       onDoneCalls.awaitItem()
 
       onBackCalls.awaitItem()
+    }
+  }
+
+  // EEK Sentinel Tests
+  // EEK-restored keyboxes persist a sentinel string instead of a real hardware auth key,
+  // so the pairing check must fail open or EEK users cannot update firmware.
+
+  test("EEK sentinel keybox bypasses hardware pairing check") {
+    keyboxDao.activeKeybox.value = Ok(EekKeyboxMock)
+    nfcTransactor.transactResult = Ok(FwupTransactionResult.Completed)
+
+    stateMachine.test(props) {
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val params = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      params.requirePairedHardware.shouldBe(NfcSession.RequirePairedHardware.NotRequired)
+
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+      }
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
+      onDoneCalls.awaitItem()
+    }
+  }
+
+  test("legacy EAK sentinel keybox bypasses hardware pairing check") {
+    // Keyboxes restored before the EAK -> EEK rename persist the legacy sentinel
+    keyboxDao.activeKeybox.value = Ok(
+      EekKeyboxMock.copy(
+        activeHwKeyBundle = EekKeyboxMock.activeHwKeyBundle.copy(
+          authKey = HwAuthPublicKey(Secp256k1PublicKey(LEGACY_EAK_PUBLIC_KEY))
+        )
+      )
+    )
+    nfcTransactor.transactResult = Ok(FwupTransactionResult.Completed)
+
+    stateMachine.test(props) {
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val params = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      params.requirePairedHardware.shouldBe(NfcSession.RequirePairedHardware.NotRequired)
+
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+      }
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
+      onDoneCalls.awaitItem()
     }
   }
 

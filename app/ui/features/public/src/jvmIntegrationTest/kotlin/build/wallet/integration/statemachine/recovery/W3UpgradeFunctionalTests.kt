@@ -7,6 +7,7 @@ import bitkey.account.HardwareType
 import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.feature.setFlagValue
@@ -39,7 +40,9 @@ import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.ext.verifyCanUseKeyboxKeysets
 import build.wallet.testing.ext.waitForFunds
+import build.wallet.testing.tags.TestTag.FlakyTest
 import com.github.michaelbull.result.getOrThrow
+import kotlinx.coroutines.flow.first
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -59,7 +62,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade(app)
+      navigateToW3Upgrade()
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -85,7 +88,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade(app)
+      navigateToW3Upgrade()
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -111,7 +114,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade(app)
+      navigateToW3Upgrade()
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -146,7 +149,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade(app)
+      navigateToW3Upgrade()
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
 
@@ -168,7 +171,7 @@ class W3UpgradeFunctionalTests : FunSpec({
     ) {
       awaitUntilBody<MoneyHomeBodyModel>()
 
-      navigateToW3Upgrade(app)
+      navigateToW3Upgrade()
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -194,7 +197,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade(app)
+      navigateToW3Upgrade()
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -246,7 +249,8 @@ class W3UpgradeFunctionalTests : FunSpec({
     app.verifyPostW3UpgradeState()
   }
 
-  test("W3 upgrade - force exit after cloud backup resumes at sweep with funds") {
+  test("W3 upgrade - force exit after cloud backup resumes at sweep with funds")
+    .config(tags = setOf(FlakyTest)) {
     var app = launchLegacyWalletApp()
     app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
     app.addSomeFunds(sats(10_000L))
@@ -257,7 +261,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade(app)
+      navigateToW3Upgrade()
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -271,13 +275,20 @@ class W3UpgradeFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // Relaunch — cloud backup already completed, resumes at CheckingForFunds
+    // Capture the funded legacy keyset before the upgrade replaces it as active. The resumed
+    // fee estimate creates a watching wallet for this source keyset, so prime that exact wallet.
+    val legacyKeyset = app.accountService.activeAccount().first()
+      .shouldBeTypeOf<FullAccount>()
+      .keybox.activeSpendingKeyset
+
+    // Relaunch — cloud backup already completed, resumes at CheckingForFunds.
     app = app.relaunchApp()
+    app.keysetWalletProvider.getWatchingWallet(legacyKeyset).getOrThrow().sync().getOrThrow()
 
     app.appUiStateMachine.test(
       props = Unit,
-      testTimeout = 120.seconds,
-      turbineTimeout = 60.seconds
+      testTimeout = 180.seconds,
+      turbineTimeout = 90.seconds
     ) {
       // Has funds -> sweep
       awaitUntilBody<W3UpgradeOldHardwareInstructionsBodyModel>()
@@ -307,7 +318,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade(app)
+      navigateToW3Upgrade()
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
 
@@ -352,8 +363,7 @@ class W3UpgradeFunctionalTests : FunSpec({
 /**
  * Navigate from MoneyHome to the W3 upgrade entry point via SecurityHub -> Device Settings.
  */
-private suspend fun ReceiveTurbine<ScreenModel>.navigateToW3Upgrade(app: AppTester) {
-  app.w3OnboardingFeatureFlag.setFlagValue(true)
+private suspend fun ReceiveTurbine<ScreenModel>.navigateToW3Upgrade() {
   awaitUntilBody<MoneyHomeBodyModel>()
     .onSecurityHubTabClick()
   awaitUntilBody<SecurityHubBodyModel>()

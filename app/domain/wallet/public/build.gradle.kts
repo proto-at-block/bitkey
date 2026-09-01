@@ -20,6 +20,7 @@ kotlin {
         api(projects.domain.featureFlagPublic)
         api(projects.libs.ktorClientPublic)
         api(projects.libs.moneyPublic)
+        api(projects.libs.sqldelightPublic)
         api(projects.domain.partnershipsPublic)
         api(projects.libs.platformPublic)
         api(projects.rust.bdkFfi)

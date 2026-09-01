@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.androidx.savedstate:savedstate",
+    "components": [
+        {
+            "version": "1.3.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "savedstate-1.3.6.jar": "0741a750940978c7e8b1605f117be62e399fd57a7625ab1ae80a28a2ca0f3415"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

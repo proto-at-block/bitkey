@@ -38,6 +38,7 @@ class SecurityActionsServiceImplTest : FunSpec({
       HardwareDeviceActionFactoryFake(),
       TxVerificationActionFactoryFake(),
       KeysetSyncActionFactoryFake(),
+      DelayNotifyPeriodActionFactoryFake(),
       eventTracker,
       metricTrackerService,
       securityRecommendationInteractionDao,
@@ -61,6 +62,7 @@ class SecurityActionsServiceImplTest : FunSpec({
       HardwareDeviceActionFactoryFake(),
       TxVerificationActionFactoryFake(),
       KeysetSyncActionFactoryFake(),
+      DelayNotifyPeriodActionFactoryFake(),
       eventTracker,
       metricTrackerService,
       securityRecommendationInteractionDao,
@@ -76,7 +78,8 @@ class SecurityActionsServiceImplTest : FunSpec({
           SecurityActionType.HARDWARE_DEVICE,
           SecurityActionType.FINGERPRINTS,
           SecurityActionType.BIOMETRIC,
-          SecurityActionType.TRANSACTION_VERIFICATION
+          SecurityActionType.TRANSACTION_VERIFICATION,
+          SecurityActionType.DELAY_NOTIFY_PERIOD
         )
         recoveryActions.map { it.type() }.shouldContainExactly(
           SecurityActionType.CRITICAL_ALERTS,
@@ -146,6 +149,7 @@ class SecurityActionsServiceImplTest : FunSpec({
       KeysetSyncActionFactoryFake().also {
         it.includeRecommendations = false
       },
+      DelayNotifyPeriodActionFactoryFake(),
       eventTracker,
       metricTrackerService,
       securityRecommendationInteractionDao,
@@ -161,7 +165,8 @@ class SecurityActionsServiceImplTest : FunSpec({
           SecurityActionType.HARDWARE_DEVICE,
           SecurityActionType.FINGERPRINTS,
           SecurityActionType.BIOMETRIC,
-          SecurityActionType.TRANSACTION_VERIFICATION
+          SecurityActionType.TRANSACTION_VERIFICATION,
+          SecurityActionType.DELAY_NOTIFY_PERIOD
         )
         recoveryActions.map { it.type() }.shouldContainExactly(
           SecurityActionType.CRITICAL_ALERTS,

@@ -10,6 +10,7 @@ import bitkey.metrics.MetricTrackerServiceFake
 import bitkey.privilegedactions.FingerprintResetF8eClientFake
 import bitkey.privilegedactions.FingerprintResetServiceImpl
 import bitkey.privilegedactions.GrantDaoFake
+import bitkey.securitycenter.DelayNotifyConfigurationServiceFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.auth.AppAuthKeyMessageSignerMock
@@ -69,6 +70,7 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
   val signatureUtils = SignatureUtilsMock()
   val nfcCommandsMock = NfcCommandsMock(turbines::create)
   val metricTrackerService = MetricTrackerServiceFake()
+  val delayNotifyConfigurationService = DelayNotifyConfigurationServiceFake()
   val grantDaoFake = GrantDaoFake()
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
   val fingerprintResetService = FingerprintResetServiceImpl(
@@ -91,6 +93,7 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     nfcSessionUIStateMachine = nfcSessionUiStateMachine,
     clock = clock,
     fingerprintResetService = fingerprintResetService,
+    delayNotifyConfigurationService = delayNotifyConfigurationService,
     remainingRecoveryDelayWordsUpdateFrequency = RemainingRecoveryDelayWordsUpdateFrequency(1.milliseconds),
     enrollingFingerprintUiStateMachine = enrollingFingerprintUiStateMachine,
     metricTrackerService = metricTrackerService,
@@ -112,6 +115,7 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     clock.reset()
+    delayNotifyConfigurationService.reset()
     metricTrackerService.reset()
     accountServiceFake.setActiveAccount(FullAccountMock)
     grantDaoFake.reset()
@@ -129,11 +133,14 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
 
   test("initial state shows confirmation body") {
     fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult = Ok(emptyList())
+    delayNotifyConfigurationService.periodDays.value = 14
 
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      awaitBody<FingerprintResetConfirmationBodyModel> {
+      awaitUntilBody<FingerprintResetConfirmationBodyModel>(
+        matching = { it.delayPeriodDays == 14 }
+      ) {
         header
           .shouldNotBeNull()
           .headline.shouldBe("Start fingerprint reset")
@@ -147,7 +154,9 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      awaitBody<FingerprintResetConfirmationBodyModel> {
+      awaitUntilBody<FingerprintResetConfirmationBodyModel>(
+        matching = { it.delayPeriodDays != null }
+      ) {
         primaryButton.shouldNotBeNull().onClick()
       }
 
@@ -164,7 +173,9 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      awaitBody<FingerprintResetConfirmationBodyModel> {
+      awaitUntilBody<FingerprintResetConfirmationBodyModel>(
+        matching = { it.delayPeriodDays != null }
+      ) {
         primaryButton.shouldNotBeNull().onClick()
       }
 
@@ -182,12 +193,19 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      awaitBody<FingerprintResetConfirmationBodyModel> { primaryButton!!.onClick() }
+      awaitUntilBody<FingerprintResetConfirmationBodyModel>(
+        matching = { it.delayPeriodDays != null }
+      ) { primaryButton!!.onClick() }
       awaitSheet<FingerprintResetConfirmationSheetModel> {
         primaryButton.shouldNotBeNull().onClick()
       }
 
       awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantRequestResult>>(id = nfcSessionUiStateMachine.id) {
+        // An unpaired device must not be able to mint a grant request (W-17516). Serial-only
+        // because W1's signChallenge is fingerprint-gated and unusable here.
+        hardwareVerification shouldBe
+          NfcSessionUIStateMachineProps.HardwareVerification.RequiredSerialOnly
+
         val mockGrantRequest = GrantRequest(
           version = 1.toByte(),
           deviceId = ByteArray(8) { 0x01 },
@@ -237,7 +255,9 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      awaitBody<FingerprintResetConfirmationBodyModel> {
+      awaitUntilBody<FingerprintResetConfirmationBodyModel>(
+        matching = { it.delayPeriodDays != null }
+      ) {
         val accessory =
           toolbar?.leadingAccessory.shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
         accessory.model.onClick.invoke()
@@ -358,6 +378,41 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("grant provision requires the paired hardware serial") {
+    val pendingActionInstance = createPendingActionInstance(
+      clock = clock,
+      delayStartTime = clock.now - 3.days,
+      delayEndTime = clock.now - 1.days
+    )
+
+    fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult =
+      Ok(listOf(pendingActionInstance))
+    fingerprintResetF8eClientFake.continuePrivilegedActionResult = Ok(createFingerprintResetResponse())
+
+    stateMachine.test(props) {
+      awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
+
+      progressThroughFinishFlowToGrantLoading()
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<FingerprintResetGrantProvisionResult>>(id = nfcSessionUiStateMachine.id) {
+        // Gated too, not just the grant request: this session returns normally on a foreign
+        // tap, so ungated it would overwrite the serial cache the check reads. W-17516.
+        hardwareVerification shouldBe
+          NfcSessionUIStateMachineProps.HardwareVerification.RequiredSerialOnly
+
+        onSuccess(FingerprintResetGrantProvisionResult.ProvideGrantSuccess)
+      }
+
+      completeFingerprintEnrollment()
+
+      awaitBody<FingerprintResetSuccessBodyModel> {
+        onDone()
+      }
+
+      onCompleteCalls.awaitItem()
+    }
+  }
+
   test("firmware update required when FINGERPRINT_RESET feature is disabled") {
     fingerprintResetF8eClientFake.getPrivilegedActionInstancesResult = Ok(emptyList())
 
@@ -378,7 +433,9 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().body.shouldBeInstanceOf<LoadingSuccessBodyModel>()
 
-      awaitBody<FingerprintResetConfirmationBodyModel> {
+      awaitUntilBody<FingerprintResetConfirmationBodyModel>(
+        matching = { it.delayPeriodDays != null }
+      ) {
         primaryButton.shouldNotBeNull().onClick()
       }
 

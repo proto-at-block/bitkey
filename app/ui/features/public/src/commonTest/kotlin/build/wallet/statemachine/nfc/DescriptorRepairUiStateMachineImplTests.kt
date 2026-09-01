@@ -4,6 +4,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.PrivateAccountMock
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
@@ -83,8 +84,93 @@ class DescriptorRepairUiStateMachineImplTests : FunSpec({
       keyboxDao.activeKeybox.value.get()?.appGlobalAuthKeyHwSignature.shouldBe(
         AppGlobalAuthKeyHwSignature("fake-hw-signature")
       )
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP) {
+        message.shouldBe("Updating your cloud backup…")
+      }
       cloudBackupHealthRepository.performSyncCalls.awaitItem()
       onRepairComplete.awaitItem()
+    }
+  }
+
+  test("shows retryable error when cloud backup repair fails") {
+    hardwareDescriptorDeliveryService.fetchSignatureAndPrepareNfcSessionResult =
+      Ok { _, _ -> "fake-hw-signature" }
+    cloudBackupHealthRepository.syncResult = cloudBackupHealthRepository.syncResult.copy(
+      appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.PlaceholderSignatureRepairFailed
+    )
+
+    stateMachine.test(props) {
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<String>>(id = "nfc-session") {
+        onSuccess("fake-hw-signature")
+      }
+
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP) {
+        message.shouldBe("Updating your cloud backup…")
+      }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem()
+
+      awaitUntilBody<FormBodyModel>(id = LOADING_ONBOARDING_STEP) {
+        header.shouldNotBeNull().headline.shouldBe("Couldn't update your cloud backup")
+        onRepairComplete.expectNoEvents()
+
+        cloudBackupHealthRepository.syncResult = cloudBackupHealthRepository.syncResult.copy(
+          appKeyBackupStatus = AppKeyBackupStatus.Healthy(kotlinx.datetime.Instant.DISTANT_PAST)
+        )
+        clickPrimaryButton()
+      }
+
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP) {
+        message.shouldBe("Updating your cloud backup…")
+      }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem()
+      onRepairComplete.awaitItem()
+    }
+  }
+
+  test("allows exiting when cloud backup repair fails") {
+    hardwareDescriptorDeliveryService.fetchSignatureAndPrepareNfcSessionResult =
+      Ok { _, _ -> "fake-hw-signature" }
+    cloudBackupHealthRepository.syncResult = cloudBackupHealthRepository.syncResult.copy(
+      appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.PlaceholderSignatureRepairFailed
+    )
+
+    stateMachine.test(props) {
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBodyMock<NfcSessionUIStateMachineProps<String>>(id = "nfc-session") {
+        onSuccess("fake-hw-signature")
+      }
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      cloudBackupHealthRepository.performSyncCalls.awaitItem()
+
+      awaitUntilBody<FormBodyModel>(id = LOADING_ONBOARDING_STEP) {
+        secondaryButton.shouldNotBeNull().text.shouldBe("Not now")
+        clickSecondaryButton()
+      }
+      onBack.awaitItem()
+    }
+  }
+
+  test("system back exits when cloud backup repair fails") {
+    hardwareDescriptorDeliveryService.fetchSignatureAndPrepareNfcSessionResult =
+      Ok { _, _ -> "fake-hw-signature" }
+    cloudBackupHealthRepository.syncResult = cloudBackupHealthRepository.syncResult.copy(
+      appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.PlaceholderSignatureRepairFailed
+    )
+
+    stateMachine.test(props) {
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBodyMock<NfcSessionUIStateMachineProps<String>>(id = "nfc-session") {
+        onSuccess("fake-hw-signature")
+      }
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      cloudBackupHealthRepository.performSyncCalls.awaitItem()
+
+      awaitUntilBody<FormBodyModel>(id = LOADING_ONBOARDING_STEP) {
+        this.onBack.shouldNotBeNull().invoke()
+      }
+      onBack.awaitItem()
     }
   }
 

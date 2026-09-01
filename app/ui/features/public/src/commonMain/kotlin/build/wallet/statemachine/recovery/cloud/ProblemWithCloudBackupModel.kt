@@ -47,7 +47,7 @@ data class ProblemWithCloudBackupModel(
         headline = "Problem with cloud backup",
         subline = "The Bitkey you tapped isn’t linked to the cloud backup we found. " +
           "Please double-check that you're using the Bitkey device associated with your wallet. " +
-          "If you are, you can still recover your wallet by starting a 7-day security period which " +
+          "If you are, you can still recover your wallet by starting a security waiting period which " +
           "will overwrite the existing backup in your cloud account."
       )
       CloudBackupFailure.CantFindCloudAccount,

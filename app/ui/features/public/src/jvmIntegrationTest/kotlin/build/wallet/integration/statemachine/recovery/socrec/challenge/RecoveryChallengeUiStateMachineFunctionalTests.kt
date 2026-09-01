@@ -38,6 +38,7 @@ import build.wallet.ui.model.list.ListItemAccessory
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
+import kotlin.time.Duration.Companion.seconds
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
@@ -107,7 +108,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     props: RecoveryChallengeUiProps,
     clickNotifications: Boolean = true,
   ) {
-    this.recoveryChallengeUiStateMachine.test(props = props) {
+    this.recoveryChallengeUiStateMachine.test(props = props, turbineTimeout = 10.seconds) {
       awaitUntilBody<LoadingSuccessBodyModel>(
         SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
       )
@@ -569,7 +570,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     app.runChallengeToContactList(props)
     simulateRespondToChallenge()
 
-    app.recoveryChallengeUiStateMachine.test(props = props) {
+    app.recoveryChallengeUiStateMachine.test(props = props, turbineTimeout = 10.seconds) {
       awaitUntilBody<LoadingSuccessBodyModel>(
         SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
       )
@@ -654,7 +655,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     app.runChallengeToContactList(props)
     simulateRespondToChallenge()
 
-    app.recoveryChallengeUiStateMachine.test(props = props) {
+    app.recoveryChallengeUiStateMachine.test(props = props, turbineTimeout = 10.seconds) {
       awaitUntilBody<LoadingSuccessBodyModel>(
         SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
       )

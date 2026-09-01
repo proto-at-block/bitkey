@@ -31,4 +31,17 @@ class SignatureVerifierImplTests: XCTestCase {
             publicKey: keyPair.publicKey
         ))
     }
+
+    func test_verifyEcdsa_nonHexPublicKeyThrows() throws {
+        let keyPair = try keyGenerator.generateKeypair()
+        let message = OkioByteString.companion.encodeUtf8("Hello world!")
+        let signature = try messageSigner.sign(message: message, key: keyPair.privateKey)
+        // EEK-restored keyboxes persist a non-hex sentinel string in place of real auth keys.
+        let sentinelKey = Secp256k1PublicKey(value: "EAK Recovery: Invalid key")
+        XCTAssertThrowsError(try signatureVerifier.verifyEcdsa(
+            message: message,
+            signature: signature,
+            publicKey: sentinelKey
+        ))
+    }
 }

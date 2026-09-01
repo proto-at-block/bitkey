@@ -1,0 +1,17 @@
+CREATE TABLE walletMetadataTransactionNoteEntity(
+  accountId     TEXT NOT NULL,
+  transactionId TEXT NOT NULL,
+  note          TEXT NOT NULL,
+  createdAt     TEXT NOT NULL,
+  updatedAt     TEXT NOT NULL,
+  PRIMARY KEY(accountId, transactionId)
+);
+
+CREATE TABLE walletMetadataTransactionNoteTombstoneEntity(
+  accountId     TEXT NOT NULL,
+  transactionId TEXT NOT NULL,
+  deletedAt     TEXT NOT NULL,
+  PRIMARY KEY(accountId, transactionId)
+);
+
+PRAGMA foreign_key_check;

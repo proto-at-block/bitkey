@@ -235,6 +235,8 @@ class RotateAuthKeyUIStateMachineImpl(
             }
           ),
           screenPresentationStyle = ScreenPresentationStyle.FullScreen,
+          segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+          actionDescription = "Provisioning app auth key to hardware after rotating auth keys",
           eventTrackerContext = NfcEventTrackerScreenIdContext.ROTATE_AUTH_KEYS_PROVISION_APP_AUTH_KEY
         )
       )
@@ -383,6 +385,7 @@ class RotateAuthKeyUIStateMachineImpl(
     state: State.WaitingOnChoiceState,
     setState: (State) -> Unit,
   ): ScreenModel {
+    val currentSetState by rememberUpdatedState(setState)
     if (state.appGlobalAndRecoveryAuthKeys == null) {
       LaunchedEffect("generate-new-app-auth-keys") {
         // Since we are rotating app global auth key, we need to create
@@ -391,7 +394,7 @@ class RotateAuthKeyUIStateMachineImpl(
         // so we are preloading it here, to save us from an extra tap after auth keys are rotated.
         generateAppAuthKeys()
           .onSuccess { keys ->
-            setState(State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = keys))
+            currentSetState(State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = keys))
           }
       }
     }
@@ -469,6 +472,8 @@ class RotateAuthKeyUIStateMachineImpl(
       fullAccountId = props.account.keybox.fullAccountId,
       screenPresentationStyle = ScreenPresentationStyle.FullScreen,
       appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
+      segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+      actionDescription = "Signing auth key rotation with hardware after cloud restoration",
       onBack = {
         setState(State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = state.appGlobalAndRecoveryAuthKeys))
       }

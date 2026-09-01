@@ -23,6 +23,18 @@ interface SsekDao {
   ): Result<Unit, Throwable>
 
   /**
+   * Access all unsealed [Ssek]s from local storage, keyed by their [SealedSsek] form.
+   */
+  suspend fun getAll(): Result<Map<SealedSsek, Ssek>, Throwable>
+
+  /**
+   * Enumerates the [SealedSsek] identifiers of all stored SSEKs without reading the
+   * unsealed key material. Prefer this over [getAll] when only the set of stored keys
+   * is needed (e.g. staleness checks) to avoid materializing plaintext keys.
+   */
+  suspend fun getAllSealedIds(): Result<Set<SealedSsek>, Throwable>
+
+  /**
    * Clear any SSEKs in local storage.
    */
   suspend fun clear(): Result<Unit, Throwable>

@@ -1,4 +1,5 @@
 package bitkey.ui.screens.device
+import build.wallet.ui.model.toolbar.ToolbarTitleModel
 
 import bitkey.account.AccountConfigServiceFake
 import bitkey.privilegedactions.FingerprintResetAvailabilityServiceImpl
@@ -17,7 +18,6 @@ import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
-import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.FirmwareDeviceInfoMock
@@ -88,7 +88,6 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
   val featureFlagDao = FeatureFlagDaoFake()
   val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
-  val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
 
   val fingerprintResetAvailability = FingerprintResetAvailabilityServiceImpl(
     fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
@@ -116,8 +115,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     clock = clock,
     w3UpgradeUiStateMachine = object : W3UpgradeUiStateMachine,
       ScreenStateMachineMock<W3UpgradeUiProps>("w3-upgrade") {},
-    accountConfigService = accountConfigService,
-    w3OnboardingFeatureFlag = w3OnboardingFeatureFlag
+    accountConfigService = accountConfigService
   )
 
   val screen = DeviceSettingsScreen(
@@ -345,7 +343,6 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   }
 
   test("lost or stolen device") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val routeCalls = turbines.create<Route>("router routes")
     Router.onRouteChange { route ->
       routeCalls.add(route)
@@ -371,8 +368,6 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   }
 
   test("unhandled lost hardware recovery route restores device settings") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
     presenter.test(screen) { navigator ->
       awaitBody<DeviceSettingsFormBodyModel> {
         onReplaceDevice()
@@ -408,10 +403,9 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   test("device settings configures large title toolbar") {
     presenter.test(screen) { _ ->
       awaitBody<FormBodyModel> {
-        formScreenTitle.shouldNotBeNull().title.shouldBe("Bitkey Device")
+        (toolbar?.title as? ToolbarTitleModel.Large).shouldNotBeNull().title.shouldBe("Bitkey Device")
         formScreenLayout.shouldBe(FormScreenLayoutModel.LargeTitle())
         toolbar.shouldNotBeNull().apply {
-          middleAccessory.shouldBeNull()
           leadingAccessory.shouldBeInstanceOf<IconAccessory>()
         }
       }
@@ -474,7 +468,6 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   }
 
   test("Replace device button should be disabled given limited functionality") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     presenter.test(screen) { navigator ->
       awaitBody<FormBodyModel> {
         mainContentList[1]
@@ -554,6 +547,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       awaitBody<FormBodyModel> {
         val settingsItems = mainContentList[1].shouldBeInstanceOf<SettingsList>().items
         settingsItems.none { it.title == "Fingerprints" }.shouldBe(true)
+        settingsItems.none { it.title == "Upgrade device" }.shouldBe(true)
       }
     }
   }
@@ -580,6 +574,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       awaitBody<FormBodyModel> {
         val settingsItems = mainContentList[1].shouldBeInstanceOf<SettingsList>().items
         settingsItems.none { it.title == "Fingerprints" }.shouldBe(true)
+        settingsItems.none { it.title == "Upgrade device" }.shouldBe(true)
       }
     }
   }
@@ -785,7 +780,6 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     val featureFlagDao = FeatureFlagDaoFake()
     val fingerprintResetMinFirmwareVersionFeatureFlag =
       FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
-    val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
 
     val fingerprintResetAvailability = FingerprintResetAvailabilityServiceImpl(
       fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
@@ -816,8 +810,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       clock = clock,
       w3UpgradeUiStateMachine = object : W3UpgradeUiStateMachine,
         ScreenStateMachineMock<W3UpgradeUiProps>("w3-upgrade") {},
-      accountConfigService = accountConfigService,
-      w3OnboardingFeatureFlag = w3OnboardingFeatureFlag
+      accountConfigService = accountConfigService
     )
 
     // Set supported firmware version
@@ -862,7 +855,6 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     val featureFlagDao = FeatureFlagDaoFake()
     val fingerprintResetMinFirmwareVersionFeatureFlag =
       FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
-    val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
 
     val fingerprintResetAvailability = FingerprintResetAvailabilityServiceImpl(
       fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
@@ -893,8 +885,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       clock = clock,
       w3UpgradeUiStateMachine = object : W3UpgradeUiStateMachine,
         ScreenStateMachineMock<W3UpgradeUiProps>("w3-upgrade") {},
-      accountConfigService = accountConfigService,
-      w3OnboardingFeatureFlag = w3OnboardingFeatureFlag
+      accountConfigService = accountConfigService
     )
 
     // Set unsupported firmware version
@@ -1076,7 +1067,6 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   }
 
   test("W3 upgrade completion navigates to Money Home with post-upgrade origin") {
-    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     presenter.test(screen) { navigator ->
       // Tap the Upgrade device button after the replacement row.
       awaitBody<FormBodyModel> {

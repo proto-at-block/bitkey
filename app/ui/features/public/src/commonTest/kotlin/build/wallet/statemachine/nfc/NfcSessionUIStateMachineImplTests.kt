@@ -17,6 +17,7 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.Companion.LEGACY_EAK_PUBLIC_KEY
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifierMock
 import build.wallet.encrypt.SignatureVerifierMock.VerifyEcdsaCall
@@ -103,8 +104,8 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     needsAuthentication = true,
     hardwareVerification = requirePairedHardware,
     shouldLock = true,
-    segment = null,
-    actionDescription = null,
+    segment = NfcSessionTestSegment,
+    actionDescription = "Testing NFC session",
     screenPresentationStyle = ScreenPresentationStyle.FullScreen,
     eventTrackerContext = UTXO_CONSOLIDATION_SIGN_TRANSACTION,
     shouldShowLongRunningOperation = shouldShowLongRunningOperation
@@ -325,6 +326,67 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     }
   }
 
+  test("hardware pairing check - bypasses check for legacy EAK sentinel keybox") {
+    val propsWithPairing = createProps(requirePairedHardware = Required())
+    accountService.accountState.value = Ok(
+      AccountStatus.ActiveAccount(
+        FullAccountMock.copy(
+          keybox = EekKeyboxMock.copy(
+            activeHwKeyBundle = EekKeyboxMock.activeHwKeyBundle.copy(
+              authKey = HwAuthPublicKey(Secp256k1PublicKey(LEGACY_EAK_PUBLIC_KEY))
+            )
+          )
+        )
+      )
+    )
+
+    nfcTransactor.transactResult = Ok(Unit)
+    stateMachine.test(propsWithPairing) {
+      awaitBody<NfcBodyModel> {
+        text.shouldBe("Hold your Bitkey to the back of your phone")
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val transactCalls = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<Parameters>()
+
+      // Verify pairing check is NotRequired even though prop is Required
+      transactCalls.requirePairedHardware.shouldBe(RequirePairedHardware.NotRequired)
+      onSuccessCalls.awaitItem()
+
+      awaitBody<NfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+      }
+    }
+  }
+
+  test("hardware pairing check - serial-only maps to RequiredSerialOnly without a pubkey") {
+    // Fingerprint reset can't sign a challenge, so it uses the serial-only variant. It must
+    // map through even though no hw pubkey / challenge is involved (W-17516).
+    val propsWithPairing =
+      createProps(requirePairedHardware = HardwareVerification.RequiredSerialOnly)
+
+    accountService.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
+
+    nfcTransactor.transactResult = Ok(Unit)
+    stateMachine.test(propsWithPairing) {
+      awaitBody<NfcBodyModel> {
+        text.shouldBe("Hold your Bitkey to the back of your phone")
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val transactCalls =
+        nfcTransactor.transactCalls.awaitItem()
+          .shouldBeTypeOf<Parameters>()
+      transactCalls.requirePairedHardware.shouldBe(RequirePairedHardware.RequiredSerialOnly)
+
+      onSuccessCalls.awaitItem()
+      awaitBody<NfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+      }
+    }
+  }
+
   test("hardware pairing check - recovery in progress - checks against new hardware") {
     val propsWithPairing = createProps(requirePairedHardware = Required(useRecoveryPubKey = true))
 
@@ -411,3 +473,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     }
   }
 })
+
+private object NfcSessionTestSegment : build.wallet.statemachine.core.AppSegment {
+  override val id: String = "Test"
+}

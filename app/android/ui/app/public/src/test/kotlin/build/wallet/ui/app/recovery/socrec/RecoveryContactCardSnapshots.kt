@@ -8,9 +8,8 @@ import androidx.compose.ui.unit.dp
 import build.wallet.bitkey.relationships.InvitationFake
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.trustedcontact.model.TrustedContactCardModel
-import build.wallet.ui.app.moneyhome.card.NewCard
+import build.wallet.ui.app.moneyhome.card.StatusCard
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
 
@@ -24,7 +23,7 @@ class RecoveryContactCardSnapshots : FunSpec({
           .fillMaxWidth()
           .padding(20.dp)
       ) {
-        NewCard(
+        StatusCard(
           modifier = Modifier.fillMaxWidth(),
           model = TrustedContactCardModel(
             contact =
@@ -33,7 +32,7 @@ class RecoveryContactCardSnapshots : FunSpec({
                 expiresAt = DISTANT_FUTURE
               ),
             buttonText = "Pending",
-            backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
+            inverse = true,
             onClick = {}
           )
         )

@@ -2,11 +2,11 @@
     "module-identifier": "dev.drewhamilton.poko:poko-annotations-jvm",
     "components": [
         {
-            "version": "0.17.2",
+            "version": "0.18.7",
             "variants": [
                 {
                     "artifacts": {
-                        "poko-annotations-jvm-0.17.2.jar": "940e6d50445bc6b0ae26ad414ec7b953a3e4e802dc7756cc14d56958bc97cc31"
+                        "poko-annotations-jvm-0.18.7.jar": "e54daa81cd038929633aec59606022e1eaa3432a3ca673494bbf1ae55e42234d"
                     }
                 }
             ],

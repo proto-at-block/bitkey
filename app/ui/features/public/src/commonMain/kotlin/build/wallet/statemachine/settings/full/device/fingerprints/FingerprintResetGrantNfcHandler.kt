@@ -14,6 +14,7 @@ import build.wallet.nfc.platform.NfcCommands
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetGrantProvisionResult
+import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetSegment
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.fold
 
@@ -66,10 +67,15 @@ class FingerprintResetGrantNfcHandler(
       onCancel = onCancel,
       onError = onError,
       screenPresentationStyle = ScreenPresentationStyle.Modal,
+      segment = FingerprintResetSegment,
+      actionDescription = "Providing fingerprint reset grant to hardware",
       eventTrackerContext = eventTrackerContext,
       needsAuthentication = false,
       shouldLock = false,
-      hardwareVerification = NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+      // Gated so a foreign device can't consume a grant, and can't overwrite the serial cache
+      // this check reads (this session returns normally on a foreign tap). Serial-only because
+      // signChallenge needs a fingerprint. W-17516.
+      hardwareVerification = NfcSessionUIStateMachineProps.HardwareVerification.RequiredSerialOnly
     )
   }
 

@@ -71,12 +71,6 @@ class UiErrorHintsProviderImpl(
     }
   }
 
-  override fun phoneNotAvailable() {
-    appScope.launch {
-      setErrorHint(UiErrorHintKey.Phone, UiErrorHint.NotAvailableInYourCountry)
-    }
-  }
-
   init {
     appScope.launch {
       mutex.withLock {

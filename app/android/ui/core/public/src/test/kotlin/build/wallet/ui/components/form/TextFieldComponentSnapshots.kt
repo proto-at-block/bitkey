@@ -1,6 +1,6 @@
 package build.wallet.ui.components.form
 
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.foundation.text.input.TextFieldState
 import app.cash.paparazzi.DeviceConfig
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.ui.components.forms.TextField
@@ -13,8 +13,7 @@ class TextFieldComponentSnapshots : FunSpec({
     paparazzi.snapshot {
       TextField(
         placeholderText = "Email Address",
-        value = TextFieldValue(""),
-        onValueChange = {}
+        state = TextFieldState("")
       )
     }
   }

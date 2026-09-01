@@ -84,6 +84,7 @@ class AppTester(
     bdkBlockchainFactory: BdkBlockchainFactory? = null,
     f8eEnvironment: F8eEnvironment? = null,
     executeWorkers: Boolean = true,
+    bdk2InitialSyncDefaultComplete: Boolean = bdk2InitialSyncCompletionDaoFake.isDefaultComplete,
   ): AppTester {
     shutdown()
     return testScope.launchApp(
@@ -96,6 +97,7 @@ class AppTester(
       hardwareSeed = w1FakeHardwareKeyStore.getSeed(),
       w3HardwareSeed = w3FakeHardwareKeyStore.getSeed(),
       executeWorkers = executeWorkers,
+      bdk2InitialSyncDefaultComplete = bdk2InitialSyncDefaultComplete,
       appMode = appMode
     )
   }
@@ -131,6 +133,7 @@ class AppTester(
       w3HardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean = false,
       executeWorkers: Boolean = true,
+      bdk2InitialSyncDefaultComplete: Boolean = true,
     ): AppTester {
       return launchApp(
         existingAppDir = null,
@@ -143,6 +146,7 @@ class AppTester(
         w3HardwareSeed = w3HardwareSeed,
         isUsingSocRecFakes = isUsingSocRecFakes,
         executeWorkers = executeWorkers,
+        bdk2InitialSyncDefaultComplete = bdk2InitialSyncDefaultComplete,
         appMode = AppMode.Private
       )
     }
@@ -160,6 +164,7 @@ class AppTester(
       w3HardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean = false,
       executeWorkers: Boolean = true,
+      bdk2InitialSyncDefaultComplete: Boolean = true,
     ): AppTester {
       return launchApp(
         bdkBlockchainFactory = bdkBlockchainFactory,
@@ -171,6 +176,7 @@ class AppTester(
         w3HardwareSeed = w3HardwareSeed,
         isUsingSocRecFakes = isUsingSocRecFakes,
         executeWorkers = executeWorkers,
+        bdk2InitialSyncDefaultComplete = bdk2InitialSyncDefaultComplete,
         appMode = AppMode.Legacy
       )
     }
@@ -206,6 +212,7 @@ class AppTester(
       w3HardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean,
       executeWorkers: Boolean = true,
+      bdk2InitialSyncDefaultComplete: Boolean = true,
       appMode: AppMode = AppMode.Private,
     ): AppTester {
       // "Disable" default kermit logger until we have our own custom logger setup.
@@ -235,7 +242,8 @@ class AppTester(
         appDir = appDir,
         bdkBlockchainFactory = resolvedBdkBlockchainFactory,
         cloudStoreAccountRepositoryOverride = cloudStoreAccountRepository,
-        cloudBackupStoreOverride = cloudBackupStore
+        cloudBackupStoreOverride = cloudBackupStore,
+        bdk2InitialSyncDefaultComplete = bdk2InitialSyncDefaultComplete
       )
       appComponent.loggerInitializer.initialize()
 
@@ -309,6 +317,7 @@ private fun createAppComponent(
   bdkBlockchainFactory: BdkBlockchainFactory,
   cloudStoreAccountRepositoryOverride: CloudStoreAccountRepository? = null,
   cloudBackupStoreOverride: CloudBackupStore? = null,
+  bdk2InitialSyncDefaultComplete: Boolean = true,
 ): JvmAppComponentImpl {
   val fileDirectoryProvider = FileDirectoryProviderImpl(appDir)
   val fileManager = FileManagerImpl(fileDirectoryProvider)
@@ -332,6 +341,8 @@ private fun createAppComponent(
     cloudKeyValueStore = cloudKeyValueStore,
     cloudFileStore = cloudFileStore
   ).also {
+    it.bdk2InitialSyncCompletionDaoFake.setDefaultComplete(bdk2InitialSyncDefaultComplete)
+
     // prevent inheritance upsell from being shown in tests
     appScope.launch {
       it.inheritanceUpsellService.markUpsellAsSeen()

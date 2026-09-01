@@ -1,0 +1,474 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-android",
+    "version": "2026.06.01",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-quickjs-tools",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "androidx.test.uiautomator",
+          "module": "uiautomator",
+          "version": {
+            "requires": "2.3.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-okhttp",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-content-negotiation-jvm",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-utils-jvm",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-events-jvm",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-serialization-jvm",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.10.0"
+          }
+        },
+        {
+          "group": "junit",
+          "module": "junit",
+          "version": {
+            "requires": "4.13.2"
+          }
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-orchestra-models",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-utils",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-client",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-tools",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-llm",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-android-2026.06.01.aar",
+          "url": "trailblaze-android-2026.06.01.aar",
+          "size": 393256,
+          "sha512": "c3514ab9e847779bfdfd3a7dbf5288dc3e4ca1a30833aff4a99f884e5fd57464cbdc9ce25aba56854f369636efbe563ce62b80f3cb449cacc49f90d17edc5bee",
+          "sha256": "e10bff08899afff75000da7594965c7ef01982adb83bc0bd60ebd8365108fe78",
+          "sha1": "21380bf024a88f253ba685e6e6962f47bb595238",
+          "md5": "b2e4f759cb1d402f1fecabbbc2ed01a3"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-android",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-agent",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-tracing",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-core-jvm",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-orchestra",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "androidx.test",
+          "module": "monitor",
+          "version": {
+            "requires": "1.8.0"
+          }
+        },
+        {
+          "group": "com.squareup.okhttp3",
+          "module": "okhttp",
+          "version": {
+            "requires": "5.3.2"
+          }
+        },
+        {
+          "group": "com.squareup.okio",
+          "module": "okio",
+          "version": {
+            "requires": "3.16.4"
+          }
+        },
+        {
+          "group": "org.slf4j",
+          "module": "slf4j-api",
+          "version": {
+            "requires": "2.0.17"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-clients",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-openai-client",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-openrouter-client",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-ollama-client",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "http-client-ktor",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1-0.6.x-compat"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-http",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.10.0"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-quickjs-tools",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "androidx.test.uiautomator",
+          "module": "uiautomator",
+          "version": {
+            "requires": "2.3.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-okhttp",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-content-negotiation-jvm",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-utils-jvm",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-events-jvm",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-serialization-jvm",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.10.0"
+          }
+        },
+        {
+          "group": "junit",
+          "module": "junit",
+          "version": {
+            "requires": "4.13.2"
+          }
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-orchestra-models",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-utils",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-client",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-tools",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-llm",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-android-2026.06.01.aar",
+          "url": "trailblaze-android-2026.06.01.aar",
+          "size": 393256,
+          "sha512": "c3514ab9e847779bfdfd3a7dbf5288dc3e4ca1a30833aff4a99f884e5fd57464cbdc9ce25aba56854f369636efbe563ce62b80f3cb449cacc49f90d17edc5bee",
+          "sha256": "e10bff08899afff75000da7594965c7ef01982adb83bc0bd60ebd8365108fe78",
+          "sha1": "21380bf024a88f253ba685e6e6962f47bb595238",
+          "md5": "b2e4f759cb1d402f1fecabbbc2ed01a3"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseSourcePublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "trailblaze-android-2026.06.01-sources.jar",
+          "url": "trailblaze-android-2026.06.01-sources.jar",
+          "size": 133807,
+          "sha512": "4c72d12cdcfc5008d854ef46a064596ac29066e00b007c2171ae7d1c6ae4aaffbb962680019025a0cca039b623ec8d845803cc618c27a9b6ee7433c7d81d3464",
+          "sha256": "94624d7e8a5a6a3390dc5ef100793c7f7aa3ad1c899ea45b859cfce1dc3915f5",
+          "sha1": "ff1767c716d533fdbe68d431737e805f1c2318bf",
+          "md5": "8536e926495b7fa5f4928a138003f59c"
+        }
+      ]
+    }
+  ]
+}

@@ -12,7 +12,8 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath",
-                "gradle-plugins[bitkey]"
+                "gradle-plugins[bitkey]",
+                "kotlin-compiler"
             ]
         }
     ]

@@ -179,4 +179,21 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
       }
     }
   }
+
+  test("Model when FullFunctionality - AtRisk due to UnverifiedHardwareSignature") {
+    stateMachine.test(props) {
+      awaitItem().shouldBeNull()
+      appFunctionalityService.status.emit(
+        AppFunctionalityStatus.FullFunctionality
+      )
+      fundsLostRiskService.riskLevel.emit(AtRisk(cause = AtRiskCause.UnverifiedHardwareSignature))
+
+      awaitItem().shouldNotBeNull().apply {
+        title.shouldBe("Your wallet is at risk")
+        subtitle.shouldBe("Verify with your Bitkey device to protect your funds →")
+        onClick?.invoke()
+        propsOnBannerClickCalls.awaitItem()
+      }
+    }
+  }
 })

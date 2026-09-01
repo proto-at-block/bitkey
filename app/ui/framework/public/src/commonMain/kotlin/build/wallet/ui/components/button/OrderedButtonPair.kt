@@ -8,6 +8,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import build.wallet.ui.model.button.ButtonModel
 
+// renderButton is a render-prop invoked once per button model (primary, secondary), not a reused slot.
+@Suppress("ContentSlotReused")
 @Composable
 fun OrderedButtonPair(
   primary: ButtonModel?,

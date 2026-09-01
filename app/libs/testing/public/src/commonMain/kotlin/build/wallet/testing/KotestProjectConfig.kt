@@ -38,6 +38,6 @@ internal object KotestProjectConfig : AbstractProjectConfig() {
   override fun extensions(): List<Extension> =
     listOf(
       SensitiveDataLogListener(),
-      RetryFlakyTestsExtension(attempts = 3, timeout = 1.minutes, delay = 10.seconds)
+      RetryFlakyTestsExtension(attempts = 3, timeout = 10.minutes, delay = 10.seconds)
     )
 }

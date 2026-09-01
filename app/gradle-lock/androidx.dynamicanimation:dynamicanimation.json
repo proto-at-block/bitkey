@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.dynamicanimation:dynamicanimation",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "dynamicanimation-1.0.0.aar": "ce005162c229bf308d2d5b12fb6cad0874069cbbeaccee63a8193bd08d40de04"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

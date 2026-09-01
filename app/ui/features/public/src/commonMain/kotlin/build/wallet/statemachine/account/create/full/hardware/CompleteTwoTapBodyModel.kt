@@ -4,6 +4,7 @@ import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.form.FooterRevealAware
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
@@ -11,7 +12,6 @@ import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.SMAL
 import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormScreenLayoutModel
-import build.wallet.statemachine.core.form.formWaitingRevealDelayMillis
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -28,8 +28,15 @@ data class CompleteTwoTapBodyModel(
   val onContinue: () -> Unit,
   val onHelpClick: () -> Unit,
   override val eventTrackerContext: EventTrackerContext,
-  val isHardwareFake: Boolean = false,
-) : FormBodyModel(
+  /**
+   * Whether the continue button in the footer should be revealed. The hosting state machine is
+   * responsible for flipping this to `true` after the hardware-interaction reveal delay has
+   * elapsed; the [FormScreen] will then fade and slide the button in. The button is always
+   * emitted on the model so the footer slot can reserve its final height from the first
+   * composition.
+   */
+  override val footerRevealed: Boolean = true,
+) : FooterRevealAware, FormBodyModel(
     id = PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP,
     onBack = onBack,
     toolbar = ToolbarModel(
@@ -61,6 +68,5 @@ data class CompleteTwoTapBodyModel(
       size = ButtonModel.Size.Footer,
       leadingIcon = Icon.Bitkey
     ),
-    footerRevealDelayMillis = formWaitingRevealDelayMillis(isHardwareFake),
     eventTrackerContext = eventTrackerContext
   )

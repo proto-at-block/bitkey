@@ -13,7 +13,9 @@ public final class SignatureVerifierImpl: Shared.SignatureVerifier {
     ) throws -> SignatureVerifierVerifyEcdsaResult {
         let decodedSignature = try OkioKt.decodeHex(s: signature)
         let verifier = try core.SignatureVerifier(signature: decodedSignature)
-        let decodedPublicKey = OkioByteString.companion.decodeHex(publicKey.value).toData()
+        // Must use the @Throws helper: a Kotlin exception from a non-@Throws function called
+        // from Swift cannot unwind through Swift frames and terminates the process.
+        let decodedPublicKey = try OkioKt.decodeHex(s: publicKey.value)
         try verifier.verifyEcdsa(message: message.toData(), pubkey: decodedPublicKey)
 
         return SignatureVerifierVerifyEcdsaResult(isValid: true)

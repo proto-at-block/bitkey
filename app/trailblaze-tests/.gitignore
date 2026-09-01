@@ -1,0 +1,6 @@
+# Anchored to this directory: source files live under kotlin/build/wallet/... package dirs,
+# which an unanchored build/ pattern would swallow.
+/build/
+/.gradle/
+/.kotlin/
+/local.properties

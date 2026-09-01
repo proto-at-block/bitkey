@@ -1,0 +1,320 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-common",
+    "version": "2026.06.01",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "metadataApiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "non-jvm",
+        "org.gradle.usage": "kotlin-metadata",
+        "org.jetbrains.kotlin.platform.type": "common"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1-0.6.x-compat"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.10.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "junit",
+          "module": "junit",
+          "version": {
+            "requires": "4.13.2"
+          }
+        },
+        {
+          "group": "com.charleskorn.kaml",
+          "module": "kaml",
+          "version": {
+            "requires": "0.104.0"
+          }
+        },
+        {
+          "group": "com.squareup.okio",
+          "module": "okio",
+          "version": {
+            "requires": "3.16.4"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-tools",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-core",
+          "version": {
+            "requires": "3.3.3"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.06.01"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.20"
+          }
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-orchestra-models",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-client",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-utils",
+          "version": {
+            "requires": "2.3.0"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-common-metadata-2026.06.01.jar",
+          "url": "trailblaze-common-2026.06.01.jar",
+          "size": 987,
+          "sha512": "cf6a0968f74692aec856694526261b13861558a215343fb408d665f4a59f3623352bd2b49f4fc28fbcd61e57acab8c1d3d0f7a327128ffb51f76638172561997",
+          "sha256": "97566d3edaa685147b3b8deae76a06f496359787eab39e1d909773651ce9cc85",
+          "sha1": "440dc4ce46c28babcc8a86dd798c85d423ff4fcb",
+          "md5": "d7ce8f994a08bdd7205bff12e26e9e50"
+        }
+      ]
+    },
+    {
+      "name": "metadataSourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "non-jvm",
+        "org.gradle.usage": "kotlin-runtime",
+        "org.jetbrains.kotlin.platform.type": "common"
+      },
+      "files": [
+        {
+          "name": "trailblaze-common-kotlin-2026.06.01-sources.jar",
+          "url": "trailblaze-common-2026.06.01-sources.jar",
+          "size": 448296,
+          "sha512": "1095e90bbff19347a6e9bc7ae852b82b374e7fdae4d536a2031744b1400bae576d0decd0d63dc859274b5ae1cc7e16abdc9c177b3cd3252d7e5a36372e777e80",
+          "sha256": "f04521177e3813d21cbbaf2d672e3ae9fa7d67bf5e4d74f79eef1f46a2330d53",
+          "sha1": "3f58262a3d79bed414edad83bded01657f01a5be",
+          "md5": "9e1e238facc863a3e2552f90e1fa3fcb"
+        }
+      ]
+    },
+    {
+      "name": "debugApiElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-common-android-debug/2026.06.01/trailblaze-common-android-debug-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-common-android-debug",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "debugRuntimeElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-common-android-debug/2026.06.01/trailblaze-common-android-debug-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-common-android-debug",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "debugSourcesElements-published",
+      "attributes": {
+        "com.android.build.api.attributes.BuildTypeAttr": "debug",
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-common-android-debug/2026.06.01/trailblaze-common-android-debug-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-common-android-debug",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "releaseApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-common-android/2026.06.01/trailblaze-common-android-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-common-android",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "releaseRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-common-android/2026.06.01/trailblaze-common-android-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-common-android",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "releaseSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-common-android/2026.06.01/trailblaze-common-android-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-common-android",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "jvmApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-common-jvm/2026.06.01/trailblaze-common-jvm-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-common-jvm",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "jvmRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-common-jvm/2026.06.01/trailblaze-common-jvm-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-common-jvm",
+        "version": "2026.06.01"
+      }
+    },
+    {
+      "name": "jvmSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-common-jvm/2026.06.01/trailblaze-common-jvm-2026.06.01.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-common-jvm",
+        "version": "2026.06.01"
+      }
+    }
+  ]
+}

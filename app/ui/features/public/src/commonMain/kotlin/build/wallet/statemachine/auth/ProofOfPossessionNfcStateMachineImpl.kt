@@ -113,6 +113,8 @@ class ProofOfPossessionNfcStateMachineImpl(
             onSuccess = nfcTransaction::onSuccess,
             onCancel = nfcTransaction::onCancel,
             onError = props.onError,
+            segment = props.segment,
+            actionDescription = props.actionDescription,
             screenPresentationStyle = props.screenPresentationStyle,
             hardwareVerification = props.hardwareVerification,
             eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,

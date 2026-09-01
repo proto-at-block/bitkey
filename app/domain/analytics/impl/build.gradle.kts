@@ -19,6 +19,7 @@ kotlin {
         implementation(projects.libs.keyValueStorePublic)
         implementation(projects.libs.queueProcessorPublic)
         implementation(projects.libs.platformPublic)
+        implementation(projects.libs.stdlibPublic)
         implementation(projects.libs.timePublic)
         implementation(projects.domain.databasePublic)
         implementation(projects.domain.hardwarePublic)

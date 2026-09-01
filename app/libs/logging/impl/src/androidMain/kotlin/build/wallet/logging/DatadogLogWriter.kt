@@ -62,14 +62,29 @@ class DatadogLogWriter(
   ) {
     val logContext = logWriterContextStore.get()
     refreshUserPropertiesIfNeeded(logContext)
-    val sensitiveDataResult = SensitiveDataValidator.check(LogEntry(tag, message))
-    val safeMessage = when (sensitiveDataResult) {
-      SensitiveDataResult.NoneFound -> message
-      is SensitiveDataResult.Sensitive -> sensitiveDataResult.redactedMessage
-    }
-    val safeTag = when (sensitiveDataResult) {
-      SensitiveDataResult.NoneFound -> tag
-      is SensitiveDataResult.Sensitive -> sensitiveDataResult.redactedTag
+    // Check the throwable's full cause chain along with the tag/message: exception messages
+    // can embed the same sensitive material and are uploaded with the log.
+    val sensitiveDataResult = SensitiveDataValidator.check(
+      entry = LogEntry(tag, message),
+      throwable = throwable
+    )
+    val safeMessage: String
+    val safeTag: String
+    val safeThrowable: Throwable?
+    when (sensitiveDataResult) {
+      SensitiveDataResult.NoneFound -> {
+        safeMessage = message
+        safeTag = tag
+        safeThrowable = throwable
+      }
+      is SensitiveDataResult.Sensitive -> {
+        safeMessage = sensitiveDataResult.redactedMessage
+        safeTag = sensitiveDataResult.redactedTag
+        // Drop the throwable: its message (and the stack trace that embeds it) may contain
+        // the sensitive data that triggered redaction. Replace with a synthetic error so
+        // error-level semantics are preserved in Datadog.
+        safeThrowable = throwable?.let { RedactedThrowable() }
+      }
     }
 
     val defaultAttributes =
@@ -81,37 +96,37 @@ class DatadogLogWriter(
       Severity.Verbose ->
         datadogLogger.v(
           message = safeMessage,
-          throwable = throwable,
+          throwable = safeThrowable,
           attributes = defaultAttributes
         )
       Severity.Debug ->
         datadogLogger.d(
           message = safeMessage,
-          throwable = throwable,
+          throwable = safeThrowable,
           attributes = defaultAttributes
         )
       Severity.Info ->
         datadogLogger.i(
           message = safeMessage,
-          throwable = throwable,
+          throwable = safeThrowable,
           attributes = defaultAttributes
         )
       Severity.Warn ->
         datadogLogger.w(
           message = safeMessage,
-          throwable = throwable,
+          throwable = safeThrowable,
           attributes = defaultAttributes
         )
       Severity.Error ->
         datadogLogger.e(
           message = safeMessage,
-          throwable = throwable,
+          throwable = safeThrowable,
           attributes = defaultAttributes
         )
       Severity.Assert ->
         datadogLogger.wtf(
           message = safeMessage,
-          throwable = throwable,
+          throwable = safeThrowable,
           attributes = defaultAttributes
         )
     }
@@ -122,7 +137,7 @@ class DatadogLogWriter(
         message = safeMessage,
         source = ErrorSource.Logger,
         attributes = defaultAttributes,
-        cause = throwable ?: SyntheticHandledError(safeMessage)
+        cause = safeThrowable ?: SyntheticHandledError(safeMessage)
       )
     }
   }
@@ -132,6 +147,12 @@ class DatadogLogWriter(
 private class SyntheticHandledError(
   override val message: String,
 ) : Throwable(message)
+
+/**
+ * Replaces a throwable whose message (or the stack trace embedding it) may contain sensitive
+ * data. Carries no message or stack information from the original.
+ */
+private class RedactedThrowable : Throwable("REDACTED - Possible sensitive data in throwable")
 
 private data class UserProperties(
   val appInstallationId: String?,

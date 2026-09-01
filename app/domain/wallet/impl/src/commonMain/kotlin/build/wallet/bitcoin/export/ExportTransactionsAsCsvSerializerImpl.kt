@@ -38,20 +38,20 @@ class ExportTransactionsAsCsvSerializerImpl : ExportTransactionsAsCsvSerializer 
 
   override suspend fun fromCsvString(value: String): Result<List<ExportTransactionRow>, Throwable> {
     return withContext(Dispatchers.Default) {
-      val lines = value.lines()
-      if (lines.isEmpty()) {
+      val records = value.parseCsvRecords()
+      if (records.isEmpty()) {
         return@withContext Ok(emptyList())
       }
 
-      val header = lines.first()
-      val expectedHeader = csvHeaderString()
+      val header = records.first()
+      val expectedHeader = csvHeaderFields()
       if (header != expectedHeader) {
         return@withContext Err(Error("CSV header does not match expected header"))
       }
 
-      val dataLines = lines.drop(1)
-      val rowsResult = dataLines.map { line ->
-        parseCsvRow(line)
+      val dataRecords = records.drop(1)
+      val rowsResult = dataRecords.map { record ->
+        parseCsvRow(record)
       }
 
       // Check for any errors
@@ -72,6 +72,10 @@ class ExportTransactionsAsCsvSerializerImpl : ExportTransactionsAsCsvSerializer 
   }
 
   private fun csvHeaderString(): String {
+    return csvHeaderFields().joinToString(separator = ",") { field -> field.toCsvField() }
+  }
+
+  private fun csvHeaderFields(): List<String> {
     return listOf(
       "Transaction ID",
       "Confirmation Time",
@@ -79,8 +83,9 @@ class ExportTransactionsAsCsvSerializerImpl : ExportTransactionsAsCsvSerializer 
       "Currency",
       "Fee Amount",
       "Fee Currency",
-      "Transaction Type"
-    ).joinToString(separator = ",")
+      "Transaction Type",
+      "Note"
+    )
   }
 
   private fun ExportTransactionRow.toCsvRowString(): String {
@@ -97,15 +102,15 @@ class ExportTransactionsAsCsvSerializerImpl : ExportTransactionsAsCsvSerializer 
       amountCurrencyString,
       feesString,
       feesCurrencyString,
-      transactionType
-    ).joinToString(separator = ",")
+      transactionType.toString()
+    ).joinToString(separator = ",") { field -> field.toCsvField() } +
+      "," + note.orEmpty().neutralizeSpreadsheetFormula().toCsvField()
   }
 
-  private fun parseCsvRow(string: String): Result<ExportTransactionRow, Error> {
-    val headerFields = csvHeaderString().split(",").map { it.trim() }
+  private fun parseCsvRow(fields: List<String>): Result<ExportTransactionRow, Error> {
+    val headerFields = csvHeaderFields()
     val expectedFieldCount = headerFields.size
 
-    val fields = string.split(",").map { it.trim() }
     if (fields.size != expectedFieldCount) {
       return Err(Error("Invalid CSV row: Expected $expectedFieldCount fields but found ${fields.size}"))
     }
@@ -159,8 +164,165 @@ class ExportTransactionsAsCsvSerializerImpl : ExportTransactionsAsCsvSerializer 
         confirmationTime = confirmationTime,
         amount = amount,
         fees = fees,
-        transactionType = transactionType
+        transactionType = transactionType,
+        note = fieldMap["Note"].orEmpty()
+          .restoreNeutralizedSpreadsheetFormula()
+          .takeIf { it.isNotBlank() }
       )
     )
+  }
+}
+
+private fun String.toCsvField(): String {
+  val escaped = replace("\"", "\"\"")
+  return if (any(Char::requiresCsvEscaping)) {
+    "\"$escaped\""
+  } else {
+    escaped
+  }
+}
+
+/**
+ * Prepends a `'` guard to fields that would otherwise be interpreted as a formula by
+ * spreadsheet applications. Only applied to user-controlled fields (the Note column).
+ *
+ * Notes that already start with a `'` are also guarded (like Excel's own escaping) so that
+ * [restoreNeutralizedSpreadsheetFormula] can always strip exactly one guard character —
+ * otherwise a note like `'=SUM(1,1)` would lose its leading apostrophe on re-import.
+ */
+private fun String.neutralizeSpreadsheetFormula(): String =
+  if (firstOrNull()?.requiresSpreadsheetFormulaGuard() == true) {
+    "'$this"
+  } else {
+    this
+  }
+
+/**
+ * Reverses [neutralizeSpreadsheetFormula] by stripping a single leading `'` when it guards a
+ * character that [neutralizeSpreadsheetFormula] would have guarded, so that neutralized notes
+ * round-trip to their original value.
+ */
+private fun String.restoreNeutralizedSpreadsheetFormula(): String =
+  if (firstOrNull() == '\'' && getOrNull(1)?.requiresSpreadsheetFormulaGuard() == true) {
+    drop(1)
+  } else {
+    this
+  }
+
+private fun Char.requiresSpreadsheetFormulaGuard(): Boolean =
+  this == '\'' || isSpreadsheetFormulaTrigger()
+
+private fun Char.isSpreadsheetFormulaTrigger(): Boolean =
+  when (this) {
+    '=', '+', '-', '@', '\t', '\r' -> true
+    else -> false
+  }
+
+private fun Char.requiresCsvEscaping(): Boolean =
+  when (this) {
+    ',', '"', '\n', '\r' -> true
+    else -> false
+  }
+
+private fun String.parseCsvRecords(): List<List<String>> {
+  if (isEmpty()) {
+    return emptyList()
+  }
+
+  val parser = CsvRecordsParser()
+  var index = 0
+  while (index < length) {
+    index += parser.consume(char = this[index], next = getOrNull(index + 1))
+  }
+  parser.finish(endsWithComma = lastOrNull() == ',')
+  return parser.records
+}
+
+/**
+ * Incremental RFC-4180-style CSV parser. Feed characters via [consume] and call [finish]
+ * once input is exhausted; parsed records accumulate in [records].
+ */
+private class CsvRecordsParser {
+  val records = mutableListOf<List<String>>()
+
+  private val fields = mutableListOf<String>()
+  private val currentField = StringBuilder()
+  private var insideQuotes = false
+
+  /**
+   * Consumes [char] (with [next] as one character of lookahead) and returns how many
+   * characters of input were consumed (1, or 2 for escaped quotes and CRLF).
+   */
+  fun consume(
+    char: Char,
+    next: Char?,
+  ): Int =
+    if (insideQuotes) {
+      consumeQuoted(char, next)
+    } else {
+      consumeUnquoted(char, next)
+    }
+
+  fun finish(endsWithComma: Boolean) {
+    if (currentField.isNotEmpty() || fields.isNotEmpty() || endsWithComma) {
+      finishRecord()
+    }
+  }
+
+  private fun consumeQuoted(
+    char: Char,
+    next: Char?,
+  ): Int =
+    when {
+      char == '"' && next == '"' -> {
+        currentField.append('"')
+        2
+      }
+      char == '"' -> {
+        insideQuotes = false
+        1
+      }
+      else -> {
+        currentField.append(char)
+        1
+      }
+    }
+
+  private fun consumeUnquoted(
+    char: Char,
+    next: Char?,
+  ): Int =
+    when (char) {
+      '"' -> {
+        insideQuotes = true
+        1
+      }
+      ',' -> {
+        finishField()
+        1
+      }
+      '\n' -> {
+        finishRecord()
+        1
+      }
+      '\r' -> {
+        finishRecord()
+        if (next == '\n') 2 else 1
+      }
+      else -> {
+        currentField.append(char)
+        1
+      }
+    }
+
+  private fun finishField() {
+    fields += currentField.toString()
+    currentField.clear()
+  }
+
+  private fun finishRecord() {
+    finishField()
+    records += fields.toList()
+    fields.clear()
   }
 }

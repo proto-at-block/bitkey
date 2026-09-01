@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.window:window",
+    "components": [
+        {
+            "version": "1.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "window-1.5.0.aar": "5de2d48aa578402f46deb5294a955cee62f0c7d8c1840ef626fc7afb8abe22f9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

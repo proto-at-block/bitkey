@@ -16,14 +16,19 @@ import build.wallet.money.currency.BTC
 import build.wallet.money.currency.Currency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
+import build.wallet.money.exchange.ExchangeRate
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
-import build.wallet.statemachine.send.amountentry.TransferCardUiProps
-import build.wallet.statemachine.send.amountentry.TransferCardUiStateMachine
+import build.wallet.statemachine.send.amountentry.SmartBarUiProps
+import build.wallet.statemachine.send.amountentry.SmartBarUiStateMachine
 import build.wallet.ui.components.label.LabelTreatment.Destructive
 import build.wallet.ui.components.label.LabelTreatment.Secondary
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
+import kotlinx.collections.immutable.ImmutableList
 
 @BitkeyInject(ActivityScope::class)
 class TransferAmountEntryUiStateMachineImpl(
@@ -32,7 +37,8 @@ class TransferAmountEntryUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val bitcoinWalletService: BitcoinWalletService,
-  private val transferCardUiStateMachine: TransferCardUiStateMachine,
+  private val smartBarUiStateMachine: SmartBarUiStateMachine,
+  private val exchangeRateService: ExchangeRateService,
 ) : TransferAmountEntryUiStateMachine {
   // TODO(W-703): derive from BDK
   private val dustLimit = BitcoinMoney.sats(546)
@@ -74,14 +80,17 @@ class TransferAmountEntryUiStateMachineImpl(
         .mapAsStateFlow(scope) { it?.balance ?: ZeroBalance }
     }.collectAsState()
 
+    val exchangeRateRefresh = rememberExchangeRateRefresh(props.exchangeRates)
+    val exchangeRatesForCalculator = exchangeRateRefresh.exchangeRatesForCalculator
+
     // We convert the bitcoin balance to fiat if we have exchange rates, we don't grab the fiat balance
     // from the transactions data because we want to use the same exchange rates for the entire send flow.
-    val fiatBalance: FiatMoney? = remember(props.exchangeRates, bitcoinBalance) {
-      props.exchangeRates?.let {
+    val fiatBalance: FiatMoney? = remember(exchangeRatesForCalculator, bitcoinBalance) {
+      exchangeRatesForCalculator?.let {
         currencyConverter.convert(
           bitcoinBalance.total,
           fiatCurrency,
-          props.exchangeRates
+          it
         )?.rounded() as? FiatMoney
       }
     }
@@ -98,22 +107,22 @@ class TransferAmountEntryUiStateMachineImpl(
         inputAmountCurrency = currencyState.inputAmountCurrency,
         secondaryDisplayAmountCurrency = currencyState.secondaryDisplayAmountCurrency,
         initialAmountInInputCurrency = currencyState.initialAmountInInputCurrency,
-        exchangeRates = props.exchangeRates
+        exchangeRates = exchangeRatesForCalculator
       )
     )
 
-    val enteredBitcoinMoney: BitcoinMoney = remember(calculatorModel) {
-      calculatorModel.primaryAmount as? BitcoinMoney
-        ?: (
-          calculatorModel.secondaryAmount as? BitcoinMoney ?: error(
-            "Entered bitcoin money is neither primary or secondary. This should never happen."
-          )
-        )
+    val enteredBitcoinMoney = remember(calculatorModel) {
+      calculatorModel.bitcoinMoney()
+    }
+    if (enteredBitcoinMoney == null) {
+      return exchangeRateRefresh.model(
+        onBack = props.onBack
+      )
     }
 
-    val enteredFiatMoney: FiatMoney? = remember(props.exchangeRates, calculatorModel) {
+    val enteredFiatMoney: FiatMoney? = remember(exchangeRatesForCalculator, calculatorModel) {
       // We don't have exchange rates, so we can't convert.
-      props.exchangeRates?.let {
+      exchangeRatesForCalculator?.let {
         calculatorModel.primaryAmount as? FiatMoney ?: calculatorModel.secondaryAmount as? FiatMoney
       }
     }
@@ -185,14 +194,14 @@ class TransferAmountEntryUiStateMachineImpl(
     }
     val minimumAmountDisplay by remember(
       minimumAmount,
-      props.exchangeRates,
+      exchangeRatesForCalculator,
       currencyState.inputAmountCurrency
     ) {
       derivedStateOf {
         minimumAmount?.let { lowerBound ->
           when (currencyState.inputAmountCurrency) {
             BTC -> lowerBound
-            else -> props.exchangeRates?.let {
+            else -> exchangeRatesForCalculator?.let {
               currencyConverter.convert(
                 lowerBound,
                 currencyState.inputAmountCurrency,
@@ -205,14 +214,14 @@ class TransferAmountEntryUiStateMachineImpl(
     }
     val maximumAmountDisplay by remember(
       maximumAmount,
-      props.exchangeRates,
+      exchangeRatesForCalculator,
       currencyState.inputAmountCurrency
     ) {
       derivedStateOf {
         maximumAmount?.let { upperBound ->
           when (currencyState.inputAmountCurrency) {
             BTC -> upperBound
-            else -> props.exchangeRates?.let {
+            else -> exchangeRatesForCalculator?.let {
               currencyConverter.convert(
                 upperBound,
                 currencyState.inputAmountCurrency,
@@ -298,12 +307,12 @@ class TransferAmountEntryUiStateMachineImpl(
       }
     }
 
-    val cardModel =
+    val smartBarModel =
       if (isSellFlow) {
         null
       } else {
-        transferCardUiStateMachine.model(
-          props = TransferCardUiProps(
+        smartBarUiStateMachine.model(
+          props = SmartBarUiProps(
             transferAmountState = transferAmountState,
             onSendMaxClick = {
               props.onContinueClick(
@@ -333,7 +342,7 @@ class TransferAmountEntryUiStateMachineImpl(
             }
         ),
       keypadModel = calculatorModel.keypadModel,
-      cardModel = cardModel,
+      smartBarModel = smartBarModel,
       continueButtonEnabled = transferAmountState is TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState,
       amountDisabled =
         when {
@@ -372,6 +381,146 @@ class TransferAmountEntryUiStateMachineImpl(
       presentationStyle = ScreenPresentationStyle.ModalFullScreen
     )
   }
+
+  @Composable
+  private fun rememberExchangeRateRefresh(
+    propsExchangeRates: ImmutableList<ExchangeRate>?,
+  ): ExchangeRateRefresh {
+    val providedExchangeRates = propsExchangeRates?.takeUnless { it.isEmpty() }
+    var refreshAttempt by remember { mutableIntStateOf(0) }
+    var state: ExchangeRateRefreshState by remember(providedExchangeRates) {
+      mutableStateOf(
+        if (providedExchangeRates == null) {
+          ExchangeRateRefreshState.NeedsRefresh
+        } else {
+          ExchangeRateRefreshState.HasValidProvidedRates
+        }
+      )
+    }
+
+    LaunchedEffect(refreshAttempt, providedExchangeRates) {
+      if (state == ExchangeRateRefreshState.NeedsRefresh && providedExchangeRates == null) {
+        state = ExchangeRateRefreshState.Loading
+        exchangeRateService.syncRates()
+          .onSuccess { rates ->
+            state = if (rates.isEmpty()) {
+              ExchangeRateRefreshState.FailedToLoadRates
+            } else {
+              ExchangeRateRefreshState.WaitingForProvidedRates
+            }
+          }
+          .onFailure { state = ExchangeRateRefreshState.FailedToLoadRates }
+      }
+    }
+
+    return ExchangeRateRefresh(
+      exchangeRatesForCalculator = providedExchangeRates,
+      state = state,
+      onRetry = {
+        state = if (providedExchangeRates == null) {
+          ExchangeRateRefreshState.NeedsRefresh
+        } else {
+          ExchangeRateRefreshState.HasValidProvidedRates
+        }
+        refreshAttempt += 1
+      }
+    )
+  }
+
+  @Composable
+  private fun ExchangeRateRefresh.model(onBack: () -> Unit): ScreenModel {
+    return when (state) {
+      ExchangeRateRefreshState.HasValidProvidedRates ->
+        exchangeRatesProvidedButConversionUnavailableModel(onBack = onBack)
+      ExchangeRateRefreshState.FailedToLoadRates ->
+        exchangeRatesFailedToLoadModel(onBack = onBack)
+      ExchangeRateRefreshState.NeedsRefresh,
+      ExchangeRateRefreshState.Loading,
+      ExchangeRateRefreshState.WaitingForProvidedRates,
+      -> LoadingBodyModel(
+        id = null,
+        title = "Loading exchange rates...",
+        onBack = onBack,
+        eventTrackerShouldTrack = false
+      ).asModalFullScreen()
+    }
+  }
+
+  private fun ExchangeRateRefresh.exchangeRatesFailedToLoadModel(
+    onBack: () -> Unit,
+  ): ScreenModel {
+    return exchangeRatesUnavailableErrorModel(
+      subline = "We couldn’t load current exchange rates. Please check your connection and try again.",
+      primaryButton = ButtonDataModel(
+        text = "Try again",
+        onClick = onRetry
+      ),
+      secondaryButton = ButtonDataModel(
+        text = "Go back",
+        onClick = onBack
+      ),
+      actionDescription = "Loading exchange rates for transfer amount",
+      cause = Error("Bitcoin conversion unavailable for transfer amount entry"),
+      onBack = onBack
+    )
+  }
+
+  private fun ExchangeRateRefresh.exchangeRatesProvidedButConversionUnavailableModel(
+    onBack: () -> Unit,
+  ): ScreenModel {
+    return exchangeRatesUnavailableErrorModel(
+      subline = "We couldn’t calculate a Bitcoin amount from the current exchange rates. Please go back and try again.",
+      primaryButton = ButtonDataModel(
+        text = "Go back",
+        onClick = onBack
+      ),
+      secondaryButton = null,
+      actionDescription = "Calculating Bitcoin amount for transfer amount",
+      cause = Error("Bitcoin conversion unavailable despite provided exchange rates"),
+      onBack = onBack
+    )
+  }
+
+  private fun exchangeRatesUnavailableErrorModel(
+    subline: String,
+    primaryButton: ButtonDataModel,
+    secondaryButton: ButtonDataModel?,
+    actionDescription: String,
+    cause: Error,
+    onBack: () -> Unit,
+  ): ScreenModel {
+    return ErrorFormBodyModel(
+      title = "Exchange rates unavailable",
+      subline = subline,
+      primaryButton = primaryButton,
+      secondaryButton = secondaryButton,
+      onBack = onBack,
+      eventTrackerScreenId = null,
+      eventTrackerShouldTrack = false,
+      errorData = ErrorData(
+        segment = SendAppSegment,
+        actionDescription = actionDescription,
+        cause = cause
+      )
+    ).asModalFullScreen()
+  }
+
+  private data class ExchangeRateRefresh(
+    val exchangeRatesForCalculator: ImmutableList<ExchangeRate>?,
+    val state: ExchangeRateRefreshState,
+    val onRetry: () -> Unit,
+  )
+
+  private enum class ExchangeRateRefreshState {
+    HasValidProvidedRates,
+    NeedsRefresh,
+    Loading,
+    WaitingForProvidedRates,
+    FailedToLoadRates,
+  }
+
+  private fun build.wallet.statemachine.money.calculator.MoneyCalculatorModel.bitcoinMoney(): BitcoinMoney? =
+    primaryAmount as? BitcoinMoney ?: secondaryAmount as? BitcoinMoney
 
   private data class CurrencyState(
     val inputAmountCurrency: Currency,

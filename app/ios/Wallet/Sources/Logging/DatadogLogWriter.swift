@@ -72,25 +72,80 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
         refreshUserPropertiesIfNeeded(logContext)
         loggerLock.unlock()
 
-        let strongThrowable = throwable
+        // Redact sensitive data (bitcoin keys/addresses/txids, BIP-39 phrases, recovery
+        // codes) before uploading, mirroring the Android DatadogLogWriter. The throwable's
+        // full cause chain is checked too because Datadog uploads nested exceptions.
+        let redaction = DatadogLogWriter.redact(
+            tag: tag,
+            message: message,
+            throwable: throwable
+        )
 
-        let error: Error? = if let strongThrowable {
-            strongThrowable.asError()
+        let error: Error? = if let throwable {
+            if redaction.dropThrowable {
+                // The throwable's message (or the stack trace embedding it) may contain the
+                // sensitive data that triggered redaction. Replace with a synthetic error so
+                // error-level semantics are preserved in Datadog.
+                RedactedError()
+            } else {
+                throwable.asError()
+            }
         } else {
             nil
         }
 
-        var attributes: [String: Encodable] = ["tag": tag]
+        var attributes: [String: Encodable] = ["tag": redaction.tag]
         if let appSessionId = logContext.appSessionId {
             attributes["app_session_id"] = appSessionId
         }
         getLogger().log(
             level: severity.asLogLevel(),
-            message: message,
+            message: redaction.message,
             error: error,
             attributes: attributes
         )
     }
+}
+
+extension DatadogLogWriter {
+    struct Redaction: Equatable {
+        let tag: String
+        let message: String
+        /// True when sensitive data was detected and an associated throwable (if any) must
+        /// not be uploaded.
+        let dropThrowable: Bool
+    }
+
+    /// Runs the shared KMP `SensitiveDataValidator` over the log entry (including the
+    /// associated throwable's message) and returns the values safe to upload. Static so it
+    /// can be unit tested without constructing a writer (which requires the Datadog SDK to
+    /// be initialized).
+    static func redact(
+        tag: String,
+        message: String,
+        throwable: KotlinThrowable?
+    ) -> Redaction {
+        let result = SensitiveDataValidator.shared.check(
+            entry: LogEntry(tag: tag, message: message),
+            throwable: throwable
+        )
+        switch result {
+        case let sensitive as SensitiveDataResultSensitive:
+            return Redaction(
+                tag: sensitive.redactedTag,
+                message: sensitive.redactedMessage,
+                dropThrowable: true
+            )
+        default:
+            return Redaction(tag: tag, message: message, dropThrowable: false)
+        }
+    }
+}
+
+/// Replaces a throwable whose message (or the stack trace embedding it) may contain
+/// sensitive data. Carries no information from the original.
+private struct RedactedError: Error, CustomStringConvertible {
+    var description: String { "REDACTED - Possible sensitive data in throwable" }
 }
 
 private struct UserProperties: Equatable {

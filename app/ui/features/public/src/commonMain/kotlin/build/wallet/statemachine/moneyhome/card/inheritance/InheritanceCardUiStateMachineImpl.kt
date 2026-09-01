@@ -52,6 +52,7 @@ class InheritanceCardUiStateMachineImpl(
         when {
           claim is BenefactorClaim.PendingClaim ->
             BenefactorPendingClaimCardModel(
+              id = claim.claimId.value,
               title = "Inheritance claim initiated",
               subtitle = benefactorPendingClaimSubtitle(claim),
               onClick = StandardClick { props.denyClaim.invoke(claim) }
@@ -59,6 +60,7 @@ class InheritanceCardUiStateMachineImpl(
 
           claim is BenefactorClaim && claim.isActive ->
             BenefactorLockedCompleteClaimCardModel(
+              id = claim.claimId.value,
               title = "Inheritance approved",
               subtitle = "To retain control of your funds, transfer them to a new wallet.",
               onClick = StandardClick { props.moveFundsCallToAction.invoke() }
@@ -66,15 +68,17 @@ class InheritanceCardUiStateMachineImpl(
 
           claim is BenefactorClaim && claim.isCompleted ->
             BenefactorLockedCompleteClaimCardModel(
+              id = claim.claimId.value,
               title = "Inheritance approved",
               subtitle = "To retain control of any remaining funds, transfer them to a new wallet.",
               onClick = StandardClick { props.moveFundsCallToAction.invoke() }
             )
           claim is BeneficiaryClaim.PendingClaim && !claim.isApproved(clock.now()) ->
             BeneficiaryPendingClaimCardModel(
+              id = claim.claimId.value,
               title = "Inheritance claim pending",
               subtitle = beneficiaryPendingClaimSubtitle(claim),
-              isPendingClaim = true,
+              state = CardModel.PendingClaim.State.Pending,
               timeRemaining = timeRemaining(claim),
               progress = progress(claim),
               onClick = when {
@@ -90,9 +94,10 @@ class InheritanceCardUiStateMachineImpl(
             )
           claim.isActive ->
             BeneficiaryPendingClaimCardModel(
+              id = claim.claimId.value,
               title = "Claim approved",
               subtitle = "Transfer funds now.",
-              isPendingClaim = false,
+              state = CardModel.PendingClaim.State.Locked,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
               onClick = { props.completeClaim.invoke(claim) }

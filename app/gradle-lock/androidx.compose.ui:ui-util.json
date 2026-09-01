@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-util",
     "components": [
         {
-            "version": "1.9.3",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-util-metadata-1.9.3.jar": "1e09195d218959d9f8c157ec813de61089fbb91ddc2e7a9c9a69ec0dad860779"
+                        "ui-util-metadata-1.10.0.jar": "f9672bfc0ebcbc8d2a613dd1b2363acf48ef50ad02ae321f8d96a76158a0bc19"
                     }
                 }
             ],

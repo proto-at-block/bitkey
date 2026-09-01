@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose",
     "components": [
         {
-            "version": "2.9.5",
+            "version": "2.9.6",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-runtime-compose-2.9.5.jar": "64f4a647f40b64cd728612712a86f88e13dd9d663bc68afaacc226b2b904ff24"
+                        "lifecycle-runtime-compose-2.9.6.jar": "adb75b2b89d68f338d9420b8b24dd9ba5368872a4fc70e32282c2fa0f193a0fc"
                     }
                 }
             ],

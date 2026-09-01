@@ -1,9 +1,8 @@
 package build.wallet.money.formatter
 
 import build.wallet.amount.DoubleFormatterImpl
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryFake
+import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.platform.settings.LocaleProviderFake
 
 /**
@@ -12,13 +11,12 @@ import build.wallet.platform.settings.LocaleProviderFake
  * use this semi-fake implementation in tests.
  */
 val MoneyDisplayFormatterFake: MoneyDisplayFormatter = MoneyDisplayFormatterImpl(
-  bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake(),
+  bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake(
+    defaultUnit = BitcoinDisplayUnit.Satoshi
+  ),
   moneyFormatterDefinitions = MoneyFormatterDefinitionsImpl(
     doubleFormatter = DoubleFormatterImpl(
       localeProvider = LocaleProviderFake()
     )
-  ),
-  bip177FeatureFlag = Bip177FeatureFlag(
-    featureFlagDao = FeatureFlagDaoFake()
   )
 )

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.components:components-resources-android",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "library-release.aar": "657c40d1dc5ca03dedf324b5b5352423ee10e23d2ceb078e462b6b0f1e1fbab7"
+                        "library-release.aar": "4107142270206273f4051842fcc2a2463c7a95bfdb18ac2c6f77704c909509a8"
                     }
                 }
             ],

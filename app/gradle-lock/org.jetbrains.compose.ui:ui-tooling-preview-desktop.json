@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-tooling-preview-desktop",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-tooling-preview-desktop-1.9.1.jar": "ab28211150cb87c46d6737e2c86c9bf44dac642a95ed26db2c200a0e2daf250d"
+                        "ui-tooling-preview-desktop-1.10.0-rc02.jar": "b5fa6fbbeea5f896ad2a8e7703bd7eb574d3a1b5ab6d44dbe0a07536bd6af6c4"
                     }
                 }
             ],

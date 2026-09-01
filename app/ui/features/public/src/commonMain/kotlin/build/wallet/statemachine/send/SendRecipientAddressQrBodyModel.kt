@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -172,6 +173,7 @@ private fun rememberRecipientSheetState(
   onAddressSheetExpansionStarted: () -> Unit,
   onAddressSheetRestored: () -> Unit,
 ): RecipientSheetState {
+  val currentOnAddressSheetRestored by rememberUpdatedState(onAddressSheetRestored)
   val sheetOffset = remember { Animatable(metrics.expandedOffsetPx) }
   var dragOffsetPx by remember { mutableStateOf<Float?>(null) }
   var hasInitializedSheetOffset by remember { mutableStateOf(false) }
@@ -232,7 +234,7 @@ private fun rememberRecipientSheetState(
     )
 
     if (targetExpanded && abs(sheetOffset.value - metrics.expandedOffsetPx) < 0.5f) {
-      onAddressSheetRestored()
+      currentOnAddressSheetRestored()
     }
   }
 
@@ -289,6 +291,9 @@ private fun StatusBarOverlay(
   )
 }
 
+// The param is a shared drag-gesture modifier applied to specific hit areas,
+// not a root layout modifier.
+@Suppress("ModifierNaming")
 @Composable
 private fun BoxWithConstraintsScope.RecipientAddressSheet(
   recipientAddressBodyModel: BodyModel,
@@ -324,6 +329,9 @@ private fun BoxWithConstraintsScope.RecipientAddressSheet(
   }
 }
 
+// The param is a shared drag-gesture modifier applied to specific hit areas,
+// not a root layout modifier.
+@Suppress("ModifierNaming")
 @Composable
 private fun BoxScope.CollapsedSheetDragHandle(
   collapsedProgress: Float,

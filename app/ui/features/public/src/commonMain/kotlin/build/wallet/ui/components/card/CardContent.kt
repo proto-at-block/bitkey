@@ -4,165 +4,114 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
-import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.DrillList
-import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.button.OrderedButtonPair
-import build.wallet.ui.components.callout.Callout
-import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
-import build.wallet.ui.components.progress.CircularProgressIndicator
-import build.wallet.ui.model.icon.IconSize.Small
+import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.painter
+import kotlinx.collections.immutable.ImmutableList
 
+/**
+ * Renders the body of a [CardModel.Hero] card: hero image, title, optional subtitle, and optional
+ * primary/secondary CTAs.
+ */
+// Modifier intentionally targets the title+content section, excluding the header image.
+@Suppress("ModifierNotUsedAtRoot")
 @Composable
-fun CardContent(
+fun HeroCardContent(
   modifier: Modifier = Modifier,
-  model: CardModel,
-  titleType: LabelType = LabelType.Title2,
-  titleTreatment: LabelTreatment = LabelTreatment.Primary,
+  model: CardModel.Hero,
 ) {
   Column {
-    if (model.style is CardModel.CardStyle.Callout) {
-      Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Callout(model = model.style.model)
-      }
-    } else {
-      // Hero image
-      model.heroImage?.let {
-        Image(
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
-          contentScale = ContentScale.FillWidth,
-          painter = it.painter(),
-          contentDescription = ""
+    Image(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
+      contentScale = ContentScale.FillWidth,
+      painter = model.heroImage.painter(),
+      contentDescription = ""
+    )
+
+    Column(modifier = modifier) {
+      Label(
+        model = model.title,
+        type = LabelType.Title2,
+        treatment = LabelTreatment.Primary
+      )
+
+      model.subtitle?.let {
+        Spacer(modifier = Modifier.height(8.dp))
+        Label(
+          text = it,
+          style =
+            WalletTheme.labelStyle(
+              type = LabelType.Body3Regular,
+              treatment = LabelTreatment.Secondary
+            )
         )
       }
 
-      // Title + Content
-      Column(modifier = modifier) {
-        // Title + Subtitle + Leading Image
-        Row(
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          model.leadingImage?.let {
-            CardImage(it)
-            Spacer(modifier = Modifier.width(12.dp))
-          }
-          Column(verticalArrangement = Arrangement.SpaceAround) {
-            model.title?.let { title ->
-              Label(
-                model = title,
-                type = titleType,
-                treatment = titleTreatment
-              )
-            }
-
-            model.subtitle?.let {
-              if (model.style is CardModel.CardStyle.Outline) {
-                Spacer(modifier = Modifier.height(8.dp))
-              }
-
-              Label(
-                text = it,
-                style =
-                  WalletTheme.labelStyle(
-                    type = LabelType.Body3Regular,
-                    treatment = LabelTreatment.Secondary
-                  )
-              )
-            }
-          }
-          model.trailingButton?.let { trailingButton ->
-            Spacer(modifier = Modifier.weight(1F))
-            Spacer(modifier = Modifier.width(20.dp))
-            Button(
-              model = trailingButton
-            )
-          }
-        }
-
-        // Content
-        when (val content = model.content) {
-          is DrillList ->
-            Column(modifier = Modifier.padding(bottom = 4.dp)) {
-              DrillListContent(model = content)
-            }
-          is BitcoinPrice -> {
-            BitcoinPriceContent(model = content)
-          }
-          is CardModel.CardContent.PendingClaim -> {
-            PendingClaimContent(model = content)
-          }
-          null -> {}
-        }
-
-        // CTA buttons
-        if (model.primaryButton != null || model.secondaryButton != null) {
-          Spacer(modifier = Modifier.height(16.dp))
-          OrderedButtonPair(
-            primary = model.primaryButton,
-            secondary = model.secondaryButton,
-            spacing = 16.dp
-          )
-        }
+      if (model.primaryButton != null || model.secondaryButton != null) {
+        Spacer(modifier = Modifier.height(16.dp))
+        OrderedButtonPair(
+          primary = model.primaryButton,
+          secondary = model.secondaryButton,
+          spacing = 16.dp
+        )
       }
     }
   }
 }
 
+/**
+ * Renders the body of a [CardModel.DrillList] card: title followed by a list of drill-down rows.
+ */
 @Composable
-private fun CardImage(model: CardModel.CardImage) {
-  when (model) {
-    is CardModel.CardImage.StaticImage ->
-      Icon(
-        icon = model.icon,
-        size = Small,
-        color = when (model.iconTint) {
-          null -> Color.Unspecified
-          CardModel.CardImage.StaticImage.IconTint.Warning -> WalletTheme.colors.warningForeground
-        }
-      )
+fun DrillListCardContent(
+  modifier: Modifier = Modifier,
+  model: CardModel.DrillList,
+) {
+  Column(modifier = modifier) {
+    Label(
+      model = model.title,
+      type = LabelType.Title2,
+      treatment = LabelTreatment.Primary
+    )
+    Column(modifier = Modifier.padding(bottom = 4.dp)) {
+      DrillListItems(items = model.items)
+    }
+  }
+}
 
-    is CardModel.CardImage.DynamicImage.HardwareReplacementStatusProgress ->
-      Box(
-        contentAlignment = Alignment.Center
-      ) {
-        CircularProgressIndicator(
-          size = 40.dp,
-          progress = model.progress.value,
-          direction = CounterClockwise,
-          remainingSeconds = model.remainingSeconds,
-          indicatorColor = WalletTheme.colors.containerHighlightForeground,
-          strokeWidth = 3.dp
-        )
-        Icon(icon = Icon.Bitkey, size = Small)
-      }
+/**
+ * Renders the body of a [CardModel.BitcoinPrice] card.
+ */
+@Composable
+fun BitcoinPriceCardContent(
+  modifier: Modifier = Modifier,
+  model: CardModel.BitcoinPrice,
+) {
+  Column(modifier = modifier) {
+    BitcoinPriceContent(model = model)
   }
 }
 
 @Composable
-private fun DrillListContent(model: DrillList) {
-  model.items.forEachIndexed { index, rowModel ->
+private fun DrillListItems(items: ImmutableList<ListItemModel>) {
+  items.forEachIndexed { index, rowModel ->
     ListItem(model = rowModel)
-    if (index < model.items.lastIndex) {
+    if (index < items.lastIndex) {
       Divider()
     }
   }

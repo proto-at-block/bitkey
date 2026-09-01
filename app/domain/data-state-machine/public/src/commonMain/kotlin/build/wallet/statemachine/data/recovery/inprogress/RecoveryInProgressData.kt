@@ -1,6 +1,7 @@
 package build.wallet.statemachine.data.recovery.inprogress
 
 import bitkey.account.HardwareType
+import bitkey.auth.AccountAuthTokens
 import build.wallet.Progress
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
@@ -56,6 +57,7 @@ sealed interface RecoveryInProgressData {
 
   data class AwaitingProofOfPossessionForCancellationData(
     val appAuthKey: PublicKey<AppGlobalAuthKey>,
+    val authTokens: AccountAuthTokens?,
     val hardwareType: HardwareType,
     val addProof: (PrivilegedActionProof) -> Unit,
     val rollback: () -> Unit,

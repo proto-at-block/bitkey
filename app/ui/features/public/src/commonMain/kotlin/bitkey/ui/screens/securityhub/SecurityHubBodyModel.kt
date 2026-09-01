@@ -43,10 +43,9 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.home.full.HomeTab
 import build.wallet.statemachine.moneyhome.card.CardListModel
-import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryCardModel
 import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetCardModel
-import build.wallet.ui.app.moneyhome.card.NewCard
+import build.wallet.ui.app.moneyhome.card.Card
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
@@ -397,6 +396,7 @@ data class SecurityHubBodyModel(
               selected = tab.selected,
               onClick = tab.onSelected,
               icon = tab.icon,
+              contentDescription = tab.label,
               modifier = Modifier.offset(x = if (index == 0) 3.dp else (-3).dp)
             )
           }
@@ -408,13 +408,13 @@ data class SecurityHubBodyModel(
 
 @Composable
 private fun SecurityHubHeaderSection(
-  modifier: Modifier = Modifier,
   isOffline: Boolean,
   atRiskRecommendations: ImmutableList<SecurityActionRecommendation>,
   recommendations: ImmutableList<SecurityActionRecommendation>,
   cardsModel: CardListModel,
   showAllSetState: Boolean,
   onRecommendationClick: (SecurityActionRecommendation) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
   Column(
     modifier = modifier.fillMaxWidth()
@@ -436,7 +436,7 @@ private fun SecurityHubHeaderSection(
       // TODO W-11412 filter this in the service, not in the UI
       if (atRiskRecommendations.isEmpty()) {
         cardsModel.cards.forEach {
-          NewCard(model = it)
+          Card(model = it)
           Spacer(modifier = Modifier.height(8.dp))
         }
 
@@ -606,10 +606,10 @@ private sealed interface RecommendationType {
 
 @Composable
 private fun RecommendationList(
-  modifier: Modifier = Modifier,
   type: RecommendationType,
   recommendations: ImmutableList<SecurityActionRecommendation>,
   onRecommendationClick: (SecurityActionRecommendation) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
   Column(
     modifier = modifier
@@ -755,9 +755,7 @@ internal fun shouldScrollToHideAllSetPillOnEntry(
   allSetScrollTargetPx: Int,
 ): Boolean = allSetScrollTargetPx > 0 && scrollValue < allSetScrollTargetPx
 
-internal fun calculateAllSetPillRevealActivationThresholdPx(
-  allSetScrollTargetPx: Int,
-): Float =
+internal fun calculateAllSetPillRevealActivationThresholdPx(allSetScrollTargetPx: Int): Float =
   (allSetScrollTargetPx * ALL_SET_REVEAL_ACTIVATION_THRESHOLD_FRACTION)
     .coerceIn(
       ALL_SET_REVEAL_MIN_ACTIVATION_THRESHOLD_PX,
@@ -925,9 +923,9 @@ private fun VerticalGrid(
 
 @Composable
 private fun ActionTile(
-  modifier: Modifier = Modifier,
   action: SecurityAction,
   onClick: (SecurityAction) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
   Box(
     modifier = modifier.fillMaxWidth()
@@ -990,11 +988,12 @@ private fun SecurityAction.title(): StringResource =
     HARDWARE_DEVICE -> Res.string.hardware_device_action_title
     TRANSACTION_VERIFICATION -> Res.string.transaction_verification_title
     KEYSET_SYNC -> Res.string.keyset_sync_action_title
+    DELAY_NOTIFY_PERIOD -> Res.string.delay_notify_period_action_title
   }
 
 private fun SecurityAction.icon(): Icon =
   when (this.type()) {
-    BIOMETRIC -> Icon.DotSecurity
+    BIOMETRIC -> Icon.DotAppSecurity
     CRITICAL_ALERTS -> Icon.DotCriticalAlerts
     EEK_BACKUP -> Icon.DotEmergency
     FINGERPRINTS -> Icon.DotFingerprint
@@ -1004,6 +1003,7 @@ private fun SecurityAction.icon(): Icon =
     HARDWARE_DEVICE -> Icon.DotBitkey
     TRANSACTION_VERIFICATION -> Icon.ShieldCheck
     KEYSET_SYNC -> Icon.SmallIconWarning
+    DELAY_NOTIFY_PERIOD -> Icon.DotSecurity
   }
 
 private fun SecurityAction.statusColor(): Color =
@@ -1250,7 +1250,7 @@ val SnapshotHost.pendingRecommendationsWithFingerprintResetCard
         FingerprintResetCardModel(
           title = "Add a backup fingerprint",
           subtitle = "Keep replacement options available",
-          backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
+          inverse = true,
           onClick = {}
         )
       )

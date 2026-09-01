@@ -56,6 +56,11 @@ sealed class SpendingWalletV2Error : Error() {
   data class UnspentOutputsRetrievalFailed(override val cause: Throwable) : SpendingWalletV2Error()
 
   /**
+   * BDK2 returned wallet data that is not complete enough to show Money Home after first sync.
+   */
+  data object InitialSyncDataIncomplete : SpendingWalletV2Error()
+
+  /**
    * Failed to sign a PSBT.
    */
   data class PsbtSigningFailed(override val cause: Throwable) : SpendingWalletV2Error()

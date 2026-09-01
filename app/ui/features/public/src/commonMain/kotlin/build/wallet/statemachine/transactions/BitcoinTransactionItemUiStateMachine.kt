@@ -13,5 +13,6 @@ interface BitcoinTransactionItemUiStateMachine : StateMachine<BitcoinTransaction
 data class BitcoinTransactionItemUiProps(
   val transaction: BitcoinWalletTransaction,
   val fiatCurrency: FiatCurrency,
+  val transactionNote: String? = null,
   val onClick: (transaction: BitcoinWalletTransaction) -> Unit,
 )

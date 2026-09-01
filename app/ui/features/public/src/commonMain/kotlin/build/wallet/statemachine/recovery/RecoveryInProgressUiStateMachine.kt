@@ -151,6 +151,7 @@ class RecoveryInProgressUiStateMachineImpl(
             fullAccountId = recoveryInProgressData.fullAccountId,
             hardwareType = recoveryInProgressData.hardwareType,
             appAuthKey = recoveryInProgressData.appAuthKey,
+            authTokens = recoveryInProgressData.authTokens,
             useRecoveryPubKey = true,
             actionProofType = ActionProofType.CancelLostAppRecovery,
             segment = RecoverySegment.DelayAndNotify.LostApp.Cancellation,

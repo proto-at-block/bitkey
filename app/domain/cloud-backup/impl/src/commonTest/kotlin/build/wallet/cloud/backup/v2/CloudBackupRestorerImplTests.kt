@@ -19,6 +19,9 @@ import build.wallet.cloud.backup.JsonSerializer
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
+import build.wallet.cloud.backup.csek.SealedSsekFake
+import build.wallet.cloud.backup.csek.SsekDaoFake
+import build.wallet.cloud.backup.csek.SsekFake
 import build.wallet.encrypt.SymmetricKeyEncryptorFake
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.platform.random.UuidGeneratorFake
@@ -40,6 +43,7 @@ import okio.ByteString.Companion.encodeUtf8
 class CloudBackupRestorerImplTests : FunSpec({
 
   val csekDao = CsekDaoFake()
+  val ssekDao = SsekDaoFake()
   val symmetricKeyEncryptor = SymmetricKeyEncryptorFake()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val relationshipKeysDao = RelationshipsKeysDaoFake()
@@ -47,12 +51,14 @@ class CloudBackupRestorerImplTests : FunSpec({
 
   afterTest {
     csekDao.reset()
+    ssekDao.reset()
     appPrivateKeyDao.reset()
     uuidGenerator.reset()
   }
 
   val restorer = CloudBackupRestorerImpl(
     csekDao = csekDao,
+    ssekDao = ssekDao,
     symmetricKeyEncryptor = symmetricKeyEncryptor,
     appPrivateKeyDao = appPrivateKeyDao,
     relationshipsKeysDao = relationshipKeysDao,
@@ -103,6 +109,30 @@ class CloudBackupRestorerImplTests : FunSpec({
         relationshipKeysDao.keys.shouldBeEqual(
           mapOf(SocRecKeyPurpose.DelegatedDecryption to DelegatedDecryptionKeyFake)
         )
+      }
+
+      test("restores SSEKs from backup into SsekDao - $version") {
+        csekDao.set(SealedCsekFake, CsekFake)
+        symmetricKeyEncryptor.unsealNoMetadataResult =
+          Json.encodeToString(
+            FullAccountKeysMock.copy(sealedSseks = mapOf(SealedSsekFake to SsekFake))
+          ).encodeUtf8()
+
+        restorer.restore(backup).shouldBeOk(expectedRestoration)
+
+        ssekDao.get(SealedSsekFake).shouldBeOk(SsekFake)
+      }
+
+      test("SSEK storage failure fails restoration - $version") {
+        csekDao.set(SealedCsekFake, CsekFake)
+        ssekDao.setResult = Err(Throwable("ssek store unavailable"))
+        symmetricKeyEncryptor.unsealNoMetadataResult =
+          Json.encodeToString(
+            FullAccountKeysMock.copy(sealedSseks = mapOf(SealedSsekFake to SsekFake))
+          ).encodeUtf8()
+
+        restorer.restore(backup)
+          .shouldBeErrOfType<SsekStorageError>()
       }
 
       test("fails with missing PKEK - $version") {
@@ -176,6 +206,19 @@ class CloudBackupRestorerImplTests : FunSpec({
 
       result.activeSpendingKeyset.shouldBeEqual(SpendingKeysetMock)
       result.keysets.shouldBeEqual(emptyList())
+      // Backups created before SSEK backup was supported decode with an empty SSEK map.
+      result.sealedSseks.shouldBeEqual(emptyMap())
+    }
+
+    test("FullAccountKeys with sealedSseks round-trips through JSON") {
+      val keysWithSseks = FullAccountKeysMock.copy(
+        sealedSseks = mapOf(SealedSsekFake to SsekFake)
+      )
+
+      val encoded = Json.encodeToString(keysWithSseks)
+      val decoded = Json.decodeFromString<FullAccountKeys>(encoded)
+
+      decoded.shouldBeEqual(keysWithSseks)
     }
 
     test("restores old backup with inactiveSpendingKeysets field") {

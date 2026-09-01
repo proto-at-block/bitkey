@@ -9,6 +9,9 @@ import kotlin.reflect.KClass
  * based on the type of feature flag. The most common feature flag type is a boolean.
  */
 interface FeatureFlagDao {
+  /** Loads all persisted feature flags in a single operation. */
+  suspend fun getFlags(): Result<Map<String, FeatureFlagValue>, Error>
+
   /** Returns the value for the flag with the given ID. */
   suspend fun <T : FeatureFlagValue> getFlag(
     featureFlagId: String,

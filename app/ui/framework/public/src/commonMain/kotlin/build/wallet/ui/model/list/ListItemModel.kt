@@ -40,6 +40,7 @@ data class ListItemModel(
   val allowFontScaling: Boolean = true,
   val isLoading: Boolean = false,
   val explainer: ListItemExplainer? = null,
+  val titleSingleLine: Boolean = false,
 )
 
 /**

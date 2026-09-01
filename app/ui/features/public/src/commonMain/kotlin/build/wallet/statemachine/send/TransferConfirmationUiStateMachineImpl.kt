@@ -401,6 +401,7 @@ class TransferConfirmationUiStateMachineImpl(
     selectedPriority: EstimatedTransactionPriority,
     onBdkError: (Throwable) -> Unit,
   ) {
+    val currentOnBdkError by rememberUpdatedState(onBdkError)
     LaunchedEffect("broadcasting-txn") {
       bitcoinWalletService
         .broadcast(
@@ -414,7 +415,7 @@ class TransferConfirmationUiStateMachineImpl(
         .logFailure { "Error broadcasting regular transaction." }
         .onFailure { error ->
           when (state.cosigner) {
-            Hardware -> onBdkError(error)
+            Hardware -> currentOnBdkError(error)
             F8e -> {
               // On failure, the Server already published the transaction, so no user error is
               // presented. This can happen due to user-configured server settings or network
@@ -469,6 +470,9 @@ class TransferConfirmationUiStateMachineImpl(
     onAppSignError: (Throwable) -> Unit,
     onPsbtCreateError: (BdkError) -> Unit,
   ): ScreenModel {
+    val currentOnAppSignSuccess by rememberUpdatedState(onAppSignSuccess)
+    val currentOnAppSignError by rememberUpdatedState(onAppSignError)
+    val currentOnPsbtCreateError by rememberUpdatedState(onPsbtCreateError)
     LaunchedEffect("create-app-signed-psbt") {
       val psbts =
         props.fees.entries.associate { entry ->
@@ -485,8 +489,8 @@ class TransferConfirmationUiStateMachineImpl(
           // If we can't build or sign the psbt for the selected fee, we will invoke the error handlers
           if (entry.key == selectedPriority && psbtResult.isErr) {
             when (val error = psbtResult.error) {
-              is BdkError -> onPsbtCreateError(error)
-              else -> onAppSignError(error)
+              is BdkError -> currentOnPsbtCreateError(error)
+              else -> currentOnAppSignError(error)
             }
           }
 
@@ -495,7 +499,7 @@ class TransferConfirmationUiStateMachineImpl(
           .toImmutableMap()
 
       // only continue if we are able to select the psbt of the original selected fee
-      psbts[selectedPriority]?.let { onAppSignSuccess(psbts) }
+      psbts[selectedPriority]?.let { currentOnAppSignSuccess(psbts) }
     }
 
     return LoadingBodyModel(
@@ -511,52 +515,58 @@ class TransferConfirmationUiStateMachineImpl(
     props: TransferConfirmationUiProps,
     state: CheckVerificationUiState,
     setUiState: (TransferConfirmationUiState) -> Unit,
-  ) = LaunchedEffect("Check verification", state.psbt.id) {
-    setUiState(
-      when {
-        !txVerificationFeatureFlag.isEnabled() -> ViewingTransferConfirmationUiState(appSignedPsbt = state.psbt)
-        txVerificationService.isVerificationRequired(
-          state.psbt.amountBtc,
-          props.exchangeRates
-        ) -> ConfirmVerificationUiState(psbt = state.psbt)
-        else -> RequestHardwareGrantUiState(psbt = state.psbt)
-      }
-    )
+  ) {
+    val currentSetUiState by rememberUpdatedState(setUiState)
+    LaunchedEffect("Check verification", state.psbt.id) {
+      currentSetUiState(
+        when {
+          !txVerificationFeatureFlag.isEnabled() -> ViewingTransferConfirmationUiState(appSignedPsbt = state.psbt)
+          txVerificationService.isVerificationRequired(
+            state.psbt.amountBtc,
+            props.exchangeRates
+          ) -> ConfirmVerificationUiState(psbt = state.psbt)
+          else -> RequestHardwareGrantUiState(psbt = state.psbt)
+        }
+      )
+    }
   }
 
   @Composable
   private fun RequestHardwareGrantEffect(
     state: RequestHardwareGrantUiState,
     setUiState: (TransferConfirmationUiState) -> Unit,
-  ) = LaunchedEffect("Request hardware grant", state.psbt.id) {
-    txVerificationService.requestGrant(state.psbt)
-      .onFailure { error ->
-        if (error is VerificationRequiredError) {
-          logWarn {
-            "Verification required for transaction by server. Redirecting user to verification confirmation"
-          }
-          setUiState(ConfirmVerificationUiState(psbt = state.psbt))
-        } else {
-          logError(throwable = error) { "Failed to request hardware grant" }
-          setUiState(
-            VerificationErrorUiState(
-              error = ErrorData(
-                segment = TxVerificationAppSegment.Transaction,
-                actionDescription = "Requesting a hardware grant from server",
-                cause = error
+  ) {
+    val currentSetUiState by rememberUpdatedState(setUiState)
+    LaunchedEffect("Request hardware grant", state.psbt.id) {
+      txVerificationService.requestGrant(state.psbt)
+        .onFailure { error ->
+          if (error is VerificationRequiredError) {
+            logWarn {
+              "Verification required for transaction by server. Redirecting user to verification confirmation"
+            }
+            currentSetUiState(ConfirmVerificationUiState(psbt = state.psbt))
+          } else {
+            logError(throwable = error) { "Failed to request hardware grant" }
+            currentSetUiState(
+              VerificationErrorUiState(
+                error = ErrorData(
+                  segment = TxVerificationAppSegment.Transaction,
+                  actionDescription = "Requesting a hardware grant from server",
+                  cause = error
+                )
               )
+            )
+          }
+        }
+        .onSuccess { grant ->
+          currentSetUiState(
+            ViewingTransferConfirmationUiState(
+              appSignedPsbt = state.psbt,
+              grant = grant
             )
           )
         }
-      }
-      .onSuccess { grant ->
-        setUiState(
-          ViewingTransferConfirmationUiState(
-            appSignedPsbt = state.psbt,
-            grant = grant
-          )
-        )
-      }
+    }
   }
 
   @Composable
@@ -565,6 +575,8 @@ class TransferConfirmationUiStateMachineImpl(
     onSignSuccess: (Psbt) -> Unit,
     onSignError: () -> Unit,
   ) {
+    val currentOnSignSuccess by rememberUpdatedState(onSignSuccess)
+    val currentOnSignError by rememberUpdatedState(onSignError)
     LaunchedEffect("signing-with-server") {
       mobilePayService
         .signPsbtWithMobilePay(
@@ -573,10 +585,10 @@ class TransferConfirmationUiStateMachineImpl(
         )
         .onSuccess { appAndServerSignedPsbt ->
           logDebug { "Successfully signed psbt with server: $appAndServerSignedPsbt" }
-          onSignSuccess(appAndServerSignedPsbt)
+          currentOnSignSuccess(appAndServerSignedPsbt)
         }
         .onFailure {
-          onSignError()
+          currentOnSignError()
         }
     }
   }
@@ -585,41 +597,44 @@ class TransferConfirmationUiStateMachineImpl(
   private fun VerifyTransactionEffect(
     state: VerifyingTransactionUiState,
     setUiState: (TransferConfirmationUiState) -> Unit,
-  ) = LaunchedEffect("verify", state.psbt.id) {
-    txVerificationService.requestVerification(state.psbt)
-      .onFailure { error ->
-        setUiState(
-          VerificationErrorUiState(
-            error = ErrorData(
-              segment = TxVerificationAppSegment.Transaction,
-              actionDescription = "Requesting verification from server",
-              cause = error
-            )
-          )
-        )
-      }
-      .get()
-      ?.collect { confirmationState ->
-        when (confirmationState) {
-          is ConfirmationState.Confirmed -> {
-            setUiState(
-              ViewingTransferConfirmationUiState(
-                appSignedPsbt = state.psbt,
-                grant = confirmationState.data
+  ) {
+    val currentSetUiState by rememberUpdatedState(setUiState)
+    LaunchedEffect("verify", state.psbt.id) {
+      txVerificationService.requestVerification(state.psbt)
+        .onFailure { error ->
+          currentSetUiState(
+            VerificationErrorUiState(
+              error = ErrorData(
+                segment = TxVerificationAppSegment.Transaction,
+                actionDescription = "Requesting verification from server",
+                cause = error
               )
             )
-          }
-          ConfirmationState.Rejected -> {
-            setUiState(RejectedConfirmationUiState)
-          }
-          ConfirmationState.Expired -> {
-            setUiState(ExpiredConfirmationUiState)
-          }
-          ConfirmationState.Pending -> {
-            // No-op - Waiting for verification to complete
+          )
+        }
+        .get()
+        ?.collect { confirmationState ->
+          when (confirmationState) {
+            is ConfirmationState.Confirmed -> {
+              currentSetUiState(
+                ViewingTransferConfirmationUiState(
+                  appSignedPsbt = state.psbt,
+                  grant = confirmationState.data
+                )
+              )
+            }
+            ConfirmationState.Rejected -> {
+              currentSetUiState(RejectedConfirmationUiState)
+            }
+            ConfirmationState.Expired -> {
+              currentSetUiState(ExpiredConfirmationUiState)
+            }
+            ConfirmationState.Pending -> {
+              // No-op - Waiting for verification to complete
+            }
           }
         }
-      }
+    }
   }
 
   @Composable

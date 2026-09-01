@@ -4,7 +4,6 @@ import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADI
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.feature.setFlagValue
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.onboarding.OnboardingKeyboxStep.BuildHardwareDescriptor
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
@@ -46,7 +45,6 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
       cloudBackupStore = uploadCloudBackupApp.cloudBackupStore
     )
     overrideCloudBackupApp.accountConfigService.setHardwareType(coverageMode.hardwareType).getOrThrow()
-    overrideCloudBackupApp.w3OnboardingFeatureFlag.setFlagValue(coverageMode == HardwareCoverageMode.W3Private)
     overrideCloudBackupApp.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
       PermissionStatus.Authorized
     )
@@ -100,7 +98,6 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
       cloudBackupStore = uploadCloudBackupApp.cloudBackupStore
     )
     overrideCloudBackupApp.accountConfigService.setHardwareType(coverageMode.hardwareType).getOrThrow()
-    overrideCloudBackupApp.w3OnboardingFeatureFlag.setFlagValue(coverageMode == HardwareCoverageMode.W3Private)
     overrideCloudBackupApp.appUiStateMachine.test(
       props = Unit,
       testTimeout = 60.seconds,

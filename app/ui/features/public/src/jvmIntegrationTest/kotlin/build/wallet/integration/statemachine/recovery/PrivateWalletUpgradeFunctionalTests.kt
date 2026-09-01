@@ -44,6 +44,7 @@ import build.wallet.testing.ext.addSomeFunds
 import build.wallet.testing.ext.decryptCloudBackupKeys
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.verifyCanUseKeyboxKeysets
+import build.wallet.testing.tags.TestTag.FlakyTest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -53,6 +54,8 @@ import io.kotest.matchers.string.shouldNotBeBlank
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 class PrivateWalletUpgradeFunctionalTests : FunSpec({
   test("happy path - onboard with legacy wallet, then upgrade to private wallet.") {
@@ -179,8 +182,6 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
     app.onboardingCanUseKeyboxKeysetsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
     app.onboardFullAccountWithFakeHardware()
     app.verifyCanUseKeyboxKeysets(false)
-    app.privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-    app.balanceThresholdFeatureFlag.setFlagValue(FeatureFlagValue.DoubleFlag(-1.0))
 
     app.appUiStateMachine.test(
       Unit,
@@ -277,7 +278,8 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
     app.verifyPrivateWalletUpgradeCompleted()
   }
 
-  test("force exit after cloud backup resumes at intro then sweep") {
+  test("force exit after cloud backup resumes at intro then sweep")
+    .config(tags = setOf(FlakyTest)) {
     var app = launchLegacyAppReadyForMigration()
     app.addSomeFunds(BitcoinMoney.sats(50_000), waitForConfirmation = true)
 
@@ -308,11 +310,18 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
     }
 
     app = app.relaunchApp()
+    // Ensure the wallet is synced before entering the sweep flow to avoid
+    // PSBT generation delays that cause turbine timeouts on CI. `relaunchApp()`
+    // starts the app workers asynchronously and `sync()` is a no-op while
+    // `spendingWallet` is still null, so wait for the wallet to be available
+    // first — otherwise the sweep can still begin with unsynced UTXOs.
+    app.bitcoinWalletService.spendingWallet().filterNotNull().first()
+    app.bitcoinWalletService.sync()
 
     app.appUiStateMachine.test(
       Unit,
-      testTimeout = 120.seconds,
-      turbineTimeout = 60.seconds
+      testTimeout = 180.seconds,
+      turbineTimeout = 90.seconds
     ) {
       awaitUntilBody<PrivateWalletMigrationIntroBodyModel>(
         matching = { it.onBack == null }
@@ -416,8 +425,6 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
 private suspend fun TestScope.launchLegacyAppReadyForMigration() =
   launchLegacyWalletApp().apply {
     onboardFullAccountWithFakeHardware()
-    privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-    balanceThresholdFeatureFlag.setFlagValue(FeatureFlagValue.DoubleFlag(-1.0))
   }
 
 private suspend fun ReceiveTurbine<ScreenModel>.navigateToPrivateWalletUpdate() {

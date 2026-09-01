@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-retain-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.10.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-retain-iosSimulatorArm64Main-1.10.0.klib": "a751d58049a445c5a1217e1d6c8b84c2a600deff053154300bd023b3458c9a2c"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime-retain-iossimulatorarm64-1.10.0-metadata.jar": "729a46194fb6deda4c1d430581d04008df55e5be25e715129523cb5e19e93cd0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

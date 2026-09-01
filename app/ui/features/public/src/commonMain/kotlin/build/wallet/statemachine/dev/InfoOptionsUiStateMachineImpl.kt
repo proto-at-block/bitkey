@@ -60,8 +60,9 @@ class InfoOptionsUiStateMachineImpl(
   @Composable
   private fun LoadAccountId(
     state: State,
-    onAccountIdLoaded: (String) -> Unit,
+    onAccountIdLoad: (String) -> Unit,
   ) {
+    val currentOnAccountIdLoad by rememberUpdatedState(onAccountIdLoad)
     if (state.accountId == null) {
       LaunchedEffect("load-account-id") {
         accountService.accountStatus().first()
@@ -73,7 +74,7 @@ class InfoOptionsUiStateMachineImpl(
                 is AccountStatus.LiteAccountUpgradingToFullAccount -> status.onboardingAccount
                 AccountStatus.NoAccount -> null
               }
-            onAccountIdLoaded(account?.accountId?.serverId ?: NO_ACCOUNT)
+            currentOnAccountIdLoad(account?.accountId?.serverId ?: NO_ACCOUNT)
           }
       }
     }
@@ -82,13 +83,14 @@ class InfoOptionsUiStateMachineImpl(
   @Composable
   private fun LoadAppInstallationId(
     state: State,
-    onAppInstallationIdLoaded: (String) -> Unit,
+    onAppInstallationIdLoad: (String) -> Unit,
   ) {
+    val currentOnAppInstallationIdLoad by rememberUpdatedState(onAppInstallationIdLoad)
     if (state.appInstallationId == null) {
       LaunchedEffect("load-app-installation") {
         appInstallationDao.getOrCreateAppInstallation()
           .onSuccess { appInstallation ->
-            onAppInstallationIdLoaded(appInstallation.localId)
+            currentOnAppInstallationIdLoad(appInstallation.localId)
           }
           .logFailure { "Failed to read app installation ID from db" }
       }
@@ -98,8 +100,9 @@ class InfoOptionsUiStateMachineImpl(
   @Composable
   private fun LoadCloudBackupVersion(
     state: State,
-    onVersionLoaded: (String) -> Unit,
+    onVersionLoad: (String) -> Unit,
   ) {
+    val currentOnVersionLoad by rememberUpdatedState(onVersionLoad)
     if (state.cloudBackupVersion == null && state.accountId != null && state.accountId != NO_ACCOUNT) {
       LaunchedEffect("load-cloud-backup-version") {
         cloudBackupDao.get(state.accountId)
@@ -109,7 +112,7 @@ class InfoOptionsUiStateMachineImpl(
               is CloudBackupV3 -> "v3"
               null -> "None"
             }
-            onVersionLoaded(version)
+            currentOnVersionLoad(version)
           }
           .logFailure { "Failed to read cloud backup from dao" }
       }

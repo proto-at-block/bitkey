@@ -357,45 +357,6 @@ private data class SMSEditFormBodyModel(
     renderContext = RenderContext.Sheet
   )
 
-fun SMSNonUSSheetModel(
-  source: Source,
-  onCancel: () -> Unit,
-  onContinue: () -> Unit,
-) = SMSNonUSBodyModel(
-  source = source,
-  onCancel = onCancel,
-  onContinue = onContinue
-).asSheetModalScreen(onCancel)
-
-private data class SMSNonUSBodyModel(
-  val source: Source,
-  val onCancel: () -> Unit,
-  val onContinue: () -> Unit,
-) : FormBodyModel(
-    id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_SMS_NON_US_SHEET,
-    header = createSheetFormHeader(
-      icon = Message,
-      headline = "SMS updates are not available with US numbers",
-      subline = "If you’d like to add SMS as ${if (source == Source.InheritanceStartClaim) "an alert" else "a recovery"} method, you’ll need to use a non-US phone number."
-    ),
-    onBack = onCancel,
-    toolbar = null,
-    primaryButton =
-      ButtonModel(
-        text = "Add a non-US number",
-        size = ButtonModel.Size.Footer,
-        onClick = StandardClick(onContinue)
-      ),
-    secondaryButton =
-      ButtonModel(
-        text = "Cancel",
-        size = ButtonModel.Size.Footer,
-        treatment = ButtonModel.Treatment.Secondary,
-        onClick = StandardClick(onCancel)
-      ),
-    renderContext = RenderContext.Sheet
-  )
-
 private fun missingRecoveryModelDescription(
   missingRecoveryMethods: List<NotificationChannel>,
 ): String? {

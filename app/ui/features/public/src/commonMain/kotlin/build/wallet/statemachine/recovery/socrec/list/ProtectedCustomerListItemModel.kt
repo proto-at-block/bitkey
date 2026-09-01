@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.list
 
 import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerRelationshipStatus.ENDORSED
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListItemAccessory
@@ -18,8 +19,12 @@ fun ProtectedCustomer.listItemModel(
 ) = ListItemModel(
   title = alias.alias,
   titleType = if (useLargeLeadingAccessory) LabelType.Body2Regular else null,
-  secondaryText = "Active",
-  secondaryTextTint = ListItemSideTextTint.GREEN,
+  secondaryText = if (relationshipStatus == ENDORSED) "Active" else "Pending",
+  secondaryTextTint = if (relationshipStatus == ENDORSED) {
+    ListItemSideTextTint.GREEN
+  } else {
+    ListItemSideTextTint.SECONDARY
+  },
   leadingAccessory =
     ListItemAccessory.CircularCharacterAccessory.fromLetters(
       input = alias.alias,

@@ -14,14 +14,11 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
-import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.notifications.NotificationTouchpointDao
 import build.wallet.notifications.NotificationTouchpointType.Email
 import build.wallet.notifications.NotificationTouchpointType.PhoneNumber
-import build.wallet.platform.settings.TelephonyCountryCodeProvider
-import build.wallet.platform.settings.isCountry
 import build.wallet.statemachine.auth.ActionProofType
 import build.wallet.statemachine.auth.HardwareAuthUiProps
 import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
@@ -52,8 +49,6 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
   private val uiErrorHintSubmitter: UiErrorHintSubmitter,
   private val actionSuccessDuration: ActionSuccessDuration,
   private val accountConfigService: AccountConfigService,
-  private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider,
-  private val usSmsFeatureFlag: UsSmsFeatureFlag,
 ) : NotificationTouchpointInputAndVerificationUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -63,8 +58,6 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
     var uiState: NotificationTouchpointInputAndVerificationUiState by remember {
       mutableStateOf(EnteringTouchpointUiState(touchpointPrefill = null))
     }
-    val usSmsEnabled by remember { usSmsFeatureFlag.flagValue() }.collectAsState()
-
     // Reactively load the stored touchpoint as prefill so returning users see their value
     // pre-populated. Collected as state so the value is available on the first recomposition
     // after the DAO emits.
@@ -101,14 +94,6 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
             }
           }
           else -> Unit
-        }
-
-        // Including this call directly in the onError lambda for the phoneNumberInputUiStateMachine
-        // causes a recomposition for unknown reasons. Putting the specific call in a `remember`
-        // lambda prevents the recomposition. Because it's an injected property, this should cause
-        // no behavior differences.
-        val phoneNotAvailable: (() -> Unit) = remember(uiErrorHintSubmitter) {
-          uiErrorHintSubmitter::phoneNotAvailable
         }
 
         // Return model
@@ -156,12 +141,6 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                       SendingTouchpointToServer(
                         touchpoint = PhoneNumberTouchpoint(touchpointId = "", value = phoneNumber),
                         onError = { error ->
-                          if (error.isUnsupportedCountryCode() &&
-                            !usSmsEnabled.value &&
-                            telephonyCountryCodeProvider.isCountry("us")
-                          ) {
-                            phoneNotAvailable()
-                          }
                           onError(error)
                         }
                       )
@@ -656,9 +635,6 @@ private fun EntryPoint.dataInputStyle(hasExistingTouchpoint: Boolean) =
     is OnboardingAndRecovery -> Enter
     is Settings -> if (hasExistingTouchpoint) Edit else Enter
   }
-
-private fun F8eError<AddTouchpointClientErrorCode>.isUnsupportedCountryCode(): Boolean =
-  this is F8eError.SpecificClientError && errorCode == AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE
 
 private fun F8eError<VerifyTouchpointClientErrorCode>.verificationErrorData() =
   ErrorData(

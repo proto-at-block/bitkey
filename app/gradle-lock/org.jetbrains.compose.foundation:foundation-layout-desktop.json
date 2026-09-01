@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.foundation:foundation-layout-desktop",
     "components": [
         {
-            "version": "1.9.1",
+            "version": "1.10.0-rc02",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-layout-desktop-1.9.1.jar": "5950ce1e10259ae2198a46e1681d959f16bcd64d8b5d0289e17c50863af3f8ed"
+                        "foundation-layout-desktop-1.10.0-rc02.jar": "bd086a9f5ce453967ea1124bb709612bca14a4fbb6522a6023092a8866ee4ef0"
                     }
                 }
             ],

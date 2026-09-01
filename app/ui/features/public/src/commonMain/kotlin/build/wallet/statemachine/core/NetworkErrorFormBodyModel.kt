@@ -1,7 +1,6 @@
 package build.wallet.statemachine.core
 
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
-import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.RenderContext
 
@@ -15,46 +14,9 @@ fun NetworkErrorFormBodyModel(
   eventTrackerScreenId: EventTrackerScreenId?,
   errorData: ErrorData,
   renderContext: RenderContext = RenderContext.Screen,
-) = NetworkErrorFormBodyModelWithOptionalErrorData(
+) = ErrorFormBodyModel(
   title = title,
-  isConnectivityError = isConnectivityError,
-  onBack = onBack,
-  eventTrackerScreenId = eventTrackerScreenId,
-  errorData = errorData,
-  renderContext = renderContext
-)
-
-@Deprecated("Specify [errorData] argument")
-fun NetworkErrorFormBodyModel(
-  title: String,
-  isConnectivityError: Boolean,
-  onBack: () -> Unit,
-  eventTrackerScreenId: EventTrackerScreenId?,
-  renderContext: RenderContext = RenderContext.Screen,
-) = NetworkErrorFormBodyModelWithOptionalErrorData(
-  title = title,
-  isConnectivityError = isConnectivityError,
-  onBack = onBack,
-  eventTrackerScreenId = eventTrackerScreenId,
-  errorData = null,
-  renderContext = renderContext
-)
-
-private fun NetworkErrorFormBodyModelWithOptionalErrorData(
-  title: String,
-  isConnectivityError: Boolean,
-  onBack: () -> Unit,
-  errorData: ErrorData?,
-  eventTrackerScreenId: EventTrackerScreenId?,
-  renderContext: RenderContext = RenderContext.Screen,
-) = errorFormBodyModelWithOptionalErrorData(
-  title = title,
-  subline = StringModel(
-    when {
-      isConnectivityError -> "Make sure you are connected to the internet and try again."
-      else -> "We are looking into this. Please try again later."
-    }
-  ),
+  subline = networkErrorSubline(isConnectivityError),
   primaryButton =
     ButtonDataModel(
       text = "Back",
@@ -76,45 +38,6 @@ fun NetworkErrorFormBodyModel(
   errorData: ErrorData,
   eventTrackerScreenId: EventTrackerScreenId?,
   renderContext: RenderContext = RenderContext.Screen,
-) = NetworkErrorFormBodyModelWithOptionalErrorData(
-  title = title,
-  isConnectivityError = isConnectivityError,
-  onRetry = onRetry,
-  onBack = onBack,
-  eventTrackerScreenId = eventTrackerScreenId,
-  errorData = errorData,
-  renderContext = renderContext
-)
-
-@Deprecated("Specify [errorData] argument")
-fun NetworkErrorFormBodyModel(
-  title: String,
-  isConnectivityError: Boolean,
-  onRetry: (() -> Unit)?,
-  onBack: () -> Unit,
-  eventTrackerScreenId: EventTrackerScreenId?,
-  renderContext: RenderContext = RenderContext.Screen,
-) = NetworkErrorFormBodyModelWithOptionalErrorData(
-  title = title,
-  isConnectivityError = isConnectivityError,
-  onRetry = onRetry,
-  onBack = onBack,
-  eventTrackerScreenId = eventTrackerScreenId,
-  errorData = null,
-  renderContext = renderContext
-)
-
-/**
- * Convenience method for common error messaging when the error is for a network request.
- */
-fun NetworkErrorFormBodyModelWithOptionalErrorData(
-  title: String,
-  isConnectivityError: Boolean,
-  onRetry: (() -> Unit)?,
-  onBack: () -> Unit,
-  eventTrackerScreenId: EventTrackerScreenId?,
-  errorData: ErrorData?,
-  renderContext: RenderContext = RenderContext.Screen,
 ): FormBodyModel {
   val backButtonModel =
     ButtonDataModel(
@@ -122,15 +45,10 @@ fun NetworkErrorFormBodyModelWithOptionalErrorData(
       onClick = onBack
     )
 
-  return errorFormBodyModelWithOptionalErrorData(
+  return ErrorFormBodyModel(
     onBack = onBack,
     title = title,
-    subline = StringModel(
-      when {
-        isConnectivityError -> "Make sure you are connected to the internet and try again."
-        else -> "We are looking into this. Please try again later."
-      }
-    ),
+    subline = networkErrorSubline(isConnectivityError),
     // Show "Retry" as the primary button if an [onRetry] was provided. Otherwise, use the
     // back button as the primary button.
     primaryButton =
@@ -147,3 +65,9 @@ fun NetworkErrorFormBodyModelWithOptionalErrorData(
     renderContext = renderContext
   )
 }
+
+private fun networkErrorSubline(isConnectivityError: Boolean): String =
+  when {
+    isConnectivityError -> "Make sure you are connected to the internet and try again."
+    else -> "We are looking into this. Please try again later."
+  }
