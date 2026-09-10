@@ -1,9 +1,9 @@
 repos:
   - id: /.*/
-    branch: /main/
-    # We can't use `mergeable` here yet because atlantis doesn't play nice with gh rulesets that require apply for merge
-    # See https://github.com/runatlantis/atlantis/issues/4116
-    apply_requirements: [approved]
+    branch: /^main$/
+    # ATLANTIS_GH_ALLOW_MERGEABLE_BYPASS_APPLY lets Atlantis ignore its own required
+    # apply status while still honoring the rest of GitHub's mergeability checks.
+    apply_requirements: [approved, mergeable]
     allow_custom_workflows: false
     allowed_overrides:
       - workflow

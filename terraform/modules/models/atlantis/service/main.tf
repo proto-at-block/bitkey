@@ -65,6 +65,11 @@ module "atlantis" {
       value = "merge"
     },
     {
+      // Allow mergeability checks to ignore Atlantis's own required apply status.
+      name  = "ATLANTIS_GH_ALLOW_MERGEABLE_BYPASS_APPLY"
+      value = "true"
+    },
+    {
       // See W-2409/auto-generate-atlantisyaml
       name  = "ATLANTIS_SKIP_CLONE_NO_CHANGES",
       value = "true"

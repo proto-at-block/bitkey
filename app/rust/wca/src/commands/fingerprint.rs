@@ -189,7 +189,15 @@ fn cancel_fingerprint_enrollment() -> Result<bool, CommandError> {
     let apdu: apdu::Command = CancelFingerprintEnrollmentCmd {}.try_into()?;
     let data = yield_!(apdu.into());
     let response = apdu::Response::from(data);
-    wca::decode_and_check(response).map(|_| true)
+
+    let result = wca::decode_and_check(response);
+    match result {
+        // Firmware reports INVALID_STATE when there is no enrollment in progress.
+        // Callers use this command as speculative cleanup before starting a new
+        // enrollment, so having nothing to cancel already satisfies their intent.
+        Err(CommandError::InvalidState) => Ok(true),
+        _ => result.map(|_| true),
+    }
 }
 
 command!(StartFingerprintEnrollment = start_fingerprint_enrollment -> bool, index: u32, label: String);
@@ -198,3 +206,69 @@ command!(SetFingerprintLabel = set_fingerprint_label -> bool, index: u32, label:
 command!(GetEnrolledFingerprints = get_enrolled_fingerprints -> EnrolledFingerprints);
 command!(DeleteFingerprint = delete_fingerprint -> bool, index: u32);
 command!(CancelFingerprintEnrollment = cancel_fingerprint_enrollment -> bool);
+
+#[cfg(test)]
+mod tests {
+    use prost::Message;
+
+    use crate::{
+        command_interface::{Command, State},
+        errors::CommandError,
+        fwpb::{Status, WalletRsp},
+    };
+
+    use super::CancelFingerprintEnrollment;
+
+    fn make_response(status: Status) -> Vec<u8> {
+        let mut buf = WalletRsp {
+            status: status.into(),
+            msg: None,
+            ..Default::default()
+        }
+        .encode_to_vec();
+        buf.extend_from_slice(&[0x90, 0x00]);
+        buf
+    }
+
+    #[test]
+    fn cancel_fingerprint_enrollment_succeeds() -> Result<(), CommandError> {
+        let command = CancelFingerprintEnrollment::new();
+        command.next(Vec::default())?;
+
+        assert_eq!(
+            command.next(make_response(Status::Success))?,
+            State::Result { value: true }
+        );
+
+        Ok(())
+    }
+
+    /// Firmware returns INVALID_STATE when no enrollment is in progress. Callers issue
+    /// this command as speculative cleanup, so nothing to cancel is treated as success
+    /// rather than failing the whole NFC session.
+    #[test]
+    fn cancel_fingerprint_enrollment_treats_invalid_state_as_success() -> Result<(), CommandError> {
+        let command = CancelFingerprintEnrollment::new();
+        command.next(Vec::default())?;
+
+        assert_eq!(
+            command.next(make_response(Status::InvalidState))?,
+            State::Result { value: true }
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn cancel_fingerprint_enrollment_propagates_other_errors() -> Result<(), CommandError> {
+        let command = CancelFingerprintEnrollment::new();
+        command.next(Vec::default())?;
+
+        assert!(matches!(
+            command.next(make_response(Status::Error)),
+            Err(CommandError::GeneralCommandError)
+        ));
+
+        Ok(())
+    }
+}
