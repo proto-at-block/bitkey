@@ -2,6 +2,8 @@ package build.wallet.fwup
 
 import app.cash.turbine.test
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.firmware.FirmwareDeviceInfoDaoImpl
+import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.firmware.McuRole
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.testing.shouldBeErrOfType
@@ -14,7 +16,16 @@ import io.kotest.matchers.shouldBe
 class FwupDataDaoImplTests : FunSpec({
 
   val sqlDriver = inMemorySqlDriver()
-  val dao = FwupDataDaoImpl(BitkeyDatabaseProviderImpl(sqlDriver.factory))
+  val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
+  val dao = FwupDataDaoImpl(databaseProvider)
+  val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoImpl(databaseProvider)
+
+  // Storing fwup data is conditional on this being the paired device's serial.
+  val pairedSerial = FirmwareDeviceInfoMock.serial
+
+  beforeTest {
+    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
+  }
 
   test("mcu fwup data flow") {
     val mcuFwupData1 = McuFwupDataMock
@@ -23,11 +34,11 @@ class FwupDataDaoImplTests : FunSpec({
     dao.mcuFwupData().test {
       awaitItem().shouldBe(Ok(emptyList()))
 
-      dao.setMcuFwupData(listOf(mcuFwupData1))
+      dao.setMcuFwupData(listOf(mcuFwupData1), expectedSerial = pairedSerial)
       awaitItem().component1()
         .shouldNotBeNull().shouldBe(listOf(mcuFwupData1))
 
-      dao.setMcuFwupData(listOf(mcuFwupData2))
+      dao.setMcuFwupData(listOf(mcuFwupData2), expectedSerial = pairedSerial)
       awaitItem().component1()
         .shouldNotBeNull().shouldBe(listOf(mcuFwupData2))
 

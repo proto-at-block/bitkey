@@ -1,0 +1,17 @@
+-- Cached firmware update data is only valid for the device it was fetched for, but nothing
+-- discarded it when the paired hardware changed. A customer who upgraded W1 -> W3 kept the
+-- W1 payload in this table, and the app repeatedly offered it to the W3, which rejected it.
+--
+-- Going forward the cache is cleared when the persisted device identity changes. Cache
+-- written before that existed cannot be attributed to a device, so drop it here rather than
+-- assume it belongs to whatever hardware is currently paired -- that assumption is the bug.
+-- This also unsticks customers who already swapped hardware before installing this build.
+--
+-- Cost is at most one re-download of an update that had not been applied yet.
+DELETE FROM fwupDataEntity;
+
+-- Per-MCU sequence IDs describe progress through a transfer of the firmware above. With
+-- that firmware gone they would otherwise resume a new device's transfer partway through.
+DELETE FROM mcuFwupStateEntity;
+
+PRAGMA foreign_key_check;

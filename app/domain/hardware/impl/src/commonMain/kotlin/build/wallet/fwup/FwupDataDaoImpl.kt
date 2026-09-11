@@ -25,21 +25,33 @@ class FwupDataDaoImpl(
 ) : FwupDataDao {
   private suspend fun database() = databaseProvider.database()
 
-  override suspend fun setMcuFwupData(mcuFwupDataList: List<McuFwupData>): Result<Unit, DbError> {
+  override suspend fun setMcuFwupData(
+    mcuFwupDataList: List<McuFwupData>,
+    expectedSerial: String,
+  ): Result<Boolean, DbError> {
     return database()
-      .awaitTransaction {
-        mcuFwupDataList.forEach { mcuFwupData ->
-          fwupDataQueries.setMcuFwupData(
-            mcuRole = mcuFwupData.mcuRole.name,
-            mcuName = mcuFwupData.mcuName.name,
-            version = mcuFwupData.version,
-            chunkSize = mcuFwupData.chunkSize.toLong(),
-            signatureOffset = mcuFwupData.signatureOffset.toLong(),
-            appPropertiesOffset = mcuFwupData.appPropertiesOffset.toLong(),
-            firmware = mcuFwupData.firmware.toByteArray(),
-            signature = mcuFwupData.signature.toByteArray(),
-            fwupMode = mcuFwupData.fwupMode
-          )
+      .awaitTransactionWithResult {
+        // Read the paired serial and write in the same transaction so a hardware swap cannot
+        // land between the check and the write.
+        val currentSerial =
+          firmwareDeviceInfoQueries.getDeviceInfo().executeAsOneOrNull()?.serial
+        if (currentSerial != expectedSerial) {
+          false
+        } else {
+          mcuFwupDataList.forEach { mcuFwupData ->
+            fwupDataQueries.setMcuFwupData(
+              mcuRole = mcuFwupData.mcuRole.name,
+              mcuName = mcuFwupData.mcuName.name,
+              version = mcuFwupData.version,
+              chunkSize = mcuFwupData.chunkSize.toLong(),
+              signatureOffset = mcuFwupData.signatureOffset.toLong(),
+              appPropertiesOffset = mcuFwupData.appPropertiesOffset.toLong(),
+              firmware = mcuFwupData.firmware.toByteArray(),
+              signature = mcuFwupData.signature.toByteArray(),
+              fwupMode = mcuFwupData.fwupMode
+            )
+          }
+          true
         }
       }
       .logFailure { "Failed to set MCU fwup data" }

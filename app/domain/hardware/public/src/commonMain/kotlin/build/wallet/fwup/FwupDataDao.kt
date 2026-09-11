@@ -6,10 +6,18 @@ import kotlinx.coroutines.flow.Flow
 
 interface FwupDataDao {
   /**
-   * Stores a list of [McuFwupData], overwriting any existing data for those MCUs.
-   * Each MCU is keyed by its role.
+   * Stores a list of [McuFwupData], each keyed by its MCU role, but only if the currently
+   * paired device's serial is still [expectedSerial]. Returns true when the data was stored.
+   *
+   * Fetching firmware requires reading device info and then downloading over the network, so
+   * the paired device can change while a fetch is in flight. Comparing the serial inside the
+   * write transaction prevents a fetch that started before a hardware swap from repopulating
+   * the cache with firmware for the previous device.
    */
-  suspend fun setMcuFwupData(mcuFwupDataList: List<McuFwupData>): Result<Unit, Error>
+  suspend fun setMcuFwupData(
+    mcuFwupDataList: List<McuFwupData>,
+    expectedSerial: String,
+  ): Result<Boolean, Error>
 
   /**
    * Returns the stored [McuFwupData] for a specific MCU role, if any.

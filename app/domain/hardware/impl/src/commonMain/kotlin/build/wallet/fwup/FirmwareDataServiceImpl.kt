@@ -13,6 +13,7 @@ import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
 import build.wallet.fwup.FwupDataFetcher.FwupDataFetcherError.DownloadError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.logError
+import build.wallet.logging.logInfo
 import build.wallet.logging.logFailure
 import build.wallet.nfc.HardwareProvisionedAppKeyStatusDao
 import build.wallet.platform.app.AppSessionManager
@@ -159,8 +160,24 @@ class FirmwareDataServiceImpl(
             fwupDataDao.clearAllMcuFwupData().bind()
             fwupDataDao.clear().bind()
           }
-          // There's an update, store it locally to be ready to apply to the HW
-          else -> fwupDataDao.setMcuFwupData(mcuFwupDataList).bind()
+          // There's an update, store it locally to be ready to apply to the HW.
+          // The fetch above suspends on a network download, so the paired device may have
+          // changed since we read its info. Storing is conditional on the serial still
+          // matching so a fetch that started before a hardware swap cannot repopulate the
+          // cache with firmware for the previous device.
+          else -> {
+            val stored = fwupDataDao
+              .setMcuFwupData(
+                mcuFwupDataList = mcuFwupDataList,
+                expectedSerial = firmwareDeviceInfo.serial
+              )
+              .bind()
+            if (!stored) {
+              logInfo {
+                "Discarded firmware update fetched for a device that is no longer paired"
+              }
+            }
+          }
         }
       }
     }

@@ -23,13 +23,26 @@ class FwupDataDaoMock(
   private val mcuSequenceIds = mutableMapOf<McuRole, UInt>()
   private val mcuFwupDataMap = mutableMapOf<McuRole, McuFwupData>()
 
-  override suspend fun setMcuFwupData(mcuFwupDataList: List<McuFwupData>): Result<Unit, Error> {
+  /**
+   * Serial the fake considers currently paired, for [setMcuFwupData].
+   * Null means "matches anything", so existing tests are unaffected.
+   */
+  var pairedSerial: String? = null
+
+  override suspend fun setMcuFwupData(
+    mcuFwupDataList: List<McuFwupData>,
+    expectedSerial: String,
+  ): Result<Boolean, Error> {
+    val paired = pairedSerial
+    if (paired != null && paired != expectedSerial) {
+      return Ok(false)
+    }
     setMcuFwupDataCalls += mcuFwupDataList
     mcuFwupDataList.forEach { data ->
       mcuFwupDataMap[data.mcuRole] = data
     }
     mcuFwupDataFlow.value = Ok(mcuFwupDataMap.values.toList())
-    return Ok(Unit)
+    return Ok(true)
   }
 
   override suspend fun getMcuFwupData(mcuRole: McuRole): Result<McuFwupData?, Error> {
@@ -87,6 +100,7 @@ class FwupDataDaoMock(
     mcuFwupDataFlow.value = Ok(emptyList())
     mcuSequenceIds.clear()
     mcuFwupDataMap.clear()
+    pairedSerial = null
     clearCalls = turbine("clear fwup data dao calls for $testName")
     setMcuSequenceIdCalls = turbine("set mcu sequence id calls for $testName")
     clearAllMcuStatesCalls = turbine("clear all mcu states dao calls for $testName")

@@ -330,6 +330,22 @@ class FirmwareDataServiceImplTests : FunSpec({
     fwupDataDao.clearCalls.awaitItem()
   }
 
+  test("syncLatestFwupData discards an update fetched for a no-longer-paired device") {
+    // The sync reads the W1's device info, then suspends on the network download. By the time
+    // it stores the result the customer has upgraded, so the W1 payload must be dropped rather
+    // than offered to the W3.
+    firmwareDeviceInfoDao.setDeviceInfo(
+      FirmwareDeviceInfoMock.copy(serial = "w1-serial", version = "1.2.14")
+    )
+    fwupDataDao.pairedSerial = "w3-serial"
+    fwupDataFetcher.fetchLatestFwupDataResult = Ok(listOf(McuFwupDataMock))
+
+    service.syncLatestFwupData()
+
+    fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
+    fwupDataDao.getAllMcuFwupData().get().shouldNotBeNull().shouldBe(emptyList())
+  }
+
   test("syncLatestFwupData doesn't do anything for other DownloadErrors") {
     firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
     fwupDataFetcher.fetchLatestFwupDataResult =
