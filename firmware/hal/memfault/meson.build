@@ -64,10 +64,7 @@ foreach memfault_system : memfault_system_configs.keys()
         srcs + [
           memfault_system + '/memfault_platform_translate.c',
         ],
-        include_directories : memfault_includes + include_directories(
-          'inc-private',
-          '../../third-party/memfault-firmware-sdk/components/core/src',
-        ),
+        include_directories : memfault_includes + include_directories('inc-private'),
         dependencies: memfault_config['dependencies'],
       ),
     }

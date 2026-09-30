@@ -3,7 +3,6 @@
 #include "ipc.h"
 #include "key_manager_task_impl.h"
 #include "log.h"
-#include "memfault.h"
 #include "policy.h"
 #include "rtos.h"
 #include "seed.h"
@@ -138,12 +137,7 @@ void crypto_thread(void* UNUSED(args)) {
     if (!rtos_notification_wait_signal(RTOS_NOTIFICATION_TIMEOUT_MAX)) {
       LOGE("Signal wait fail");
     }
-
-    // crypto_derive_and_sign() wipes its stack key before returning. Suppress coredumps for the
-    // full interval in which that key can be live in memory or CPU registers.
-    memfault_port_coredump_sensitive_operation_begin();
     crypto_derive_and_sign();
-    memfault_port_coredump_sensitive_operation_end();
   }
 }
 

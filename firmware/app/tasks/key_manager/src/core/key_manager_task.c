@@ -15,7 +15,6 @@
 #include "log.h"
 #include "lost_app_recovery_impl.h"
 #include "mcu_reset.h"
-#include "memfault.h"
 #include "mempool.h"
 #include "onboarding.h"
 #include "pb_decode.h"
@@ -645,10 +644,6 @@ void key_manager_thread(void* UNUSED(args)) {
     ipc_ref_t message = {0};
     ipc_recv(key_manager_port, &message);
 
-    // Handlers can derive seeds and private keys into memory and CPU registers. Suppress coredumps
-    // until the handler returns and its cleanup callbacks have wiped those values.
-    memfault_port_coredump_sensitive_operation_begin();
-
 #if 0
     if (sysevent_get(SYSEVENT_BREAK_GLASS_READY)) {
       LOGW("Break glass: policies off");
@@ -811,8 +806,6 @@ void key_manager_thread(void* UNUSED(args)) {
       default:
         LOGE("Unknown msg: %ld", message.tag);
     }
-
-    memfault_port_coredump_sensitive_operation_end();
   }
 }
 
