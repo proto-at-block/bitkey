@@ -17,7 +17,7 @@ buildLogic {
       yyyy = 2026,
       version = 13,
       patch = 0,
-      build = 8
+      build = 9
     )
   }
   compose {

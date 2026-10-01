@@ -14,6 +14,7 @@ kotlin {
     commonMain {
       dependencies {
         implementation(projects.domain.databasePublic)
+        implementation(projects.domain.hardwarePublic)
         implementation(projects.domain.inAppSecurityPublic)
         implementation(projects.domain.inheritancePublic)
         implementation(projects.domain.metricsPublic)
