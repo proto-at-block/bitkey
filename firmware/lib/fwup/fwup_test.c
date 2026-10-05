@@ -72,7 +72,7 @@ void rtos_mutex_create(rtos_mutex_t* UNUSED(mutex)) {}
 typedef void (*f_cb)(void*);
 FAKE_VOID_FUNC(rtos_thread_create_static, rtos_thread_t*, f_cb, const char*, void*,
                rtos_thread_priority_t, uint32_t*, uint32_t, StaticTask_t*, rtos_thread_mpu_t);
-FAKE_VOID_FUNC(rtos_thread_delete, rtos_thread_t*);
+FAKE_VOID_FUNC(rtos_thread_delete_self);
 
 security_config_t security_config = {0};
 rtos_thread_mpu_t _fs_mount_task_regions;
@@ -224,14 +224,12 @@ static void finish(void) {
   cr_assert(rsp.rsp_status == fwpb_fwup_finish_rsp_fwup_finish_rsp_status_SUCCESS);
 }
 
-static uint32_t timestamp(void) {
+uint32_t rtos_thread_systime(void) {
   return 0;
 }
 
 static void init_test_logging(void) {
-  bitlog_init((bitlog_api_t){
-    .timestamp_cb = timestamp,
-  });
+  bitlog_init();
 }
 
 extern fwup_priv_t fwup_priv;
@@ -279,9 +277,7 @@ void setup_with_version(void) {
 }
 
 void setup_init_only(void) {
-  bitlog_init((bitlog_api_t){
-    .timestamp_cb = timestamp,
-  });
+  bitlog_init();
   fwup_init(firmware_b_slot, firmware_a_slot, &firmware_b_slot[FIRMWARE_SLOT_SIZE - 64],
             FIRMWARE_SLOT_SIZE, true, false);
 }

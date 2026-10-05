@@ -25,7 +25,6 @@ static void detect_glitch(void);
 
 NO_OPTIMIZE int main(void) {
   CHIP_Init();
-  assert_init(&memfault_fault_handling_assert);
   mcu_init();
   board_id_init();
   mcu_smu_init();
@@ -43,12 +42,6 @@ NO_OPTIMIZE int main(void) {
   log_uart_emit_build_id();
 #endif
   sysevent_init();
-
-#ifdef CONFIG_PROD
-  grant_protocol_init(true);
-#else
-  grant_protocol_init(false);
-#endif
 
 #ifndef CONFIG_PROD
   shell_task_create();
@@ -71,9 +64,7 @@ NO_OPTIMIZE int main(void) {
 
   ASSERT(psbt_lib_init());
 
-  bitlog_init((bitlog_api_t){
-    .timestamp_cb = &rtos_thread_systime,
-  });
+  bitlog_init();
 
   telemetry_init((telemetry_api_t){
     .get_chunk = &memfault_packetizer_get_chunk,

@@ -26,6 +26,21 @@ pub(crate) mod util;
 
 pub(crate) const SERVER_SIGNING_ENABLED: Flag<bool> = Flag::new("f8e-mobile-pay-enabled");
 
+/// Kill switch for the daily change cap on private (chaincode-delegation)
+/// keysets. Account-keyed so rollout can be staged per account. Only an
+/// explicit `false` disables the cap; an unresolvable flag enforces the
+/// default cap.
+pub(crate) const MOBILE_PAY_CHANGE_CAP_ENABLED: Flag<bool> =
+    Flag::new("f8e-mobile-pay-change-cap-enabled");
+
+/// Daily change cap in whole USD. Only consulted when
+/// [`MOBILE_PAY_CHANGE_CAP_ENABLED`] resolves true; non-positive, non-finite,
+/// or unresolvable values fall back to [`DEFAULT_CHANGE_CAP_USD`] so a
+/// missing flag cannot silently disable an enabled cap.
+pub(crate) const MOBILE_PAY_CHANGE_CAP_USD: Flag<f64> = Flag::new("f8e-mobile-pay-change-cap-usd");
+
+pub(crate) const DEFAULT_CHANGE_CAP_USD: f64 = 500_000.0;
+
 /// Data structure used to represent [`DailySpendingRecord`]s that are relevant to Mobile Pay.
 ///
 /// Currently, 3AM is the start of each Mobile Pay window, so "yesterday's" spending record may

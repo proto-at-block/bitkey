@@ -238,6 +238,11 @@ class PartitionInfo:
             raise ValueError(f"No 'filesystem' partition found in {self.partition_file}")
 
     @property
+    def partition_names(self) -> list[str]:
+        """Get the flash partition names in layout order (e.g. bootloader, filesystem, bio_flash)."""
+        return [p.get("name", "") for p in self._config["flash"]["partitions"]]
+
+    @property
     def filesystem_start_address(self) -> int:
         """Get the start address of the filesystem partition."""
         return self._filesystem_start

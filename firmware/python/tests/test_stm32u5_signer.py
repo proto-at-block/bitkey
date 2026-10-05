@@ -10,6 +10,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import semver
 from bitkey.fwa.bitkey_fwa.constants import PRODUCT_W3A_UXC
@@ -63,6 +64,19 @@ def read_symbol_data(elf_path: Path, symbol_name: str) -> bytes:
     with open(elf_path, "rb") as f:
         f.seek(file_offset)
         return f.read(size)
+
+
+class TestStm32U5VersionValidation(unittest.TestCase):
+    def test_rejects_unrepresentable_version_before_elf_mutation(self):
+        signer = Stm32U5ElfSigner.__new__(Stm32U5ElfSigner)
+        signer._read_symbol_data = mock.Mock()
+        signer._write_symbol_data = mock.Mock()
+
+        with self.assertRaisesRegex(ValueError, r"minor must not exceed 99"):
+            signer._set_version("app", "1.100.0")
+
+        signer._read_symbol_data.assert_not_called()
+        signer._write_symbol_data.assert_not_called()
 
 
 class Stm32U5SlotSigningTestBase(unittest.TestCase):

@@ -3,25 +3,14 @@ use crate::daily_spend_record::entities::SpendingEntry;
 use crate::entities::Features;
 use crate::metrics;
 use crate::spend_rules::errors::SpendRuleCheckError;
-use crate::util::total_sats_spent_today;
-use bdk_utils::bdk::bitcoin::{psbt::Psbt, Txid};
+use crate::util::{spending_history_excluding, total_sats_spent_today};
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::Wallet;
 use bdk_utils::{
     get_total_outflow_for_psbt, ChaincodeDelegationCollaboratorWallet, ChaincodeDelegationPsbt,
 };
 use time::OffsetDateTime;
 use types::account::spending::PrivateMultiSigSpendingKeyset;
-
-fn spending_history_excluding<'a>(
-    spending_history: &[&'a SpendingEntry],
-    txid: Txid,
-) -> Vec<&'a SpendingEntry> {
-    spending_history
-        .iter()
-        .copied()
-        .filter(|entry| entry.txid != txid)
-        .collect()
-}
 
 pub(crate) struct DailySpendingLimitRule<'a> {
     wallet: &'a Wallet,
@@ -54,8 +43,6 @@ impl Rule for DailySpendingLimitRule<'_> {
             return Err(SpendRuleCheckError::SpendLimitInactive);
         }
 
-        // A retry of an already-recorded transaction must not count the same txid once in
-        // history and again as the transaction currently being evaluated.
         let spending_history =
             spending_history_excluding(self.spending_history, psbt.unsigned_tx.compute_txid());
         let total_spent = total_sats_spent_today(
@@ -231,6 +218,7 @@ mod tests {
                 timestamp: OffsetDateTime::from_unix_timestamp(tx.confirmation_time as i64)
                     .unwrap(),
                 outflow_amount: tx.sent,
+                change_amount: 0,
             })
             .collect()
     }
@@ -309,6 +297,7 @@ mod tests {
         let features = Features {
             settings,
             daily_limit_sats,
+            change_cap_sats: None,
         };
 
         let spending_entries = Vec::new();
@@ -347,11 +336,13 @@ mod tests {
                 },
             },
             daily_limit_sats: outflow_amount,
+            change_cap_sats: None,
         };
         let transaction_history = [SpendingEntry {
             txid: psbt.unsigned_tx.compute_txid(),
             timestamp: now,
             outflow_amount,
+            change_amount: 0,
         }];
         let spending_entries = transaction_history.iter().collect();
 
@@ -393,6 +384,7 @@ mod tests {
         let features = Features {
             settings,
             daily_limit_sats,
+            change_cap_sats: None,
         };
 
         let spending_entries = Vec::new();
@@ -458,6 +450,7 @@ mod tests {
         let features = Features {
             settings,
             daily_limit_sats,
+            change_cap_sats: None,
         };
 
         let spending_entries = transaction_history.iter().collect();
@@ -521,6 +514,7 @@ mod tests {
         let features = Features {
             settings,
             daily_limit_sats,
+            change_cap_sats: None,
         };
 
         let spending_entries = transaction_history.iter().collect();

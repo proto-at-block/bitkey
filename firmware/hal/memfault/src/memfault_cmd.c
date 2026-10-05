@@ -5,6 +5,16 @@
 #include "shell_cmd.h"
 #include "telemetry_storage.h"
 
+#define MEMFAULT_UNPRIVILEGED_CRASH_STACK_SIZE (1024)
+
+static void memfault_unprivileged_crash_thread(void* args);
+
+// Shell commands execute in the privileged shell task. Use a dedicated task so this command
+// exercises assertion handling from an unprivileged context.
+static rtos_thread_mpu_t _memfault_unprivileged_crash_thread_regions = {
+  .privilege = rtos_thread_unprivileged_bit,
+};
+
 static struct {
   arg_lit_t* logging;
   arg_lit_t* coredump;
@@ -12,6 +22,7 @@ static struct {
   arg_lit_t* trace;
   arg_lit_t* reboot;
   arg_lit_t* crash;
+  arg_lit_t* unprivileged_crash;
   arg_lit_t* dump;
   arg_lit_t* telemetry_logs;
   arg_end_t* end;
@@ -27,6 +38,8 @@ static void memfault_cmd_register(void) {
   memfault_cmd_args.trace = ARG_LIT_OPT('t', "trace", "trace tests");
   memfault_cmd_args.reboot = ARG_LIT_OPT('r', "reboot", "reboot tests");
   memfault_cmd_args.crash = ARG_LIT_OPT('s', "crash", "crash tests");
+  memfault_cmd_args.unprivileged_crash =
+    ARG_LIT_OPT('u', "unprivileged-crash", "trigger an assert from an unprivileged task");
   memfault_cmd_args.dump = ARG_LIT_OPT('d', "dump", "dump memfault data");
   memfault_cmd_args.telemetry_logs = ARG_LIT_OPT('y', "telemetry-logs", "save logs to flash");
   memfault_cmd_args.end = ARG_END();
@@ -87,7 +100,15 @@ static void memfault_cmd_handler(int argc, char** argv) {
       LOGE("%d", i);
     }
     ASSERT(false);
+  } else if (memfault_cmd_args.unprivileged_crash->header.found) {
+    rtos_thread_create(memfault_unprivileged_crash_thread, NULL, RTOS_THREAD_PRIORITY_LOW,
+                       MEMFAULT_UNPRIVILEGED_CRASH_STACK_SIZE);
   } else if (memfault_cmd_args.dump->header.found) {
     memfault_data_export_dump_chunks();
   }
+}
+
+static void memfault_unprivileged_crash_thread(void* args) {
+  (void)args;
+  ASSERT(false);
 }

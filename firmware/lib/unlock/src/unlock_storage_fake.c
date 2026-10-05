@@ -11,6 +11,7 @@ STATIC_VISIBLE_FOR_TESTING uint8_t fake_stored_secret[32] = {
 
 STATIC_VISIBLE_FOR_TESTING uint32_t fake_retry_counter = 0;
 STATIC_VISIBLE_FOR_TESTING unlock_limit_response_t fake_stored_limit_response = RESPONSE_WIPE_STATE;
+STATIC_VISIBLE_FOR_TESTING unlock_err_t fake_limit_response_read_result = UNLOCK_OK;
 STATIC_VISIBLE_FOR_TESTING SHARED_TASK_DATA bool secret_provisioned = false;
 STATIC_VISIBLE_FOR_TESTING unlock_delay_status_t delay_status = DELAY_INCOMPLETE;
 
@@ -48,7 +49,7 @@ unlock_err_t unlock_secret_exists(bool* exists) {
 
 unlock_err_t limit_response_read(unlock_limit_response_t* limit_response) {
   *limit_response = fake_stored_limit_response;
-  return UNLOCK_OK;
+  return fake_limit_response_read_result;
 }
 
 unlock_err_t limit_response_write(unlock_limit_response_t limit_response) {

@@ -143,3 +143,11 @@ fwup_efr32_test = executable('fwup-efr32-test',
   dependencies : deps + [fwup_deps['posix'], crypto_deps['posix'], test_deps],
 )
 test('fwup-efr32 test', fwup_efr32_test)
+
+fwup_utils_privilege_test = executable('fwup-utils-privilege-test',
+  'fwup_utils_privilege_test.c',
+  'src/fwup_utils.c',
+  include_directories : ['test/fwup_utils_privilege', 'inc', '../metadata/inc'],
+  dependencies : [helpers_dep, protos_dep, test_deps],
+)
+test('fwup utils privilege test', fwup_utils_privilege_test)

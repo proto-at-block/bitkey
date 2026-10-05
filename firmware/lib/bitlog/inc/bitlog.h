@@ -33,12 +33,7 @@ void _bitlog_record_event(uint16_t event, uint8_t status, void* pc, void* lr);
 
 // Public API.
 
-typedef uint32_t (*bitlog_timestamp_t)(void);
-typedef struct {
-  bitlog_timestamp_t timestamp_cb;
-} bitlog_api_t;
-
-void bitlog_init(bitlog_api_t api);
+void bitlog_init(void);
 
 // Record an event.
 #define BITLOG_EVENT(event, status)                                 \

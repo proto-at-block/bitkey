@@ -185,9 +185,15 @@ NO_OPTIMIZE bool ipc_proto_route(uint16_t pb_tag, uint8_t* buffer, uint32_t size
   switch (pb_tag) {
     {% for port, protos in port_to_proto.items() %}
     {% for proto in protos %}
+    {% if proto in protos_that_are_only_present_in_dev %}
+#ifndef CONFIG_PROD
+    {% endif %}
     case fwpb_wallet_cmd_{{'_'.join(proto.split('_')[1:])}}_tag: {
       return route_proto_cmd({{port}}, IPC_PROTO_{{'_'.join(proto.upper().split('_')[1:])}}, buffer, size, seq);
     }
+    {% if proto in protos_that_are_only_present_in_dev %}
+#endif
+    {% endif %}
     {% endfor %}
 
     {% endfor %}

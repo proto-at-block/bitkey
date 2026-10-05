@@ -10,9 +10,9 @@
 
 #ifdef EMBEDDED_BUILD
 
-typedef void (*assert_handler_t)(void*, void*);
-
-void assert_init(assert_handler_t handler_cb);
+// Platform builds may provide a strong implementation of this hook. The assert
+// library supplies a weak fail-closed implementation for images without one.
+NO_RETURN void assert_platform_handler(void* pc, void* lr);
 NO_RETURN void _assert_handler(void);
 
 #define ASSERT(expr)     \

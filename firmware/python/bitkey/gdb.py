@@ -30,6 +30,69 @@ quit
 """
 
 
+def detect_w3_jlinks() -> dict[str, str]:
+    """Identifies the Core and UXC probes from their connected silicon.
+
+    The mapping is read from the target over SWD rather than configured per
+    bench, so recabling or swapping probes cannot misroute a flash and no
+    per-bench J-Link serials have to be provisioned.
+    """
+    def commander(commands, serial=None):
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.jlink') as script:
+            script.write("\n".join(commands) + "\n")
+            script.flush()
+            command = ["JLinkExe", "-NoGui", "1", "-AutoConnect", "0",
+                       "-CommandFile", script.name]
+            if serial:
+                command += ["-USB", serial, "-Device", "Cortex-M33",
+                            "-If", "SWD", "-Speed", "1000"]
+            try:
+                return subprocess.check_output(
+                    command, text=True, stderr=subprocess.STDOUT, timeout=30)
+            except (OSError, subprocess.SubprocessError) as error:
+                raise click.ClickException(
+                    f"J-Link discovery failed for {serial or 'USB probes'}: {error}") from error
+
+    output = commander(["ShowEmuList USB", "Exit"])
+    serials = set(re.findall(
+        r"J-Link\[\d+\]: Connection: USB, Serial number: (\d+),", output))
+    # EFR32MG24 DEVINFO.PART and STM32U575/585 DBGMCU_IDCODE.
+    identities = {
+        "w3-core": (0x0FE08004, 0x3F3F0000, 0x01180000),
+        "w3-uxc": (0xE0044000, 0x00000FFF, 0x00000482),
+    }
+    probes = {}
+    for serial in sorted(serials):
+        output = commander([
+            "ExitOnError 0",
+            "connect",
+            "mem32 0x0FE08004, 1",
+            "mem32 0xE0044000, 1",
+            "w4 0xE000EDF0, 0xA05F0000",
+            "exit",
+        ], serial)
+        matches = []
+        for platform, (address, mask, expected) in identities.items():
+            value = re.search(
+                rf"(?im)^\s*{address:08X}\s*=\s*([0-9a-f]{{8}})\b", output)
+            if value and int(value[1], 16) & mask == expected:
+                matches.append(platform)
+        if len(matches) != 1:
+            raise click.ClickException(
+                f"Could not identify the target on J-Link {serial}")
+        platform = matches[0]
+        if platform in probes:
+            raise click.ClickException(
+                f"Multiple J-Link probes are connected to {platform}")
+        probes[platform] = serial
+    if probes.keys() != identities.keys():
+        raise click.ClickException(
+            "Expected one Core and one UXC J-Link probe")
+    for platform, serial in probes.items():
+        click.echo(f"{platform}: J-Link {serial}")
+    return probes
+
+
 class JLinkGdbServer:
     def __init__(
         self,
@@ -205,7 +268,11 @@ class JLinkGdbServer:
         :param size: number of bytes to erase, must be a multiple of the minimum erase size.
         :returns: ``True`` on success, otherwise ``False``.
         """
-        end_addr = addr + size
+        # J-Link's `erase <SAddr> <EAddr>` is inclusive of the sector containing
+        # EAddr, so point at the partition's last byte. Using addr + size would be
+        # the next partition's first address and erase its opening sector too,
+        # wiping a kept region such as bio_flash that begins exactly there.
+        end_addr = addr + size - 1
         script = "\n".join([
             f"device {self.chip}",
             "si 1",

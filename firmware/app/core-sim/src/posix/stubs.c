@@ -113,19 +113,11 @@ void init_secutils_if_needed(void) {
   }
 }
 
-static uint32_t posix_bitlog_timestamp(void) {
-  static uint32_t counter = 0;
-  return counter++;
-}
-
 static bool bitlog_initialized = false;
 
 void init_bitlog_if_needed(void) {
   if (!bitlog_initialized) {
-    bitlog_api_t api = {
-      .timestamp_cb = posix_bitlog_timestamp,
-    };
-    bitlog_init(api);
+    bitlog_init();
     bitlog_initialized = true;
   }
 }

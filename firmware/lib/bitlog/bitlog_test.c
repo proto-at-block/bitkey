@@ -22,14 +22,12 @@ static uint32_t fake_time = 0;
 #define MASKED_PC (BITLOG_UNIT_TEST_PC & 0x00FFFFFF)
 #define MASKED_LR (BITLOG_UNIT_TEST_LR & 0x00FFFFFF)
 
-uint32_t timestamp(void) {
+uint32_t rtos_thread_systime(void) {
   return ++fake_time;
 }
 
 void setup(void) {
-  bitlog_init((bitlog_api_t){
-    .timestamp_cb = timestamp,
-  });
+  bitlog_init();
 }
 
 static void check_event(bitlog_event_t* e, uint16_t event, uint8_t status) {

@@ -1,4 +1,5 @@
 import io
+import shlex
 import tempfile
 import time
 import click
@@ -112,8 +113,8 @@ class WalletFS:
 
 
 class GDBFs:
-    def __init__(self, ctx, target, jlink_serial=None) -> None:
-        self.meson = MesonBuild(ctx, target=target)
+    def __init__(self, ctx, target, jlink_serial=None, platform=None) -> None:
+        self.meson = MesonBuild(ctx, target=target, platform=platform)
         self.jlink_serial = jlink_serial
 
         # Get partition info for the platform - this is required.
@@ -141,9 +142,45 @@ class GDBFs:
             with JLinkGdbServer(self.meson.platform["jlink_gdb_chip"], jlink_serial=self.jlink_serial) as gdb:
                 gdb.run_command(
                     self.meson.target.elf, f"dump binary memory {tmp.name} 0x{lfs_start:08x} 0x{lfs_end:08x}")
+            # gdb exits 0 even when the target could not be read, leaving a short
+            # or empty dump. Fail here so a probe hiccup is never mistaken for a
+            # blank filesystem by callers that decide whether to back up.
+            expected = lfs_end - lfs_start
+            actual = Path(tmp.name).stat().st_size
+            if actual != expected:
+                raise click.ClickException(
+                    f"Failed to read the filesystem over GDB ({actual} of {expected} bytes); "
+                    "check the J-Link connection and retry")
             fs = WalletFS(tmp.name, partition_info=self.partition_info)
 
         return fs
+
+    def restore(self, file) -> None:
+        """Writes a filesystem image back to flash through the J-Link GDB server and verifies it."""
+        data = Path(file).read_bytes()
+        lfs_start = self.partition_info.filesystem_start_address
+        lfs_end = self.partition_info.filesystem_end_address
+        if len(data) != lfs_end - lfs_start:
+            raise click.ClickException(
+                "Filesystem backup size does not match the platform")
+
+        with tempfile.TemporaryDirectory() as directory:
+            readback = Path(directory) / "readback.bin"
+            with JLinkGdbServer(self.meson.platform["jlink_gdb_chip"], jlink_serial=self.jlink_serial) as gdb:
+                gdb.run_command(self.meson.target.elf, "\n".join([
+                    "set gnutarget binary",
+                    f"load {shlex.quote(str(Path(file).resolve()))} 0x{lfs_start:08x}",
+                    f"dump binary memory {shlex.quote(str(readback))} 0x{lfs_start:08x} 0x{lfs_end:08x}",
+                    "monitor reset",
+                    "monitor go",
+                ]))
+            if not readback.exists() or readback.read_bytes() != data:
+                raise click.ClickException("Filesystem restore verification failed")
+
+    def reset(self) -> None:
+        """Resets and resumes the MCU through the J-Link GDB server."""
+        with JLinkGdbServer(self.meson.platform["jlink_gdb_chip"], jlink_serial=self.jlink_serial) as gdb:
+            gdb.run_command(self.meson.target.elf, "monitor reset\nmonitor go")
 
 
 if __name__ == "__main__":

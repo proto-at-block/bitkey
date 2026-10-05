@@ -7,22 +7,30 @@ from os.path import isfile, join
 from pathlib import Path
 
 from bitkey.walletfs import (WalletFS, GDBFs)
-from bitkey.meson import MesonBuild
-from bitkey.partition_info import PartitionInfo
 
-from .lib.paths import (FS_BACKUPS, COMMANDER_BIN)
+from .lib.paths import FS_BACKUPS
 
 
-def do_backup(c, target, jlink_serial=None):
-    gdbfs = GDBFs(c, target=target, jlink_serial=jlink_serial)
+def do_backup(c, target, jlink_serial=None, platform=None):
+    """Saves the target's filesystem under FS_BACKUPS; returns the path, or None if there was nothing to save."""
+    gdbfs = GDBFs(c, target=target, jlink_serial=jlink_serial,
+                  platform=platform)
     fs = gdbfs.fetch()
+    if fs.fs is None:
+        # A full-size image that littlefs cannot mount: blank flash (e.g. an
+        # earlier run was killed between erase and restore) or a corrupt one.
+        # Report it instead of crashing, so the device can still be flashed and
+        # the app formats the filesystem on first boot. A failed read never gets
+        # here; fetch() raises on a short dump.
+        click.echo(click.style(
+            'Filesystem is blank or unmountable; nothing to back up', fg='yellow'))
+        click.echo('Resetting target')
+        gdbfs.reset()
+        return None
     filename = fs.save(FS_BACKUPS)
 
     click.echo('Resetting target')
-    reset_cmd = f"{COMMANDER_BIN} device reset --device={gdbfs.meson.platform['jlink_gdb_chip']}"
-    if jlink_serial:
-        reset_cmd += f" --serialno {jlink_serial}"
-    c.run(reset_cmd, hide=True)
+    gdbfs.reset()
 
     click.echo(click.style(
         f'Filesystem saved as {str(filename)}', fg='green'))
@@ -30,41 +38,13 @@ def do_backup(c, target, jlink_serial=None):
     return filename
 
 
-def do_restore(c, file=None, jlink_serial=None):
-    meson = MesonBuild(c)
-    chip = meson.platform['jlink_gdb_chip']
+def do_restore(c, file=None, jlink_serial=None, target=None, platform=None):
+    if not file:
+        raise click.UsageError("Missing file argument: --file <path>")
 
-    # Get the filesystem address from partition info
-    partition_name = meson.platform.get('partitions')
-    if not partition_name:
-        raise ValueError(
-            f"Platform '{meson._platform}' does not have 'partitions' "
-            f"defined in platforms.yaml - cannot determine filesystem location")
-
-    partition_info = PartitionInfo(partition_name)
-    lfs_start = partition_info.filesystem_start_address
-
-    # Build base commands
-    flash_cmd = f"{COMMANDER_BIN} flash --device={chip} --address={lfs_start:08x} --binary {file}"
-    reset_cmd = f"{COMMANDER_BIN} device reset --device={chip}"
-
-    # Append serial number if provided
-    if jlink_serial:
-        flash_cmd += f" --serialno {jlink_serial}"
-        reset_cmd += f" --serialno {jlink_serial}"
-
-    # Commander weirdness:
-    # The 'flash' command will fail if the target is not halted already
-    # The target gets halted after the first try and then the second try succeeds
-    # There's no way to halt the device with commander so this hack is done instead
-    output = c.run(flash_cmd + " --halt", hide=False, warn=True)
-    if output.exited != 0:
-        output = c.run(flash_cmd, hide=False)
-        if output.exited == 0 and 'DONE' in output.stdout:
-            c.run(reset_cmd, hide=False)  # Reset the target
-            click.echo(click.style('Filesystem restored', fg='green'))
-        else:
-            click.echo(click.style('Error restoring filesystem', fg='red'))
+    GDBFs(c, target=target, jlink_serial=jlink_serial,
+          platform=platform).restore(file)
+    click.echo(click.style('Filesystem restored', fg='green'))
 
 
 @task(help={
@@ -81,21 +61,24 @@ def cp_from_hardware(c, file_name, output_dir):
 
 @task(help={
     "target": "Build target to backup",
+    "platform": "Platform of the MCU to backup (default: configured platform)",
     "jlink": "J-Link serial number to use",
 })
-def backup(c, target=None, jlink=None):
+def backup(c, target=None, platform=None, jlink=None):
     """Create a local backup of the targets filesystem using gdb"""
     target = target if target else c.target
-    do_backup(c, target, jlink_serial=jlink)
+    do_backup(c, target, jlink_serial=jlink, platform=platform)
 
 
 @task(help={
     "file": "path to backup file",
+    "target": "Build target of the MCU to restore",
+    "platform": "Platform of the MCU to restore (default: configured platform)",
     "jlink": "J-Link serial number to use",
 })
-def restore(c, file=None, jlink=None):
+def restore(c, file=None, target=None, platform=None, jlink=None):
     """Restores a local backup filesystem to the target using gdb"""
-    do_restore(c, file, jlink_serial=jlink)
+    do_restore(c, file, jlink_serial=jlink, target=target, platform=platform)
 
 
 @task(help={

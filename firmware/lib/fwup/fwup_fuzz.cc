@@ -93,7 +93,7 @@ void rtos_mutex_create(rtos_mutex_t* UNUSED(mutex)) {}
 typedef void (*f_cb)(void*);
 FAKE_VOID_FUNC(rtos_thread_create_static, rtos_thread_t*, f_cb, const char*, void*,
                rtos_thread_priority_t, uint32_t*, uint32_t, StaticTask_t*, rtos_thread_mpu_t);
-FAKE_VOID_FUNC(rtos_thread_delete, rtos_thread_t*);
+FAKE_VOID_FUNC(rtos_thread_delete_self);
 security_config_t security_config = {
   .is_production = SECURE_FALSE,
   .biometrics_mac_key = {0},
@@ -204,7 +204,7 @@ static void fuzz_finish(FuzzedDataProvider& data) {
   fwup_finish(&cmd, &rsp);
 }
 
-static uint32_t timestamp(void) {
+extern "C" uint32_t rtos_thread_systime(void) {
   return 0;
 }
 
@@ -214,9 +214,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   fwup_init((uint32_t*)firmware_b_slot, (uint32_t*)firmware_a_slot, firmware_b_signature,
             kFirmwareSlotSize, true, SECURE_FALSE);
-  bitlog_init((bitlog_api_t){
-    .timestamp_cb = timestamp,
-  });
+  bitlog_init();
 
   if (fuzzed_data.remaining_bytes() > 0) {
     uint32_t cmd = fuzzed_data.ConsumeIntegralInRange<uint16_t>(kStart, kFinish);

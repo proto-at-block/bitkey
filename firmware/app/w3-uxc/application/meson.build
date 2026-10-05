@@ -70,6 +70,7 @@ dev_tools_deps = [
   fs_cmd_dep,
   canary_cmd_dep,
   crypto_cmd_deps['stm32u5xx'],
+  memfault_cmd_deps['stm32u5xx'],
   secure_channel_cmd_deps['w3-uxc'],
 ]
 

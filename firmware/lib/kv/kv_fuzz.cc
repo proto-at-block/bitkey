@@ -54,7 +54,7 @@ FAKE_VOID_FUNC(rtos_mutex_create, rtos_mutex_t*);
 FAKE_VOID_FUNC(rtos_semaphore_create, rtos_semaphore_t*);
 FAKE_VOID_FUNC(rtos_thread_create_static, rtos_thread_t*, f_cb, const char*, void*,
                rtos_thread_priority_t, uint32_t*, uint32_t, StaticTask_t*, rtos_thread_mpu_t);
-FAKE_VOID_FUNC(rtos_thread_delete, rtos_thread_t*);
+FAKE_VOID_FUNC(rtos_thread_delete_self);
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 uint32_t rtos_event_group_set_bits(rtos_event_group_t* UNUSED(a), const uint32_t UNUSED(b)) {
   return 1;

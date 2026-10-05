@@ -32,10 +32,10 @@ class TestSemverToInt(unittest.TestCase):
 
     def test_full_version(self):
         """Test full version with major, minor, and patch."""
-        ver = semver.VersionInfo.parse("12.34.567")
+        ver = semver.VersionInfo.parse("12.34.255")
         result = semver_to_int(ver)
-        # Format: 12 34 567 -> "1234567" -> 1234567
-        self.assertEqual(result, 1234567)
+        # Format: 12 34 255 -> "1234255" -> 1234255
+        self.assertEqual(result, 1234255)
 
     def test_max_two_digit_major(self):
         """Test that major version uses 2 digits."""
@@ -51,12 +51,32 @@ class TestSemverToInt(unittest.TestCase):
         # Format: 00 99 000 -> "0099000" -> 99000
         self.assertEqual(result, 99000)
 
-    def test_max_three_digit_patch(self):
-        """Test that patch version uses 3 digits."""
-        ver = semver.VersionInfo.parse("0.0.999")
+    def test_max_uint8_patch(self):
+        """Test that patch version supports the maximum metadata value."""
+        ver = semver.VersionInfo.parse("0.0.255")
         result = semver_to_int(ver)
-        # Format: 00 00 999 -> "0000999" -> 999
-        self.assertEqual(result, 999)
+        # Format: 00 00 255 -> "0000255" -> 255
+        self.assertEqual(result, 255)
+
+    def test_rejects_unrepresentable_components(self):
+        versions = {
+            "major": "100.0.0",
+            "minor": "1.100.0",
+            "patch": "1.0.256",
+        }
+
+        for component, version in versions.items():
+            with self.subTest(component=component):
+                with self.assertRaisesRegex(
+                    ValueError, rf"{component} must not exceed"
+                ):
+                    semver_to_int(semver.VersionInfo.parse(version))
+
+    def test_rejects_prerelease_and_build_identifiers(self):
+        for version in ("1.2.3-rc.1", "1.2.3+build.1"):
+            with self.subTest(version=version):
+                with self.assertRaisesRegex(ValueError, r"not supported"):
+                    semver_to_int(semver.VersionInfo.parse(version))
 
     def test_leading_zeros(self):
         """Test that single digit versions get leading zeros."""
@@ -105,6 +125,10 @@ class TestAssetInfo(unittest.TestCase):
         asset_info = AssetInfo(app_version=None, slot="a", product="w1a", image_type="app")
 
         self.assertIsNone(asset_info.get_app_version())
+
+    def test_rejects_unrepresentable_version(self):
+        with self.assertRaisesRegex(ValueError, r"minor must not exceed 99"):
+            AssetInfo(app_version="1.100.0", slot="a", product="w1a", image_type="app")
 
 
 class TestSignatureInfo(unittest.TestCase):

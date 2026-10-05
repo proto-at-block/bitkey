@@ -12,12 +12,11 @@ static bool bitlog_lock(void);
 static bool bitlog_unlock(void);
 
 STATIC_VISIBLE_FOR_TESTING bitlog_priv_t SHARED_TASK_BSS bitlog_priv = {
-  .timestamp_cb = NULL,
   .prev_timestamp = 0,
 };
 
 static uint32_t bitlog_timestamp(void) {
-  const uint32_t now = bitlog_priv.timestamp_cb();
+  const uint32_t now = rtos_thread_systime();
   const uint32_t delta = now - bitlog_priv.prev_timestamp;
   bitlog_priv.prev_timestamp = now;
   return delta;
@@ -39,8 +38,7 @@ static bool bitlog_unlock(void) {
   return rtos_mutex_unlock(&bitlog_priv.ringbuf_lock);
 }
 
-void bitlog_init(bitlog_api_t api) {
-  bitlog_priv.timestamp_cb = api.timestamp_cb;
+void bitlog_init(void) {
   bitlog_priv.perf.dropped_events = perf_create(PERF_COUNT, bitlog_dropped_events);
 
   rtos_mutex_create(&bitlog_priv.ringbuf_lock);

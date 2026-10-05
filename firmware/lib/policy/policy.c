@@ -14,6 +14,7 @@ STATIC_VISIBLE_FOR_TESTING policy_ctx_t policy_ctx = {
 };
 
 NO_OPTIMIZE void policy_init(policy_fetch_path_cb_t fetch_path_cb, secure_bool_t enabled) {
+  SECURE_DO(policy_ctx.grant_presented = SECURE_FALSE);
   policy_ctx.fetch_path_cb = fetch_path_cb;
   policy_ctx.enabled = enabled;
   volatile secure_bool_t* enabled_check = &policy_ctx.enabled;

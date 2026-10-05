@@ -17,6 +17,7 @@ from bitkey.partition_info import (
     get_bootloader_metadata_offset_and_size,
     get_bootloader_partition_size,
 )
+from bitkey.semver_utils import validate_semver
 from bitkey.signer_utils import (
     IMAGE_TYPES,
     KEY_TYPES,
@@ -87,12 +88,7 @@ if ctypes.sizeof(DeltaPatchHeaderV1) != FWUP_DELTA_HEADER_V1_SIZE:
 
 def build_delta_patch_header(version: str) -> bytes:
     """Build the 9-byte version header prepended to delta patch files."""
-    v = semver.VersionInfo.parse(version)
-    for name, val in [("major", v.major), ("minor", v.minor), ("patch", v.patch)]:
-        if val > 255:
-            raise ValueError(
-                f"Version component '{name}' is {val}, exceeds uint8 max (255)"
-            )
+    v = validate_semver(semver.VersionInfo.parse(version))
     hdr = DeltaPatchHeaderV1(
         magic=FWUP_DELTA_HEADER_MAGIC,
         header_version=FWUP_DELTA_HEADER_VERSION_1,
@@ -749,12 +745,13 @@ def verify_bin(
         )
         raise click.Abort()
 
-    signed_bin_data = input_bin.read_bytes()
+    with input_bin.open("rb") as input_file:
+        signed_bin_data = input_file.read(partition_size + 1)
     signed_bin_size = len(signed_bin_data)
 
     if signed_bin_size > partition_size:
         click.echo(
-            f"FAILED: Binary too large for partition ({signed_bin_size} > {partition_size}). "
+            f"FAILED: Binary too large for partition (exceeds {partition_size} bytes). "
             "Cannot auto-detect signature mode."
         )
         raise click.Abort()
@@ -781,7 +778,15 @@ def verify_bin(
             )
             raise click.Abort()
 
-        signature = detached_signature.read_bytes()
+        with detached_signature.open("rb") as signature_file:
+            # Read one extra byte to detect oversized signatures without loading the full file.
+            signature = signature_file.read(ECC_P256_SIG_SIZE + 1)
+        if len(signature) != ECC_P256_SIG_SIZE:
+            click.echo(
+                f"FAILED: Invalid signature size (expected exactly {ECC_P256_SIG_SIZE} bytes)"
+            )
+            raise click.Abort()
+
         if effective_image_type == "bl":
             if detached_metadata is None:
                 click.echo(

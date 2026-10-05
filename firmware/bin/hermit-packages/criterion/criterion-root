@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ "$(uname -s)" = "Darwin" ]; then
+  exec brew --prefix criterion
+fi
+
+if [ ! -f "$CRITERION_ROOT/lib/libcriterion.so" ]; then
+  echo "Criterion library not found under $CRITERION_ROOT" >&2
+  exit 1
+fi
+
+printf '%s\n' "$CRITERION_ROOT"

@@ -43,7 +43,7 @@ FAKE_VOID_FUNC(rtos_mutex_create, rtos_mutex_t*);
 FAKE_VOID_FUNC(rtos_semaphore_create, rtos_semaphore_t*);
 FAKE_VOID_FUNC(rtos_thread_create_static, rtos_thread_t*, f_cb, const char*, void*,
                rtos_thread_priority_t, uint32_t*, uint32_t, StaticTask_t*, rtos_thread_mpu_t);
-FAKE_VOID_FUNC(rtos_thread_delete, rtos_thread_t*);
+FAKE_VOID_FUNC(rtos_thread_delete_self);
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_set_bits, rtos_event_group_t*, const uint32_t);
 FAKE_VALUE_FUNC(bool, rtos_event_group_set_bits_from_isr, rtos_event_group_t*, const uint32_t,
@@ -138,10 +138,11 @@ void fini() {
   lfs_emubd_destroy(&cfg);
 }
 
-extern struct {
-  const uint8_t* wik_pubkey;
+struct grant_context {
   grant_request_t outstanding_request;
-} grant_ctx;
+};
+
+extern struct grant_context grant_ctx;
 
 static const uint8_t FAKE_DEVICE_ID[GRANT_DEVICE_ID_LEN] = {0x01, 0x02, 0x03, 0x04,
                                                             0x05, 0x06, 0x07, 0x08};
@@ -150,8 +151,7 @@ static const uint8_t FAKE_CHALLENGE[GRANT_CHALLENGE_LEN] = {
 static extended_key_t fake_auth_key;
 
 static const uint8_t FAKE_BIP32_SIGNATURE[64] = {0x55};
-static const uint8_t FAKE_WIK_PROD_SIGNATURE[GRANT_SIGNATURE_LEN] = {0x66};
-static const uint8_t FAKE_WIK_DEV_SIGNATURE[GRANT_SIGNATURE_LEN] = {0x77};
+static const uint8_t FAKE_WIK_SIGNATURE[GRANT_SIGNATURE_LEN] = {0x66};
 static const uint8_t FAKE_APP_SIGNATURE[GRANT_SIGNATURE_LEN] = {0x88};
 static const uint8_t FAKE_APP_PUBKEY[33] = {0x02, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
                                             0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11,
@@ -250,7 +250,6 @@ void setup(void) {
     .secure_random = test_secure_random,
     .cpu_freq = test_cpu_freq,
   });
-  grant_ctx.wik_pubkey = NULL;
   test_ctx.pass_signature_verification = true;
   test_ctx.pass_app_signature_verification = true;
   test_ctx.pass_wik_signature_verification = true;
@@ -276,16 +275,11 @@ static void asserted_grant_request(grant_request_t* req, grant_action_t action) 
   }
 }
 
-static void mock_server_sign_grant(grant_request_t* req, grant_t* grant, bool is_production) {
+static void mock_server_sign_grant(grant_request_t* req, grant_t* grant) {
   grant->version = GRANT_PROTOCOL_VERSION;
   memcpy(grant->serialized_request, req, sizeof(grant_request_t));
   memcpy(grant->app_signature, FAKE_APP_SIGNATURE, GRANT_SIGNATURE_LEN);
-
-  if (is_production) {
-    memcpy(grant->wsm_signature, FAKE_WIK_PROD_SIGNATURE, GRANT_SIGNATURE_LEN);
-  } else {
-    memcpy(grant->wsm_signature, FAKE_WIK_DEV_SIGNATURE, GRANT_SIGNATURE_LEN);
-  }
+  memcpy(grant->wsm_signature, FAKE_WIK_SIGNATURE, GRANT_SIGNATURE_LEN);
 }
 
 static void assert_grant_deleted(void) {
@@ -305,9 +299,6 @@ static void assert_grant_deleted(void) {
 }
 
 Test(grant_protocol_tests, fingerprint_reset_ok, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   // Provision app auth pubkey before creating request
   cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
@@ -317,7 +308,7 @@ Test(grant_protocol_tests, fingerprint_reset_ok, .init = setup, .fini = fini) {
 
   // Mock the server signing the grant.
   grant_t grant;
-  mock_server_sign_grant(&req, &grant, production);
+  mock_server_sign_grant(&req, &grant);
 
   // Verify the grant.
   grant_protocol_result_t res = grant_protocol_verify_grant(&grant);
@@ -329,9 +320,6 @@ Test(grant_protocol_tests, fingerprint_reset_ok, .init = setup, .fini = fini) {
 }
 
 Test(grant_protocol_tests, invalid_wsm_signature, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   // Provision app auth pubkey before creating request
   cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
@@ -339,7 +327,7 @@ Test(grant_protocol_tests, invalid_wsm_signature, .init = setup, .fini = fini) {
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
 
   grant_t grant;
-  mock_server_sign_grant(&req, &grant, production);
+  mock_server_sign_grant(&req, &grant);
 
   // Enable separate verification to test WSM signature independently
   test_ctx.use_separate_verification = true;
@@ -353,44 +341,7 @@ Test(grant_protocol_tests, invalid_wsm_signature, .init = setup, .fini = fini) {
   cr_assert_eq(res, GRANT_RESULT_ERROR_VERIFICATION);
 }
 
-Test(grant_protocol_tests, uses_debug_wik, .init = setup, .fini = fini) {
-  const bool production = false;
-  grant_protocol_init(production);
-
-  // Provision app auth pubkey before creating request
-  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
-
-  grant_request_t req;
-  asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
-
-  grant_t grant;
-  mock_server_sign_grant(&req, &grant, production);
-
-  // Ensure that the debug wik is used.
-  cr_util_cmp_buffers(grant.wsm_signature, FAKE_WIK_DEV_SIGNATURE, GRANT_SIGNATURE_LEN);
-}
-
-Test(grant_protocol_tests, uses_production_wik, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
-  // Provision app auth pubkey before creating request
-  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
-
-  grant_request_t req;
-  asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
-
-  grant_t grant;
-  mock_server_sign_grant(&req, &grant, production);
-
-  // Ensure that the production wik is used.
-  cr_util_cmp_buffers(grant.wsm_signature, FAKE_WIK_PROD_SIGNATURE, GRANT_SIGNATURE_LEN);
-}
-
 Test(grant_protocol_tests, prevents_replays, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   // Provision app auth pubkey
   cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
@@ -407,19 +358,16 @@ Test(grant_protocol_tests, prevents_replays, .init = setup, .fini = fini) {
   memcpy(replayed_req.signature, FAKE_BIP32_SIGNATURE, GRANT_SIGNATURE_LEN);
 
   grant_t grant;
-  mock_server_sign_grant(&req, &grant, production);
+  mock_server_sign_grant(&req, &grant);
 
   grant_t replayed_grant;
-  mock_server_sign_grant(&replayed_req, &replayed_grant, production);
+  mock_server_sign_grant(&replayed_req, &replayed_grant);
 
   grant_protocol_result_t res = grant_protocol_verify_grant(&replayed_grant);
   cr_assert_eq(res, GRANT_RESULT_ERROR_REQUEST_MISMATCH);
 }
 
 Test(grant_protocol_tests, prevents_substitution_attack, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   // Provision app auth pubkey
   cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
@@ -438,7 +386,7 @@ Test(grant_protocol_tests, prevents_substitution_attack, .init = setup, .fini = 
 
   // Now, sign the attacker's request.
   grant_t attacker_grant;
-  mock_server_sign_grant(&attacker_req, &attacker_grant, production);
+  mock_server_sign_grant(&attacker_req, &attacker_grant);
 
   // Attacker then forwards the signed attacker grant to the victim.
   // The victim verifies the grant and should reject it.
@@ -448,9 +396,6 @@ Test(grant_protocol_tests, prevents_substitution_attack, .init = setup, .fini = 
 }
 
 Test(grant_protocol_tests, grant_already_consumed, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   // Provision app auth pubkey
   cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
@@ -460,7 +405,7 @@ Test(grant_protocol_tests, grant_already_consumed, .init = setup, .fini = fini) 
 
   // Mock the server signing the grant.
   grant_t grant;
-  mock_server_sign_grant(&req, &grant, production);
+  mock_server_sign_grant(&req, &grant);
 
   // First verification should succeed
   grant_protocol_result_t res = grant_protocol_verify_grant(&grant);
@@ -476,9 +421,6 @@ Test(grant_protocol_tests, grant_already_consumed, .init = setup, .fini = fini) 
 }
 
 Test(grant_protocol_tests, no_app_auth_pubkey, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   // Do NOT provision app auth pubkey to test the failure case
 
   // Try to create a fingerprint reset request without app auth pubkey
@@ -490,9 +432,6 @@ Test(grant_protocol_tests, no_app_auth_pubkey, .init = setup, .fini = fini) {
 }
 
 Test(grant_protocol_tests, create_request_rejects_unsupported_action, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   grant_request_t req = {0};
   grant_protocol_result_t res = grant_protocol_create_request(ACTION_INVALID, &req);
 
@@ -500,9 +439,6 @@ Test(grant_protocol_tests, create_request_rejects_unsupported_action, .init = se
 }
 
 Test(grant_protocol_tests, both_signatures_valid, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   // Provision app auth pubkey
   cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
@@ -510,7 +446,7 @@ Test(grant_protocol_tests, both_signatures_valid, .init = setup, .fini = fini) {
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
 
   grant_t grant;
-  mock_server_sign_grant(&req, &grant, production);
+  mock_server_sign_grant(&req, &grant);
 
   // Enable separate verification with both signatures passing
   test_ctx.use_separate_verification = true;
@@ -525,9 +461,6 @@ Test(grant_protocol_tests, both_signatures_valid, .init = setup, .fini = fini) {
 }
 
 Test(grant_protocol_tests, invalid_app_signature, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   // Provision app auth pubkey
   cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
@@ -535,7 +468,7 @@ Test(grant_protocol_tests, invalid_app_signature, .init = setup, .fini = fini) {
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
 
   grant_t grant;
-  mock_server_sign_grant(&req, &grant, production);
+  mock_server_sign_grant(&req, &grant);
 
   // Enable separate verification to test app signature independently
   test_ctx.use_separate_verification = true;
@@ -547,16 +480,13 @@ Test(grant_protocol_tests, invalid_app_signature, .init = setup, .fini = fini) {
 }
 
 Test(grant_protocol_tests, tampered_action_returns_request_mismatch, .init = setup, .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
   grant_request_t req;
   asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
 
   grant_t grant;
-  mock_server_sign_grant(&req, &grant, production);
+  mock_server_sign_grant(&req, &grant);
 
   grant_request_t tampered_req = req;
   tampered_req.action = ACTION_INVALID;
@@ -568,9 +498,6 @@ Test(grant_protocol_tests, tampered_action_returns_request_mismatch, .init = set
 
 Test(grant_protocol_tests, unsupported_stored_action_returns_invalid_argument, .init = setup,
      .fini = fini) {
-  const bool production = true;
-  grant_protocol_init(production);
-
   cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
 
   grant_request_t req;
@@ -581,7 +508,7 @@ Test(grant_protocol_tests, unsupported_stored_action_returns_invalid_argument, .
   cr_assert_eq(grant_storage_write_request(&unsupported_req), GRANT_RESULT_OK);
 
   grant_t grant;
-  mock_server_sign_grant(&unsupported_req, &grant, production);
+  mock_server_sign_grant(&unsupported_req, &grant);
   test_ctx.use_separate_verification = true;
   test_ctx.pass_app_signature_verification = true;
   test_ctx.pass_wik_signature_verification = true;

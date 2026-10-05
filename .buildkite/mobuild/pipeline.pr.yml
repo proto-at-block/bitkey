@@ -7,7 +7,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
           limit: 2
     agents:
-      xcode: 26.2.0
+      xcode: 26.5.0
     env:
       SKIP_BUILDKITE_AGENT_CHECKOUT: "true"
     plugins:
@@ -21,7 +21,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
           limit: 2
     agents:
-      xcode: 26.2.0
+      xcode: 26.5.0
     env:
       SKIP_BUILDKITE_AGENT_CHECKOUT: "true"
     plugins:
@@ -35,9 +35,9 @@ steps:
         - exit_status: 255 # Forced agent shutdown
           limit: 2
     agents:
-      xcode: 26.2.0
+      xcode: 26.5.0
     plugins:
       - squareup/macos-environment:
-          xcode_version: 26.2.0
+          xcode_version: 26.5.0
     command:
       - "./app/ios/Scripts/CI/RunKmpIosTests"

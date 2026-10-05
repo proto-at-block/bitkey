@@ -22,6 +22,10 @@ pub struct SpendingEntry {
     pub timestamp: OffsetDateTime,
     /// The total amount of money leaving the customers wallet, this should be the sum of outputs minus change
     pub outflow_amount: u64,
+    /// The total amount returning to the customer's wallet as change (sum of outputs minus
+    /// `outflow_amount`). Zero for records persisted before this field existed.
+    #[serde(default)]
+    pub change_amount: u64,
 }
 
 /// A record of the total amount spent (or at least cosigned by f8e) by an account on a given day.
@@ -64,18 +68,23 @@ impl DailySpendingRecord {
         let tx = &psbt.unsigned_tx;
         let txid = tx.compute_txid();
         if !self.spending_entries.iter().any(|entry| entry.txid == txid) {
+            let outflow_amount = get_total_outflow_for_psbt(wallet, psbt);
+            let total_output_amount = tx.output.iter().fold(0u64, |acc, output| {
+                acc.saturating_add(output.value.to_sat())
+            });
             self.spending_entries.push(SpendingEntry {
                 txid,
                 timestamp: OffsetDateTime::now_utc(),
-                outflow_amount: get_total_outflow_for_psbt(wallet, psbt),
+                outflow_amount,
+                change_amount: total_output_amount.saturating_sub(outflow_amount),
             });
             if self.spending_entries.len() > 2000 {
                 // NB: DDB max item size is 400kb
-                // With the current schema, each [SpendingEntry] is 121 bytes. That means we can have up to
+                // With the current schema, each [SpendingEntry] is ~150 bytes. That means we can have up to
                 // DailySpendRecord takes 138 bytes of data with no SpendingEntries. Each SpendingEntry takes
-                // 121 bytes. That means that we can have ~3300 SpendingEntries in a DailySpendingRecord
+                // ~150 bytes. That means that we can have ~2600 SpendingEntries in a DailySpendingRecord
                 // We expect power users will have 10's of transactions a day, but to be sure we'll emit
-                // an event if we see anyone at more than 2000 (~66% utilization) which would mean maybe
+                // an event if we see anyone at more than 2000 (~77% utilization) which would mean maybe
                 // we need to look at a new scheme or make product changes
                 event!(
                     tracing::Level::WARN,
@@ -133,11 +142,10 @@ mod tests {
     use types::account::identifiers::AccountId;
 
     use crate::daily_spend_record::entities::{
-        AttributableWallet, DailySpendingRecord, RETENTION_DAYS,
+        AttributableWallet, DailySpendingRecord, SpendingEntry, RETENTION_DAYS,
     };
     use crate::util::MobilepayDatetimeError;
 
-    #[allow(dead_code)]
     struct DummyWallet {
         is_mine_scripts: Vec<ScriptBuf>,
     }
@@ -157,8 +165,8 @@ mod tests {
             Ok(true)
         }
 
-        fn is_my_psbt_address(&self, _spk: &SpkWithDerivationPaths) -> Result<bool, BdkUtilError> {
-            Ok(true)
+        fn is_my_psbt_address(&self, spk: &SpkWithDerivationPaths) -> Result<bool, BdkUtilError> {
+            Ok(self.is_mine_scripts.contains(&spk.script_pubkey))
         }
     }
 
@@ -232,6 +240,62 @@ mod tests {
             input: Vec::new(),
             output: Vec::new(),
         }
+    }
+
+    #[test]
+    fn update_with_psbt_splits_outflow_and_change() {
+        let recipient_script = Address::from_str("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4")
+            .unwrap()
+            .assume_checked()
+            .script_pubkey();
+        let change_script = Address::from_str("bc1qvh30c5k24q4z2h6e88tvsv7x3xyj7m4g37e498")
+            .unwrap()
+            .assume_checked()
+            .script_pubkey();
+        let transaction = Transaction {
+            version: Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: Vec::new(),
+            output: vec![
+                TxOut {
+                    value: Amount::from_sat(700_000),
+                    script_pubkey: recipient_script,
+                },
+                TxOut {
+                    value: Amount::from_sat(160_000),
+                    script_pubkey: change_script.clone(),
+                },
+            ],
+        };
+        let psbt = Psbt::from_unsigned_tx(transaction).unwrap();
+        let dummy_wallet = DummyWallet::new(vec![change_script]);
+
+        let account_id = AccountId::gen().unwrap();
+        let mut spending_record =
+            DailySpendingRecord::try_new(&account_id, OffsetDateTime::now_utc().date()).unwrap();
+
+        spending_record.update_with_psbt(&dummy_wallet, &psbt);
+
+        let entry = &spending_record.spending_entries[0];
+        assert_eq!(entry.outflow_amount, 700_000);
+        assert_eq!(entry.change_amount, 160_000);
+    }
+
+    #[test]
+    fn change_amount_defaults_to_zero_for_records_persisted_before_it_existed() {
+        let entry = SpendingEntry {
+            txid: create_test_transaction().compute_txid(),
+            timestamp: OffsetDateTime::now_utc(),
+            outflow_amount: 42,
+            change_amount: 7,
+        };
+
+        let mut value = serde_json::to_value(&entry).unwrap();
+        value.as_object_mut().unwrap().remove("change_amount");
+
+        let deserialized: SpendingEntry = serde_json::from_value(value).unwrap();
+        assert_eq!(deserialized.outflow_amount, 42);
+        assert_eq!(deserialized.change_amount, 0);
     }
 
     #[test]

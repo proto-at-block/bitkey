@@ -3,12 +3,15 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import click.testing
 from bitkey.firmware_signer import (
+    ECC_P256_SIG_SIZE,
     FwupDeltaPatchGenerator,
     PLACEHOLDER_SIGNATURE,
     apply_patch,
+    build_delta_patch_header,
     cli,
     verify_bootloader_signature_with_metadata,
     verify_delta_update,
@@ -23,6 +26,17 @@ from Crypto.PublicKey import ECC
 from Crypto.Signature import DSS
 
 KEYS_DIR = Path(__file__).parent.parent.parent / "config" / "keys"
+
+
+class TestDeltaPatchHeaderVersionValidation(unittest.TestCase):
+    def test_maximum_representable_version(self):
+        header = build_delta_patch_header("99.99.255")
+
+        self.assertEqual(header[-3:], bytes((99, 99, 255)))
+
+    def test_rejects_unrepresentable_version(self):
+        with self.assertRaisesRegex(ValueError, r"minor must not exceed 99"):
+            build_delta_patch_header("1.100.0")
 
 
 class TestVerifyPatchSignature(unittest.TestCase):
@@ -649,6 +663,112 @@ class TestVerifyBinCLI(unittest.TestCase):
             self.assertIn("Detached signature is required", result.output)
         finally:
             signed_bin_path.unlink(missing_ok=True)
+
+    def test_verify_bin_cli_bounds_oversized_input_read(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_bin_path = Path(tmpdir) / "oversized.signed.bin"
+            with input_bin_path.open("wb") as input_file:
+                input_file.truncate(self.partition_size * 16)
+
+            original_open = Path.open
+
+            def open_input(path, *args, **kwargs):
+                if path == input_bin_path:
+                    return input_file
+                return original_open(path, *args, **kwargs)
+
+            with (
+                input_bin_path.open("rb") as input_file,
+                mock.patch.object(input_file, "read", wraps=input_file.read) as read,
+                mock.patch.object(
+                    Path, "open", autospec=True, side_effect=open_input
+                ),
+            ):
+                result = self.runner.invoke(
+                    cli,
+                    [
+                        "verify-bin",
+                        "--input-bin",
+                        str(input_bin_path),
+                        "--product",
+                        PRODUCT_W3A_CORE,
+                        "--image-type",
+                        "app",
+                        "--key-type",
+                        "dev",
+                        "--keys-dir",
+                        str(KEYS_DIR),
+                    ],
+                )
+
+                read.assert_called_once_with(self.partition_size + 1)
+
+            self.assertNotEqual(0, result.exit_code)
+            self.assertIn(
+                f"Binary too large for partition (exceeds {self.partition_size} bytes).",
+                result.output,
+            )
+
+    def test_verify_bin_cli_bounds_read_and_rejects_invalid_signature_size(self):
+        signed_bin_path = self._write_temp_file(b"firmware", ".signed.bin")
+        detached_sig_path = self._write_temp_file(bytes(1024), ".detached_signature")
+        original_open = Path.open
+
+        class BoundedReadFile:
+            def __init__(self):
+                self.file = original_open(detached_sig_path, "rb")
+
+            def __enter__(self):
+                self.file.__enter__()
+                return self
+
+            def __exit__(self, *args):
+                return self.file.__exit__(*args)
+
+            def read(self, size=-1):
+                if not 0 < size <= ECC_P256_SIG_SIZE + 1:
+                    raise AssertionError("detached signature read must be bounded")
+                return self.file.read(size)
+
+        def bound_signature_read(path, *args, **kwargs):
+            if path == detached_sig_path:
+                return BoundedReadFile()
+            return original_open(path, *args, **kwargs)
+
+        try:
+            for signature_size in (0, 63, 65, 1024):
+                detached_sig_path.write_bytes(bytes(signature_size))
+                for image_type in ("app", "bl"):
+                    with self.subTest(size=signature_size, image_type=image_type):
+                        # Bootloader size rejection must precede even the metadata check.
+                        with mock.patch.object(Path, "open", bound_signature_read):
+                            result = self.runner.invoke(
+                                cli,
+                                [
+                                    "verify-bin",
+                                    "--input-bin",
+                                    str(signed_bin_path),
+                                    "--detached-signature",
+                                    str(detached_sig_path),
+                                    "--product",
+                                    PRODUCT_W3A_CORE,
+                                    "--image-type",
+                                    image_type,
+                                    "--key-type",
+                                    "dev",
+                                    "--keys-dir",
+                                    str(KEYS_DIR),
+                                ],
+                            )
+                        self.assertNotEqual(0, result.exit_code)
+                        self.assertIn(
+                            "Invalid signature size (expected exactly 64 bytes)",
+                            result.output,
+                        )
+                        self.assertNotIsInstance(result.exception, AssertionError)
+        finally:
+            signed_bin_path.unlink(missing_ok=True)
+            detached_sig_path.unlink(missing_ok=True)
 
     def test_verify_bin_cli_bootloader_requires_detached_metadata(self):
         signed_bin_path = self._write_temp_file(b"bootloader", ".signed.bin")

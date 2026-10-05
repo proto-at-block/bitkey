@@ -12,6 +12,14 @@ static fwpb_display_command last_command;
 static uint32_t ui_execute_command_call_count = 0;
 static secure_bool_t stub_onboarding_complete = SECURE_FALSE;
 
+typedef struct {
+  uint8_t count;
+  uint8_t indices[FINGERPRINT_SLOT_COUNT];
+  char labels[FINGERPRINT_SLOT_COUNT][32];
+} fingerprint_status_response_t;
+
+extern display_controller_t controller;
+
 bool rtos_in_isr(void) {
   return false;
 }
@@ -139,6 +147,38 @@ Test(display_controller, uxc_send_failure_threshold_is_one_shot_and_resets_on_su
 
   cr_assert(!display_controller_update_uxc_send_failures(true, &failure_count));
   cr_assert_eq(0, failure_count);
+}
+
+Test(display_controller, fingerprint_status_rejects_count_beyond_payload_capacity) {
+  display_controller_init();
+
+  fingerprint_status_response_t valid = {
+    .count = FINGERPRINT_SLOT_COUNT,
+    .indices = {0, 1, 2},
+    .labels = {"trusted 0", "trusted 1", "trusted 2"},
+  };
+  display_controller_handle_ui_event(UI_EVENT_FINGERPRINT_STATUS, &valid, sizeof(valid));
+
+  struct {
+    fingerprint_status_response_t response;
+    char adjacent_label[32];
+  } malformed = {0};
+  malformed.response.count = FINGERPRINT_SLOT_COUNT + 1;
+  malformed.response.indices[0] = 0;
+  malformed.response.indices[1] = 1;
+  malformed.response.indices[2] = 2;
+  malformed.response.labels[0][0] = 2;  // Read as indices[3] by a fourth iteration.
+  strncpy(malformed.adjacent_label, "sentinel", sizeof(malformed.adjacent_label));
+
+  display_controller_handle_ui_event(UI_EVENT_FINGERPRINT_STATUS, &malformed.response,
+                                     sizeof(malformed.response));
+
+  cr_assert(controller.fingerprint_enrolled[0]);
+  cr_assert(controller.fingerprint_enrolled[1]);
+  cr_assert(controller.fingerprint_enrolled[2]);
+  cr_assert_str_eq(controller.fingerprint_labels[0], "trusted 0");
+  cr_assert_str_eq(controller.fingerprint_labels[1], "trusted 1");
+  cr_assert_str_eq(controller.fingerprint_labels[2], "trusted 2");
 }
 
 Test(display_controller, display_ready_from_power_off_wakes_locked_screen) {

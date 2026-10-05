@@ -115,7 +115,7 @@ static void fs_mount_task(void* UNUSED(arg)) {
 
 cleanup:
   perf_end(perf.mount);
-  rtos_thread_delete(mount_fs_thread);
+  rtos_thread_delete_self();
 }
 
 int32_t fs_used(void) {
@@ -480,31 +480,6 @@ int fs_mkdir(const char* path) {
   }
 
   return LOCK_UNLOCK(lfs_mkdir(lfs, path));
-}
-
-int fs_ensure_file_path(const char* path) {
-  ASSERT(path != NULL);
-
-  if (lfs == NULL) {
-    return -1;
-  }
-
-  int ret;
-  const uint32_t len = strlen(path);
-  char temp_path[FS_FILE_NAME_MAX_LEN];
-  for (uint32_t inx = 0; inx < len; inx++) {
-    if (path[inx] == '/') {
-      memcpy(temp_path, path, inx);
-      temp_path[inx] = 0;
-      ret = LOCK_UNLOCK(lfs_mkdir(lfs, temp_path));
-      if (ret < 0) {
-        if (ret != LFS_ERR_EXIST) {
-          return ret;
-        }
-      }
-    }
-  }
-  return 0;
 }
 
 int fs_dir_open(fs_dir_t* dir, const char* path) {

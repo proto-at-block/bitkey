@@ -1,5 +1,4 @@
 #include "app.h"
-#include "assert.h"
 #include "bitlog.h"
 #include "canary.h"
 #include "clock.h"
@@ -110,7 +109,6 @@ SYSCALL NO_OPTIMIZE bool _app_secure_uart_channel_confirmed(void) {
 }
 
 NO_OPTIMIZE int main(void) {
-  assert_init(&memfault_fault_handling_assert);
   mcu_init();
   mpu_regions_init();
   exti_init();
@@ -180,9 +178,7 @@ NO_OPTIMIZE int main(void) {
   // Create serial task
   usart_task_create(&comms_usart_config, uc_handle_data, uc_idle, &comms_usart_config);
 
-  bitlog_init((bitlog_api_t){
-    .timestamp_cb = &rtos_thread_systime,
-  });
+  bitlog_init();
 
   telemetry_init((telemetry_api_t){
     .get_chunk = &memfault_packetizer_get_chunk,

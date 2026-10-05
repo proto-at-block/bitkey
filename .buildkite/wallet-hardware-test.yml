@@ -1,0 +1,35 @@
+# Hardware-in-the-loop tests. Triggered by the `Wallet hardware test` GitHub
+# workflow with the commit whose `firmware` workflow artifact should be tested.
+# GitHub decides what runs; this pipeline only downloads, flashes and tests.
+#
+# Build environment (set by the GitHub workflow):
+#   WALLET_HIL_PRODUCT            product under test and the bench's `dut` agent tag (default: w3)
+#   WALLET_HIL_HARDWARE_REVISION  hardware revision on the bench (default: pdvt)
+#   WALLET_HIL_TEST_SUITE         python/automation/ directory to run (default: authentication)
+#   WALLET_HIL_FIRMWARE_RUN_ID    optional `firmware` workflow run that built the commit
+steps:
+  - label: ":package: Download firmware"
+    key: firmware-artifact
+    timeout_in_minutes: 15
+    agents:
+      queue: default
+    command: .buildkite/scripts/wallet-hardware-test/download-firmware.sh
+    artifact_paths:
+      - firmware-build.zip
+
+  # Agent tags are resolved when the pipeline is uploaded, so the product is
+  # interpolated here (`$`); the pytest arguments are read on the bench (`$$`).
+  # No J-Link serials are configured on the bench: bitkey.gdb.detect_w3_jlinks()
+  # probes each attached J-Link and matches it to its MCU by reading the silicon.
+  - label: ":hardware: Hardware test"
+    key: hardware-test
+    depends_on: firmware-artifact
+    timeout_in_minutes: 30
+    agents:
+      queue: testrack
+      dut: "${WALLET_HIL_PRODUCT:-w3}"
+    command:
+      - .buildkite/scripts/wallet-hardware-test/setup.sh
+      - cd firmware && . bin/activate-hermit && pytest -s "python/automation/$${WALLET_HIL_TEST_SUITE:-authentication}" -P "$${WALLET_HIL_PRODUCT:-w3}" -B "$${WALLET_HIL_HARDWARE_REVISION:-pdvt}" --skip-build --junitxml=../artifacts/junit.xml --alluredir=../artifacts/allure
+    artifact_paths:
+      - "artifacts/**/*"

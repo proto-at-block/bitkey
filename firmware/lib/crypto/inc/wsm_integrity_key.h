@@ -15,11 +15,10 @@
  * The prod key is used for production environments.
  */
 
-// WSM Integrity Key for test/dev environment
-extern const uint8_t WSM_INTEGRITY_TEST_PUBKEY[33];
+#define WSM_INTEGRITY_PUBKEY_SIZE (33u)
 
-// WSM Integrity Key for production environment
-extern const uint8_t WSM_INTEGRITY_PROD_PUBKEY[33];
+/** WSM integrity public key selected at build time by CONFIG_PROD. */
+extern const uint8_t WSM_INTEGRITY_PUBKEY[WSM_INTEGRITY_PUBKEY_SIZE];
 
 /**
  * Verify a WSM signature over a message

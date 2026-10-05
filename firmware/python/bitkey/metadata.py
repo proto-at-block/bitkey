@@ -1,6 +1,5 @@
 import os
 import json
-import time
 import struct
 import msgpack
 import hashlib
@@ -87,7 +86,6 @@ class Metadata:
 
     def __data(self, build_type="", hw_rev="", image_type="") -> dict:
         data = fw_version.metadata(image_type)
-        data["timestamp"] = int(time.time())
         data["hash"] = self.__hash_file()
 
         # Check length of all strings in metadata

@@ -579,6 +579,11 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
         const auth_enrolled_fingerprints_response_t* response =
           (const auth_enrolled_fingerprints_response_t*)data;
 
+        if (response->count > ARRAY_SIZE(response->indices) ||
+            response->count > ARRAY_SIZE(response->labels)) {
+          break;
+        }
+
         // Clear all enrollment status first
         memset(controller.fingerprint_enrolled, 0, sizeof(controller.fingerprint_enrolled));
         memset(controller.fingerprint_labels, 0, sizeof(controller.fingerprint_labels));

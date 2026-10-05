@@ -126,6 +126,15 @@ memfault_sdk_includes = include_directories(
 buildtype = get_option('buildtype')
 if buildtype == 'debug'
   add_project_arguments([ f'-ffile-prefix-map='+meson.project_source_root()+'/=/' ], language: 'c')
+
+  # GCC's file prefix map does not reach the GNU assembler debug information
+  # emitted for preprocessed assembly sources. Normalize those paths explicitly
+  # for STM32 so bootload.S does not retain the absolute build directory.
+  if system == 'stm32u5xx'
+    add_project_arguments([
+      f'-Wa,--debug-prefix-map,'+meson.project_source_root()+'/=/'
+    ], language: 'c')
+  endif
 endif
 
 # Comes first since it should have no dependencies.
@@ -146,13 +155,14 @@ if system == 'darwin'
   criterion_dep = dependency('criterion')
   test_deps = [criterion_dep, criterion_test_utils_dep, fff_dep]
 elif system == 'linux'
-  # Criterion must first be installed with `inv install-test-deps`.
+  # criterion-root installs the pinned Hermit package on first use and prints
+  # the package root containing its headers and libraries.
+  criterion_root = run_command('criterion-root', check : true).stdout().strip()
   cc = meson.get_compiler('c')
-  base = meson.current_source_dir()
-  criterion_lib = cc.find_library('criterion', dirs : [base/'third-party/criterion/lib'])
+  criterion_lib = cc.find_library('criterion', dirs : [criterion_root/'lib'])
   criterion_dep = declare_dependency(
     dependencies : criterion_lib,
-    include_directories : 'third-party/criterion/include'
+    include_directories : criterion_root/'include'
   )
   test_deps = [criterion_dep, criterion_test_utils_dep, fff_dep]
 else

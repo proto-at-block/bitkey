@@ -9,6 +9,7 @@ the most recent git tag will be used.
 
 from pathlib import Path
 from .git import Git
+from .semver_utils import validate_semver
 import json
 import unittest
 try:
@@ -31,16 +32,18 @@ def _get_semver(field: str) -> semver.VersionInfo:
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
             if field in config:
-                return semver.VersionInfo.parse(config[field])
+                return validate_semver(semver.VersionInfo.parse(config[field]))
     except FileNotFoundError:
         pass
-    return Git().semver_tag
+    return validate_semver(Git().semver_tag)
 
 
 def _set(field: str, new_version: str):
+    version = validate_semver(semver.VersionInfo.parse(new_version))
+
     with open(CONFIG_FILE, "r+") as f:
         config = json.load(f)
-        config[field] = new_version
+        config[field] = str(version)
         f.seek(0)
         f.truncate()
         json.dump(config, f, indent=2)
@@ -50,7 +53,7 @@ def _bump(field: str):
     with open(CONFIG_FILE, "r+") as f:
         config = json.load(f)
         current = semver.VersionInfo.parse(config[field])
-        bumped = current.bump_patch()
+        bumped = validate_semver(current.bump_patch())
         config[field] = str(bumped)
         f.seek(0)
         f.truncate()
@@ -86,6 +89,7 @@ def metadata(image_type):
     return {
         "git_id": git.identity,
         "git_branch": git.branch,
+        "timestamp": git.head_timestamp,
         "ver_major": version.major,
         "ver_minor": version.minor,
         "ver_patch": version.patch,

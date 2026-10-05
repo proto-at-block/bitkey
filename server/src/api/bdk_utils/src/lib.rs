@@ -22,7 +22,7 @@ use bdk_wallet::miniscript::descriptor::DescriptorXKey;
 use bdk_wallet::miniscript::{Descriptor, DescriptorPublicKey};
 use bdk_wallet::KeychainKind;
 use bdk_wallet::{bitcoin::Network, Wallet};
-use crypto::chaincode_delegation::common::{PROPRIETARY_KEY_PREFIX, PROPRIETARY_KEY_SUBTYPE};
+pub use crypto::chaincode_delegation::common::{PROPRIETARY_KEY_PREFIX, PROPRIETARY_KEY_SUBTYPE};
 use feature_flags::flag::{evaluate_flag_value, ContextKey};
 use tracing::{event, instrument, Level};
 use url::Url;
@@ -718,6 +718,20 @@ impl ChaincodeDelegationCollaboratorWallet {
         }
 
         Ok(outflow)
+    }
+
+    /// Total value of outputs classified as change back to the wallet: the
+    /// complement of [`Self::get_outflow_for_psbt`].
+    pub fn get_change_for_psbt(&self, ccd_psbt: &ChaincodeDelegationPsbt) -> anyhow::Result<u64> {
+        let mut change = 0u64;
+
+        for output in self.filter_outputs_by_witness_script(&ccd_psbt.psbt, true)? {
+            change = change
+                .checked_add(output.value.to_sat())
+                .ok_or_else(|| anyhow::anyhow!("Change overflow"))?;
+        }
+
+        Ok(change)
     }
 
     fn filter_outputs_by_witness_script(

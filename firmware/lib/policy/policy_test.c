@@ -41,7 +41,7 @@ void detect_glitch(void) {}
 uint32_t clock_get_freq(void) {
   return 1;
 }
-uint32_t timestamp(void) {
+uint32_t rtos_thread_systime(void) {
   return 0;
 }
 
@@ -54,9 +54,7 @@ static void init(void) {
 
   crypto_ecc_secp256k1_init();
 
-  bitlog_init((bitlog_api_t){
-    .timestamp_cb = timestamp,
-  });
+  bitlog_init();
 }
 
 Test(policy_test, policy_disabled, .init = init) {
@@ -119,6 +117,29 @@ Test(policy_test, policy_enabled_yes_grant, .init = init) {
 
   policy_sign_result_t result = bip32_sign_with_policy(&key_priv, any_path, digest, signature);
   cr_assert_eq(result, POLICY_SIGN_SUCCESS, "Signing should succeed when policy is enabled.");
+}
+
+Test(policy_test, policy_init_clears_presented_grant, .init = init) {
+  policy_init(get_w1_auth_path, SECURE_TRUE);
+  policy_present_grant();
+  policy_init(get_w1_auth_path, SECURE_TRUE);
+
+  extended_key_t key_priv = {0};
+  uint8_t digest[SHA256_DIGEST_SIZE] = {0};
+  uint8_t signature[ECC_SIG_SIZE] = {0};
+
+  // Set up some valid key.
+  uint8_t seed[32] = {0};
+  cr_assert(bip32_derive_master_key(seed, sizeof(seed), &key_priv));
+
+  derivation_path_t any_path = {
+    .indices = (uint32_t[1]){123},
+    .num_indices = 1,
+  };
+
+  policy_sign_result_t result = bip32_sign_with_policy(&key_priv, any_path, digest, signature);
+  cr_assert_eq(result, POLICY_SIGN_POLICY_VIOLATION,
+               "Policy initialization should clear a previously presented grant.");
 }
 
 Test(policy_test, policy_enabled_auth_key, .init = init) {

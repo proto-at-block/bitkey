@@ -96,6 +96,7 @@ bool rtos_mutex_unlock(rtos_mutex_t* UNUSED(a)) { return true; }
 bool rtos_in_isr(void) { return false; }
 bool rtos_semaphore_give(rtos_semaphore_t* UNUSED(s)) { return true; }
 bool rtos_semaphore_take(rtos_semaphore_t* UNUSED(s), uint32_t UNUSED(t)) { return true; }
+uint32_t rtos_thread_systime(void) { return 0; }
 void detect_glitch(void) {}
 uint32_t rtos_event_group_get_bits(rtos_event_group_t* UNUSED(g)) { return 0; }
 bool bd_error_str(char* UNUSED(s), const size_t UNUSED(n), const int UNUSED(e)) { return true; }
@@ -126,7 +127,7 @@ void grant_fuzz_secure_glitch_detect(void) {}
 typedef void (*rtos_thread_cb_t)(void*);
 FAKE_VOID_FUNC(rtos_thread_create_static, rtos_thread_t*, rtos_thread_cb_t, const char*, void*,
                rtos_thread_priority_t, uint32_t*, uint32_t, StaticTask_t*, rtos_thread_mpu_t);
-FAKE_VOID_FUNC(rtos_thread_delete, rtos_thread_t*);
+FAKE_VOID_FUNC(rtos_thread_delete_self);
 
 /* rtos semaphore ISR variants used by filesystem.c */
 bool rtos_semaphore_take_from_isr(rtos_semaphore_t* UNUSED(s)) { return true; }
@@ -153,10 +154,8 @@ void unlock_wipe_state(void) {}
 
 /* -------------------------------------------------------------------------- */
 
-/* Use test (non-production) WIK key so grant_protocol_init can proceed. */
 static const bool kInit = []() -> bool {
   crypto_ecc_secp256k1_init();
-  grant_protocol_init(/* is_production= */ false);
   return true;
 }();
 
@@ -205,7 +204,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   RESET_FAKE(rtos_event_group_clear_bits);
   RESET_FAKE(rtos_event_group_set_bits_from_isr);
   RESET_FAKE(rtos_thread_create_static);
-  RESET_FAKE(rtos_thread_delete);
+  RESET_FAKE(rtos_thread_delete_self);
 
   (void)grant_protocol_verify_grant(grant);
 

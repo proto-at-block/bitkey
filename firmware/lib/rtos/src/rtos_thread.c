@@ -56,14 +56,8 @@ void rtos_thread_create_static(rtos_thread_t* thread, void (*func)(void*), const
 #endif
 }
 
-SYSCALL NO_OPTIMIZE void rtos_thread_delete(rtos_thread_t* thread) {
-  RTOS_THREAD_WITH_PRIVILEGE({
-    if (thread == NULL) {
-      vTaskDelete(NULL);
-    } else {
-      vTaskDelete((TaskHandle_t)thread->handle);
-    }
-  });
+SYSCALL NO_OPTIMIZE void rtos_thread_delete_self(void) {
+  RTOS_THREAD_WITH_PRIVILEGE({ vTaskDelete(NULL); });
 }
 
 /* configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must provide an

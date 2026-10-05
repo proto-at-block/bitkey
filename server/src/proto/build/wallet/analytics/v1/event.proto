@@ -348,6 +348,38 @@ message PlatformInfo {
     string    device_make         = 6;
     string    device_model        = 7;
     string    app_id              = 8;
+    string    os_security_patch   = 9;  // Android ro.build.version.security_patch; empty on other platforms
+    SecurityPatchAgeBucket os_security_patch_age_bucket = 10;  // Coarse age bucket derived from os_security_patch
+    DeviceLockState        device_lock_state            = 11;  // Client-reported secure lock-screen state
+    EmulatorState          emulator_state               = 12;  // Best-effort client-side emulator detection
+    StrongboxAvailability  android_strongbox_availability = 13;  // Android StrongBox capability, not attestation
+}
+
+enum SecurityPatchAgeBucket {
+    SECURITY_PATCH_AGE_BUCKET_UNSPECIFIED     = 0;
+    SECURITY_PATCH_AGE_BUCKET_0_TO_30_DAYS    = 1;
+    SECURITY_PATCH_AGE_BUCKET_31_TO_90_DAYS   = 2;
+    SECURITY_PATCH_AGE_BUCKET_91_TO_180_DAYS  = 3;
+    SECURITY_PATCH_AGE_BUCKET_181_TO_365_DAYS = 4;
+    SECURITY_PATCH_AGE_BUCKET_OVER_365_DAYS   = 5;
+}
+
+enum DeviceLockState {
+    DEVICE_LOCK_STATE_UNSPECIFIED = 0;
+    DEVICE_LOCK_STATE_ENABLED     = 1;
+    DEVICE_LOCK_STATE_DISABLED    = 2;
+}
+
+enum EmulatorState {
+    EMULATOR_STATE_UNSPECIFIED  = 0;
+    EMULATOR_STATE_NOT_DETECTED = 1;
+    EMULATOR_STATE_DETECTED     = 2;
+}
+
+enum StrongboxAvailability {
+    STRONGBOX_AVAILABILITY_UNSPECIFIED   = 0;
+    STRONGBOX_AVAILABILITY_NOT_SUPPORTED = 1;
+    STRONGBOX_AVAILABILITY_SUPPORTED     = 2;
 }
 
 message HardwareInfo {

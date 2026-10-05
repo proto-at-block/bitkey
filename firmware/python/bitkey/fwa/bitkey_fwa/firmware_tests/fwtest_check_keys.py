@@ -1,5 +1,10 @@
 import bitkey_fwa
-from bitkey_fwa.constants import PRODUCT_W3A_UXC
+from bitkey_fwa.constants import (
+    ENV_NON_MFGTEST,
+    PRODUCT_W3A_UXC,
+    SECURITY_DEV,
+    SECURITY_PROD,
+)
 from bitkey_fwa.fwut import FirmwareUnderTest
 from bitkey_fwa.keys import get_patch_signing_key_bytes
 
@@ -14,9 +19,39 @@ ECC_SIGNATURE_SIZE = 64
 EFR32_APP_SIZE = 632 * 1024
 STM32U5_APP_SIZE = 896 * 1024
 
+# Keep these values independent from the firmware C definition: this check is
+# intended to catch an incorrect key making it into a release artifact.
+WSM_INTEGRITY_PUBKEYS = {
+    SECURITY_DEV: bytes.fromhex(
+        "03078451e0c1e12743d2fdd93ae7d03d5cf7813d2f612de10904e1c6a0b87f7071"
+    ),
+    SECURITY_PROD: bytes.fromhex(
+        "0295216a2e0b54b382cc3938e207298d21cb8c5f686f78b05d9f14b4e4669e560f"
+    ),
+}
+
 
 class KeyChecks(bitkey_fwa.TestCase):
     """Check that various keys are present and establish a root of trust"""
+
+    @bitkey_fwa.product("w1a", "w3a-core")
+    @bitkey_fwa.asset("app")
+    @bitkey_fwa.environment(ENV_NON_MFGTEST)
+    @bitkey_fwa.suffix("elf")
+    def fwtest_verify_wsm_integrity_pubkey(self):
+        """Verify that the image uses the WSM key for its build configuration."""
+
+        expected_key = WSM_INTEGRITY_PUBKEYS[FirmwareUnderTest.security]
+        actual_key = self.get_elf_symbol_data(
+            "WSM_INTEGRITY_PUBKEY",
+            ".rodata",
+        )
+
+        self.assertEqual(
+            actual_key,
+            expected_key,
+            f"Incorrect WSM integrity key for {FirmwareUnderTest.security} firmware",
+        )
 
     @bitkey_fwa.asset("app")
     def fwtest_verify_delta_patch_pubkey(self):

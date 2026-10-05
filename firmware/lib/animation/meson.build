@@ -16,3 +16,9 @@ animation_dep = declare_dependency(
   include_directories : includes,
   dependencies : deps,
 )
+
+animation_test = executable('animation-test',
+  'animation_test.c',
+  dependencies : [animation_dep, test_deps],
+)
+test('animation test', animation_test)

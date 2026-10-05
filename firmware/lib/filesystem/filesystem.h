@@ -89,7 +89,6 @@ int fs_file_rewind(fs_file_t* file);
 int32_t fs_file_size(fs_file_t* file);
 
 int fs_mkdir(const char* path);
-int fs_ensure_file_path(const char* path);
 int fs_dir_open(fs_dir_t* dir, const char* path);
 int fs_dir_close(fs_dir_t* dir);
 int fs_dir_read(fs_dir_t* dir, fs_dir_info_t* info);

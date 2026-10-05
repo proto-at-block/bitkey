@@ -5,6 +5,7 @@ srcs = files(
 srcs += memfault_sdk_srcs
 
 deps = [
+  assert_dep,
   helpers_dep,
   log_dep,
   mcu_dep,
@@ -24,11 +25,13 @@ memfault_includes = [
 memfault_system_configs = {
   'efr32mg24': {
     'embedded'         : true,
+    'coredump_enabled' : false,
     'dependencies'     : deps,
     'cmd_dependencies' : [shell_dep],
   },
   'stm32u5xx': {
     'embedded'         : true,
+    'coredump_enabled' : true,
     'dependencies'     : deps,
     'cmd_dependencies' : [shell_dep],
   },
@@ -66,6 +69,8 @@ foreach memfault_system : memfault_system_configs.keys()
         ],
         include_directories : memfault_includes + include_directories('inc-private'),
         dependencies: memfault_config['dependencies'],
+        c_args : ['-DMEMFAULT_PLATFORM_COREDUMP_ENABLED=' +
+                  memfault_config['coredump_enabled'].to_string('1', '0')],
       ),
     }
 

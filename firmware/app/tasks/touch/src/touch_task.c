@@ -100,7 +100,8 @@ static void touch_task_thread(void* UNUSED(args)) {
   touch_task_register_mfgtest_callback();
   if (!touch_enable()) {
     LOGW("Touch not detected, task exiting");
-    rtos_thread_delete(NULL);
+    rtos_thread_delete_self();
+    return;
   }
 #else
   ASSERT(touch_enable());

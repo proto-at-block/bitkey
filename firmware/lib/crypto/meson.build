@@ -102,6 +102,26 @@ deps = [
   wstd_dep,
 ]
 
+wsm_integrity_key_test_sources = [
+  'src/wsm_integrity_key.c',
+  'src/wsm_integrity_key_test.c',
+]
+
+wsm_integrity_key_dev_test = executable('wsm-integrity-key-dev-test',
+  wsm_integrity_key_test_sources,
+  include_directories : ['inc'],
+  dependencies : [secutils_dep, test_deps],
+)
+test('WSM integrity key development test', wsm_integrity_key_dev_test)
+
+wsm_integrity_key_prod_test = executable('wsm-integrity-key-prod-test',
+  wsm_integrity_key_test_sources,
+  include_directories : ['inc'],
+  c_args : ['-DCONFIG_PROD=1'],
+  dependencies : [secutils_dep, test_deps],
+)
+test('WSM integrity key production test', wsm_integrity_key_prod_test)
+
 crypto_libs = {}
 crypto_deps = {}
 crypto_bl_libs = {}

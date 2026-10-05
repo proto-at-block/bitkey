@@ -10,6 +10,10 @@ use utoipa::ToSchema;
 pub struct Features {
     pub settings: Settings,
     pub daily_limit_sats: u64,
+    /// Cap on the total value a day's transactions may classify as change back
+    /// to the wallet. `None` disables the check. Only set for private
+    /// (chaincode-delegation) keysets.
+    pub change_cap_sats: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]

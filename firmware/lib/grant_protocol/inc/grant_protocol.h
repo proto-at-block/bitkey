@@ -88,14 +88,6 @@ typedef enum {
 } grant_protocol_result_t;
 
 /**
- * @brief Initializes the grant protocol.
- *
- * @param is_production Whether the device is in production mode, which selects
- *                      the appropriate WIK public key.
- */
-void grant_protocol_init(bool is_production);
-
-/**
  * @brief Creates a grant_request_t structure.
  *
  * Fills the provided grant_request_t structure with the current protocol

@@ -86,7 +86,7 @@ bool rtos_semaphore_take(rtos_semaphore_t* UNUSED(s), uint32_t UNUSED(t)) {
 typedef void (*f_cb)(void*);
 FAKE_VOID_FUNC(rtos_thread_create_static, rtos_thread_t*, f_cb, const char*, void*,
                rtos_thread_priority_t, uint32_t*, uint32_t, StaticTask_t*, rtos_thread_mpu_t);
-FAKE_VOID_FUNC(rtos_thread_delete, rtos_thread_t*);
+FAKE_VOID_FUNC(rtos_thread_delete_self);
 FAKE_VALUE_FUNC(uint64_t, rtos_thread_micros);
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 FAKE_VOID_FUNC(_putchar, char);
@@ -140,7 +140,7 @@ const struct lfs_config cfg = {
   .context = &emubd,
 };
 
-static uint32_t timestamp(void) {
+extern "C" uint32_t rtos_thread_systime(void) {
   return 0;
 }
 
@@ -157,9 +157,7 @@ void setup(void) {
   mempool = mempool_create(wallet_pool);
 #undef REGIONS
   wallet_init(mempool);
-  bitlog_init((bitlog_api_t){
-    .timestamp_cb = timestamp,
-  });
+  bitlog_init();
 
   secutils_init((secutils_api_t){
     .detect_glitch = &detect_glitch,

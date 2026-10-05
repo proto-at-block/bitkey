@@ -77,8 +77,8 @@ typedef struct {
  * @pool: The mempool_t to get a buffer from.
  * @size: Size of the desired buffer.
  *
- * This function will return NULL if the pool is out of free memory, or if the
- * size doesn't fit into any of the pool's regions.
+ * This function will assert if the pool is out of free memory, or if the size
+ * doesn't fit into any of the pool's regions.
  *
  * You must call mempool_free() to ensure no leaks in the pool.
  *
@@ -89,7 +89,7 @@ typedef struct {
  *  mempool_free(pool, buf);
  *
  * Context: This function is thread-safe.
- * Return: The allocated buffer or NULL in case of error.
+ * Return: The allocated buffer.
  */
 void* mempool_alloc(mempool_t* pool, uint32_t size);
 

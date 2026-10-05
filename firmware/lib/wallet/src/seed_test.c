@@ -54,9 +54,13 @@ FAKE_VOID_FUNC(rtos_semaphore_create, rtos_semaphore_t*);
 typedef void (*f_cb)(void*);
 FAKE_VOID_FUNC(rtos_thread_create_static, rtos_thread_t*, f_cb, const char*, void*,
                rtos_thread_priority_t, uint32_t*, uint32_t, StaticTask_t*, rtos_thread_mpu_t);
-FAKE_VOID_FUNC(rtos_thread_delete, rtos_thread_t*);
+FAKE_VOID_FUNC(rtos_thread_delete_self);
 
 FAKE_VALUE_FUNC(uint64_t, rtos_thread_micros);
+
+uint32_t rtos_thread_systime(void) {
+  return 0;
+}
 
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_set_bits, rtos_event_group_t*, const uint32_t);
@@ -166,6 +170,13 @@ Test(seed, seed_roundtrip, .init = init, .fini = fini) {
   uint8_t actual_seed[SEED_SIZE] = {0};
   cr_assert(wkek_read_and_decrypt(SEED_PATH, actual_seed, sizeof(actual_seed)));
   cr_util_cmp_buffers(actual_seed, expected_seed, sizeof(expected_seed));
+}
+
+Test(seed, wkek_storage_rejects_blob_size_overflow) {
+  const uint32_t overflowing_size = UINT32_MAX - AES_GCM_OVERHEAD + 1u;
+
+  cr_assert_not(wkek_encrypt_and_store(NULL, NULL, overflowing_size));
+  cr_assert_not(wkek_read_and_decrypt(NULL, NULL, overflowing_size));
 }
 
 Test(seed, derive_m, .init = init, .fini = fini) {

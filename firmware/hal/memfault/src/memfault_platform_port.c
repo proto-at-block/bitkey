@@ -1,3 +1,4 @@
+#include "assert.h"
 #include "fatal.h"
 #include "filesystem.h"
 #include "log.h"
@@ -14,6 +15,7 @@
 #include "memfault/ports/freertos_coredump.h"
 #include "memfault/ports/reboot_reason.h"
 #include "memfault_platform_translate.h"
+#include "rtos_mpu.h"
 #include "sysinfo.h"
 #include "telemetry_storage.h"
 
@@ -33,6 +35,18 @@ static void platform_coredump_init(void);
 
 MEMFAULT_PUT_IN_SECTION(".noinit.mflt_reboot_tracking")
 static uint8_t s_reboot_tracking[MEMFAULT_REBOOT_TRACKING_REGION_SIZE];
+
+SYSCALL NO_OPTIMIZE NO_RETURN void memfault_assert_platform_handler(void* pc, void* lr) {
+  RTOS_THREAD_WITH_PRIVILEGE({ memfault_fault_handling_assert(pc, lr); });
+
+  while (true) {
+  }
+}
+
+// Preserve a distinct symbol so firmware analysis can prove that the weak
+// fail-closed hook was replaced by this Memfault implementation.
+NO_RETURN void assert_platform_handler(void* pc, void* lr)
+  __attribute__((alias("memfault_assert_platform_handler")));
 
 // NOTE: We deliberately do not provide a `memfault_platform_fault_handler`
 // override here. The hook runs in fault/handler mode where the FreeRTOS
@@ -55,6 +69,13 @@ void memfault_platform_get_device_info(sMemfaultDeviceInfo* info) {
   info->software_version = sysinfo->version_string;
 }
 
+// Called from fault context before Memfault writes anything to coredump storage. Returning false
+// aborts the save so registers and stack are never serialized; Memfault then proceeds directly to
+// memfault_platform_reboot.
+bool memfault_platform_coredump_save_begin(void) {
+  return MEMFAULT_PLATFORM_COREDUMP_ENABLED;
+}
+
 // Last function called after a coredump is saved. Should perform
 // any final cleanup and then reset the device
 void memfault_platform_reboot(void) {
@@ -62,11 +83,11 @@ void memfault_platform_reboot(void) {
   // mid-filesystem-operation.  Writing into LittleFS while its in-memory
   // state is partially updated (another task holds fs_lock) can corrupt
   // the filesystem metadata on flash.
-  if (!fs_is_busy()) {
+  if (MEMFAULT_PLATFORM_COREDUMP_ENABLED && !fs_is_busy()) {
     telemetry_coredump_save();
     mcu_reset_with_reason(MCU_RESET_FAULT);
   } else {
-    // Coredump lost — filesystem was busy and we can't safely write.
+    // Capture is disabled, or the filesystem is busy and we can't safely write.
     // Use a distinct reset reason so this shows up in Memfault telemetry.
     mcu_reset_with_reason(MCU_RESET_FAULT_COREDUMP_SKIPPED);
   }
@@ -133,7 +154,9 @@ int memfault_platform_boot(void) {
 
   memfault_log_boot(telemetry_log_storage_get(), TELEMETRY_LOG_STORAGE_SIZE);
 
-  platform_coredump_init();
+  if (MEMFAULT_PLATFORM_COREDUMP_ENABLED) {
+    platform_coredump_init();
+  }
 
   // Memfault has as predefined enum for reset reasons that can't be changed.
   // However, we have some custom reset reasons we'd like to track. To work

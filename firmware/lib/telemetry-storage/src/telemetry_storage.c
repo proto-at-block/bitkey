@@ -14,7 +14,7 @@ extern uint8_t SHARED_TASK_DATA active_coredump[TELEMETRY_COREDUMP_SIZE];
 
 static struct { telemetry_api_t api; } telemetry_priv = {0};
 static bool wrapping_seek(fs_file_t* file, int32_t max_filesize);
-static void maybe_delete_old_coredumps(void);
+static void maybe_delete_old_coredumps(fs_file_t* file);
 
 void telemetry_init(telemetry_api_t api) {
   telemetry_priv.api = api;
@@ -50,8 +50,6 @@ out:
 bool telemetry_coredump_read_fragment(uint32_t offset, fwpb_coredump_fragment* frag) {
   ASSERT(frag);
 
-  maybe_delete_old_coredumps();
-
   int32_t size = 0;
   bool ret = false;
   frag->complete = false;
@@ -59,8 +57,11 @@ bool telemetry_coredump_read_fragment(uint32_t offset, fwpb_coredump_fragment* f
   fs_file_t* file = NULL;
   if (fs_open_global(&file, COREDUMPS_PATH, FS_O_RDWR) != 0) {
     LOGE("Open coredump fail");
-    goto out;
+    frag->coredumps_remaining = 0;
+    return false;  // Don't access g_file after fs_open_global releases its lock.
   }
+
+  maybe_delete_old_coredumps(file);
 
   if (fs_file_size(file) < TELEMETRY_COREDUMP_SIZE) {
     // Don't try to seek if there is no coredump.
@@ -154,16 +155,11 @@ uint32_t telemetry_coredump_count(void) {
   return count;
 }
 
-static void maybe_delete_old_coredumps(void) {
-  static bool ran_once = false;
+static void maybe_delete_old_coredumps(fs_file_t* file) {
+  static bool legacy_coredumps_checked = false;
 
-  if (ran_once)
+  if (legacy_coredumps_checked)
     return;
-
-  fs_file_t* file = NULL;
-  if (fs_open_global(&file, COREDUMPS_PATH, FS_O_RDWR) != 0) {
-    goto out;
-  }
 
   // If the file size isn't an exact multiple of the current slot size, a
   // prior firmware was using a different TELEMETRY_COREDUMP_SIZE. Reading
@@ -177,7 +173,5 @@ static void maybe_delete_old_coredumps(void) {
     fs_file_truncate(file, 0);
   }
 
-out:
-  ran_once = true;
-  fs_close_global(file);
+  legacy_coredumps_checked = true;
 }

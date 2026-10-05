@@ -62,8 +62,13 @@ static SHARED_TASK_BSS bool host_peer_cert_requests_allowed = false;
  * @brief Grace period after `power_set_retain(false)` for hardware to
  * actually cut power. If we're still executing after this, something
  * external is holding the rail up — reset rather than zombify.
+ *
+ * On W3 PDVT the CORE supply takes longer than 100 ms to fall after power
+ * retain is released. A shorter grace period resets while the rail is still
+ * up; the bootloader then re-asserts power retain and power-off becomes a
+ * restart.
  */
-#define SYSINFO_POWER_OFF_GRACE_MS (100)
+#define SYSINFO_POWER_OFF_GRACE_MS (200)
 
 /**
  * @brief Delay after wipe success before rebooting.

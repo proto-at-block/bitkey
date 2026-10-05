@@ -218,7 +218,7 @@ static const animation_t animations[] = {
 };
 
 const animation_t* animation_get(const animation_name_t name) {
-  assert(name < NAME_MAX);
+  assert((unsigned)name < ANI_MAX);
 
   return &animations[name];
 }

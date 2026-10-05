@@ -20,21 +20,13 @@
 // so we extern the function and fake it in the tests.
 extern void sysinfo_chip_id_read(uint8_t* chip_id_out, uint32_t* length_out);
 
-STATIC_VISIBLE_FOR_TESTING struct {
-  const uint8_t* wik_pubkey;
+struct grant_context {
   grant_request_t outstanding_request;  // Entire grant request, including the signature.
-} grant_ctx = {
-  .wik_pubkey = NULL,
-  .outstanding_request = {0},
 };
 
-void grant_protocol_init(bool is_production) {
-  if (is_production) {
-    grant_ctx.wik_pubkey = WSM_INTEGRITY_PROD_PUBKEY;
-  } else {
-    grant_ctx.wik_pubkey = WSM_INTEGRITY_TEST_PUBKEY;
-  }
-}
+STATIC_VISIBLE_FOR_TESTING struct grant_context grant_ctx = {
+  .outstanding_request = {0},
+};
 
 static bool sign_with_hw_auth_key(uint8_t* message, uint32_t message_len, uint8_t* signature) {
   ASSERT(message && message_len && signature);
@@ -153,7 +145,6 @@ static grant_protocol_result_t perform_action(grant_action_t action) {
 grant_protocol_result_t grant_protocol_create_request(grant_action_t action,
                                                       grant_request_t* out_request) {
   ASSERT(out_request);
-  ASSERT(grant_ctx.wik_pubkey);
 
   grant_protocol_result_t validation_result = validate_action(action);
   if (validation_result != GRANT_RESULT_OK) {
@@ -204,7 +195,6 @@ grant_protocol_result_t grant_protocol_create_request(grant_action_t action,
 
 NO_OPTIMIZE grant_protocol_result_t grant_protocol_verify_grant(const grant_t* grant) {
   ASSERT(grant);
-  ASSERT(grant_ctx.wik_pubkey);
 
   grant_request_t original_request = {0};
   // Load the trusted request first. Do not branch on the untrusted action

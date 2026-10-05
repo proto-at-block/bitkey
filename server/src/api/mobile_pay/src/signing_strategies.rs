@@ -15,21 +15,25 @@ use crate::signing_processor::{
 use crate::spend_rules::SpendRuleSet;
 use crate::{
     get_mobile_pay_spending_record, sats_for_limit, sats_for_threshold, MobilePaySpendingRecord,
+    DEFAULT_CHANGE_CAP_USD, MOBILE_PAY_CHANGE_CAP_ENABLED, MOBILE_PAY_CHANGE_CAP_USD,
 };
 use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::{psbt::Psbt, secp256k1::PublicKey, Network};
 use bdk_utils::{ChaincodeDelegationCollaboratorWallet, ElectrumRpcUris};
 use exchange_rate::service::Service as ExchangeRateService;
-use feature_flags::flag::ContextKey;
+use feature_flags::flag::{evaluate_flag_value, ContextKey};
 use feature_flags::service::Service as FeatureFlagsService;
 use instrumentation::metrics::KeyValue;
 use instrumentation::middleware::CLIENT_REQUEST_CONTEXT;
 use screener::service::Service as ScreenerService;
 use std::sync::Arc;
+use tracing::error;
 use transaction_verification::gating::{account_context_key, transaction_verification_enabled};
 use types::account::entities::{Account, FullAccount, TransactionVerificationPolicy};
 use types::account::identifiers::{AccountId, KeysetId};
+use types::account::money::Money;
 use types::account::spending::SpendingKeyset;
+use types::currencies::CurrencyCode;
 use types::transaction_verification::router::TransactionVerificationGrantView;
 
 #[async_trait]
@@ -378,10 +382,12 @@ pub fn determine_signing_method(
                         source_descriptor: legacy_source.clone().into(),
                         active_descriptor: legacy_dest.clone().into(),
                     },
-                    SpendingKeyset::PrivateMultiSig(private_dest) => SigningMethod::MigrationSweep {
-                        source_descriptor: legacy_source.clone().into(),
-                        active_keyset: private_dest.clone(),
-                    },
+                    SpendingKeyset::PrivateMultiSig(private_dest) => {
+                        SigningMethod::MigrationSweep {
+                            source_descriptor: legacy_source.clone().into(),
+                            active_keyset: private_dest.clone(),
+                        }
+                    }
                 }
             }
         }
@@ -510,9 +516,24 @@ impl SigningStrategyFactory {
 
         let daily_limit_sats = sats_for_limit(&limit, config, exchange_rate_service).await?;
 
+        // The change cap applies to private keysets only.
+        let change_cap_sats = match &signing_method {
+            SigningMethod::PrivateMobilePay { .. } => {
+                Self::create_change_cap_sats(
+                    &full_account.id,
+                    config,
+                    exchange_rate_service,
+                    feature_flags_service,
+                )
+                .await?
+            }
+            _ => None,
+        };
+
         let features = Features {
             settings: Settings { limit },
             daily_limit_sats,
+            change_cap_sats,
         };
 
         let transaction_verification_features = Self::create_transaction_verification_features(
@@ -582,6 +603,77 @@ impl SigningStrategyFactory {
         )?))
     }
 
+    /// Resolve the daily change cap for a private (chaincode-delegation)
+    /// keyset. `None` disables the rule.
+    async fn create_change_cap_sats(
+        account_id: &AccountId,
+        config: &Config,
+        exchange_rate_service: &ExchangeRateService,
+        feature_flags_service: &FeatureFlagsService,
+    ) -> Result<Option<u64>, SigningError> {
+        let Some(cap_usd) = Self::resolve_change_cap_usd(feature_flags_service, account_id) else {
+            return Ok(None);
+        };
+
+        // `as` saturates, so an absurd flag value clamps rather than wraps.
+        let cap = Money {
+            amount: (cap_usd * 100.0).round() as u64, // cents
+            currency_code: CurrencyCode::USD,
+        };
+        Ok(Some(
+            sats_for_threshold(&cap, config, exchange_rate_service).await?,
+        ))
+    }
+
+    /// Daily change cap in whole USD, or `None` when
+    /// [`MOBILE_PAY_CHANGE_CAP_ENABLED`] is explicitly `false`. Any evaluation
+    /// failure on either flag falls back to enforcing [`DEFAULT_CHANGE_CAP_USD`].
+    fn resolve_change_cap_usd(
+        feature_flags_service: &FeatureFlagsService,
+        account_id: &AccountId,
+    ) -> Option<f64> {
+        let context_key = account_context_key(account_id);
+
+        let enabled = evaluate_flag_value::<bool>(
+            feature_flags_service,
+            MOBILE_PAY_CHANGE_CAP_ENABLED.key,
+            &context_key,
+        )
+        .unwrap_or_else(|e| {
+            error!(
+                "Failed to evaluate {}: {e}; enforcing default change cap",
+                MOBILE_PAY_CHANGE_CAP_ENABLED.key
+            );
+            true
+        });
+        if !enabled {
+            return None;
+        }
+
+        let cap_usd = match evaluate_flag_value::<f64>(
+            feature_flags_service,
+            MOBILE_PAY_CHANGE_CAP_USD.key,
+            &context_key,
+        ) {
+            Ok(usd) if usd.is_finite() && usd > 0.0 => usd,
+            Ok(_) => {
+                error!(
+                    "{} is not a positive finite number; using default",
+                    MOBILE_PAY_CHANGE_CAP_USD.key
+                );
+                DEFAULT_CHANGE_CAP_USD
+            }
+            Err(e) => {
+                error!(
+                    "Failed to evaluate {}: {e}; using default",
+                    MOBILE_PAY_CHANGE_CAP_USD.key
+                );
+                DEFAULT_CHANGE_CAP_USD
+            }
+        };
+        Some(cap_usd)
+    }
+
     /// `None` means "no verification is required of this spend", which is what
     /// the rule below treats as a pass.
     ///
@@ -628,5 +720,84 @@ impl SigningStrategyFactory {
             }
             Some(TransactionVerificationPolicy::Never) | None => Ok(None),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use feature_flags::config::Config as FeatureFlagsConfig;
+    use rstest::rstest;
+    use types::account::identifiers::AccountId;
+
+    use super::SigningStrategyFactory;
+    use crate::{DEFAULT_CHANGE_CAP_USD, MOBILE_PAY_CHANGE_CAP_ENABLED, MOBILE_PAY_CHANGE_CAP_USD};
+
+    async fn resolve_with_flags(flags: &[(&str, &str)]) -> Option<f64> {
+        let overrides = flags
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<HashMap<_, _>>();
+        let feature_flags_service = FeatureFlagsConfig::new_with_overrides(overrides)
+            .to_service()
+            .await
+            .unwrap();
+        SigningStrategyFactory::resolve_change_cap_usd(
+            &feature_flags_service,
+            &AccountId::gen().unwrap(),
+        )
+    }
+
+    #[tokio::test]
+    async fn explicit_false_disables_the_cap() {
+        assert_eq!(
+            resolve_with_flags(&[(MOBILE_PAY_CHANGE_CAP_ENABLED.key, "false")]).await,
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_flags_enforce_the_default_cap() {
+        assert_eq!(resolve_with_flags(&[]).await, Some(DEFAULT_CHANGE_CAP_USD));
+    }
+
+    #[tokio::test]
+    async fn configured_usd_value_is_used() {
+        assert_eq!(
+            resolve_with_flags(&[
+                (MOBILE_PAY_CHANGE_CAP_ENABLED.key, "true"),
+                (MOBILE_PAY_CHANGE_CAP_USD.key, "250000"),
+            ])
+            .await,
+            Some(250_000.0)
+        );
+    }
+
+    #[rstest]
+    #[case::missing(None)]
+    #[case::zero(Some("0"))]
+    #[case::negative(Some("-1"))]
+    #[case::nan(Some("NaN"))]
+    #[case::infinite(Some("inf"))]
+    #[case::non_numeric(Some("abc"))]
+    #[tokio::test]
+    async fn unusable_usd_values_enforce_the_default_cap(#[case] usd: Option<&str>) {
+        let mut flags = vec![(MOBILE_PAY_CHANGE_CAP_ENABLED.key, "true")];
+        if let Some(usd) = usd {
+            flags.push((MOBILE_PAY_CHANGE_CAP_USD.key, usd));
+        }
+        assert_eq!(
+            resolve_with_flags(&flags).await,
+            Some(DEFAULT_CHANGE_CAP_USD)
+        );
+    }
+
+    #[tokio::test]
+    async fn unparseable_enabled_flag_enforces_the_default_cap() {
+        assert_eq!(
+            resolve_with_flags(&[(MOBILE_PAY_CHANGE_CAP_ENABLED.key, "abc")]).await,
+            Some(DEFAULT_CHANGE_CAP_USD)
+        );
     }
 }

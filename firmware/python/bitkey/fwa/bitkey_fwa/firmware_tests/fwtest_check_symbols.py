@@ -70,6 +70,40 @@ class SymbolChecks(bitkey_fwa.TestCase):
             # will fail if not found
             self.get_elf_symbol(sym)
 
+    @bitkey_fwa.asset("app")
+    @bitkey_fwa.suffix("elf")
+    def fwtest_elf_verify_memfault_assert_handler_link_time_binding(self):
+        """Ensure application assertions resolve to the protected Memfault hook."""
+
+        handler = self.get_elf_symbol("assert_platform_handler")
+        handler_addr = self.get_elf_symbol_value_from_symbol(handler)
+        memfault_handler_addr = self.get_elf_symbol_value_from_name(
+            "memfault_assert_platform_handler"
+        )
+        syscalls_start = self.get_elf_symbol_value_from_name("__syscalls_flash_start__")
+        syscalls_end = self.get_elf_symbol_value_from_name("__syscalls_flash_end__")
+
+        self.assertEqual(
+            "STB_GLOBAL",
+            handler.entry.st_info.bind,
+            "assert_platform_handler resolved to the weak fallback",
+        )
+        self.assertEqual(
+            handler_addr,
+            memfault_handler_addr,
+            "assert_platform_handler did not resolve to the Memfault implementation",
+        )
+        self.assertTrue(
+            syscalls_start <= handler_addr < syscalls_end,
+            "assert_platform_handler is not in the protected FreeRTOS syscall region",
+        )
+        self.assertFalse(
+            self._symbol_exists("assert_init"), "runtime assert callback setter exists"
+        )
+        self.assertFalse(
+            self._symbol_exists("__assert_handler"), "writable assert callback storage exists"
+        )
+
     @bitkey_fwa.security("prod")
     @bitkey_fwa.suffix("elf")
     @bitkey_fwa.environment("non-mfgtest")

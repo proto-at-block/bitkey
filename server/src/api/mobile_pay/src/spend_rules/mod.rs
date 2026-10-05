@@ -21,6 +21,7 @@ use crate::daily_spend_record::entities::SpendingEntry;
 use crate::entities::{Features, TransactionVerificationFeatures};
 use crate::spend_rules::all_psbt_inputs_belong_to_wallet_rule::AllPsbtInputsBelongToWalletRuleV2;
 use crate::spend_rules::all_psbt_outputs_belong_to_wallet_rule::AllPsbtOutputsBelongToWalletRuleV2;
+use crate::spend_rules::daily_change_limit_rule::DailyChangeLimitRuleV2;
 use crate::spend_rules::daily_spend_limit_rule::DailySpendingLimitRuleV2;
 use crate::spend_rules::errors::SpendRuleCheckError;
 use crate::spend_rules::no_psbt_outputs_belong_to_wallet_rule::NoPsbtOutputsBelongToWalletRuleV2;
@@ -30,6 +31,7 @@ use crate::spend_rules::transaction_verification_rule::{
 
 mod address_screening_rule;
 mod all_psbt_inputs_belong_to_wallet_rule;
+mod daily_change_limit_rule;
 mod daily_spend_limit_rule;
 mod transaction_verification_rule;
 
@@ -112,6 +114,12 @@ impl<'a> SpendRuleSet<'a> {
                     context_key,
                 )),
                 Box::new(DailySpendingLimitRuleV2::new(
+                    features,
+                    private_keyset,
+                    spending_history,
+                    OffsetDateTime::now_utc(),
+                )),
+                Box::new(DailyChangeLimitRuleV2::new(
                     features,
                     private_keyset,
                     spending_history,

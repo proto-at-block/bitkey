@@ -11,7 +11,7 @@
 #include "wstring.h"
 
 unlock_ctx_t unlock_ctx = {
-  .limit_response = RESPONSE_DELAY,
+  .limit_response = DEFAULT_LIMIT_RESPONSE,
   .delay_timer =
     {
       .name = "unlock",
@@ -128,6 +128,7 @@ void unlock_init_and_begin_delay(void) {
   if (limit_response_read(&limit_response) == UNLOCK_OK) {
     unlock_ctx.limit_response = limit_response;
   } else {
+    unlock_ctx.limit_response = DEFAULT_LIMIT_RESPONSE;
     LOGW("Limit resp default");
   }
 

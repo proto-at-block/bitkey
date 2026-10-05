@@ -53,7 +53,11 @@ bool rtos_semaphore_take_from_isr(rtos_semaphore_t* UNUSED(s)) {
 typedef void (*f_cb)(void*);
 FAKE_VOID_FUNC(rtos_thread_create_static, rtos_thread_t*, f_cb, const char*, void*,
                rtos_thread_priority_t, uint32_t*, uint32_t, StaticTask_t*, rtos_thread_mpu_t);
-FAKE_VOID_FUNC(rtos_thread_delete, rtos_thread_t*);
+FAKE_VOID_FUNC(rtos_thread_delete_self);
+
+uint32_t rtos_thread_systime(void) {
+  return 0;
+}
 
 // Event group fakes
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);

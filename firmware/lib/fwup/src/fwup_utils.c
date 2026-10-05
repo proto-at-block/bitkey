@@ -21,6 +21,7 @@ SYSCALL bool fwup_get_self_version(fwpb_semver* version_out) {
   }
 
   bool success = false;
+  fwpb_semver version = {0};
   RTOS_THREAD_WITH_PRIVILEGE({
     do {
       metadata_t metadata = {0};
@@ -35,12 +36,16 @@ SYSCALL bool fwup_get_self_version(fwpb_semver* version_out) {
         break;
       }
 
-      version_out->major = metadata.version.major;
-      version_out->minor = metadata.version.minor;
-      version_out->patch = metadata.version.patch;
+      version.major = metadata.version.major;
+      version.minor = metadata.version.minor;
+      version.patch = metadata.version.patch;
       success = true;
     } while (0);
   });
+
+  if (success) {
+    *version_out = version;
+  }
   return success;
 }
 
@@ -50,6 +55,7 @@ SYSCALL bool fwup_get_target_version(fwpb_semver* version_out) {
   }
 
   bool success = false;
+  fwpb_semver version = {0};
   RTOS_THREAD_WITH_PRIVILEGE({
     do {
       // Determine the active slot, then read metadata from the inactive (target) slot.
@@ -68,12 +74,16 @@ SYSCALL bool fwup_get_target_version(fwpb_semver* version_out) {
         break;
       }
 
-      version_out->major = meta.version.major;
-      version_out->minor = meta.version.minor;
-      version_out->patch = meta.version.patch;
+      version.major = meta.version.major;
+      version.minor = meta.version.minor;
+      version.patch = meta.version.patch;
       success = true;
     } while (0);
   });
+
+  if (success) {
+    *version_out = version;
+  }
   return success;
 }
 

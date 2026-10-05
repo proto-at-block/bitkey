@@ -69,3 +69,10 @@ automation/feedback-loop/.feedback-loop-runs/
 # Trailblaze runtime artifacts (session logs, settings) - not source
 /logs/
 /.trailblaze/
+
+# QA / verification run output (replay logs, screenshots, JUnit XML). Reproducible
+# from qa/scripts/, and attached to the relevant Linear issue for review - not source.
+/evidence/
+
+# Hardware-in-the-loop test output (JUnit, Allure), uploaded by Buildkite
+/artifacts/

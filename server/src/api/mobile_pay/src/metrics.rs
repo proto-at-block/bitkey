@@ -16,6 +16,16 @@ pub(crate) static FACTORY: Lazy<MetricsFactory> = Lazy::new(|| MetricsFactory::n
 pub(crate) static MOBILE_PAY_COSIGN_OVERFLOW: Lazy<Counter<u64>> =
     Lazy::new(|| FACTORY.u64_counter("cosign_overflow", None));
 
+// Counts the number of attempts to co-sign a private Mobile Pay PSBT where the change total,
+// plus change already recorded today, exceeds the daily change cap.
+pub(crate) static MOBILE_PAY_CHANGE_CAP_OVERFLOW: Lazy<Counter<u64>> =
+    Lazy::new(|| FACTORY.u64_counter("change_cap_overflow", None));
+
+// Counts the number of private Mobile Pay co-sign attempts evaluated against the daily change
+// cap: the denominator for `change_cap_overflow`.
+pub(crate) static MOBILE_PAY_CHANGE_CAP_CHECKED: Lazy<Counter<u64>> =
+    Lazy::new(|| FACTORY.u64_counter("change_cap_checked", None));
+
 // Counts the number of attempts to sign a Mobile Pay PSBT where not all the inputs belong to
 // the user's wallet. This number should *always* be 0.
 pub(crate) static MOBILE_PAY_INPUTS_DO_NOT_BELONG_TO_SELF: Lazy<Counter<u64>> =

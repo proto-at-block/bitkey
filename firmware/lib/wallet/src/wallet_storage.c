@@ -9,6 +9,10 @@
 extern mempool_t* wallet_pool;
 
 bool wkek_encrypt_and_store(char* filename, const uint8_t* data, uint32_t size) {
+  if (size > UINT32_MAX - AES_GCM_OVERHEAD) {
+    return false;
+  }
+
   const uint32_t blob_size = size + AES_GCM_OVERHEAD;
   bool result = false;
   uint8_t* blob = mempool_alloc(wallet_pool, blob_size);
@@ -29,6 +33,10 @@ out:
 }
 
 bool wkek_read_and_decrypt(char* filename, uint8_t* data_out, uint32_t size) {
+  if (size > UINT32_MAX - AES_GCM_OVERHEAD) {
+    return false;
+  }
+
   const uint32_t blob_size = size + AES_GCM_OVERHEAD;
   bool result = false;
   uint8_t* blob = mempool_alloc(wallet_pool, blob_size);

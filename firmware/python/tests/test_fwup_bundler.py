@@ -1,11 +1,19 @@
-"""Tests for FWUP bundler delta patch size validation."""
+"""Tests for FWUP bundle generation and validation."""
 
+import zipfile
 from pathlib import Path
 from typing import Optional
 
 import pytest
 
-from bitkey.fwup_bundler import DeltaBundle, Patch, load_patch_signing_key
+from bitkey.fwup_bundler import (
+    DeltaBundle,
+    FwupBundler,
+    FwupDeltaInfo,
+    FwupParams,
+    Patch,
+    load_patch_signing_key,
+)
 
 
 def _bundle_with_patch_size(
@@ -140,3 +148,60 @@ def test_load_patch_signing_key_uses_dev_key_for_w1a_pre_1_0_52(tmp_path: Path, 
         product="w1a",
         base_directory=str(key_dir),
     ) == "w1a-dev-key-content"
+
+
+def test_generate_full_replaces_archive_symlink_without_overwriting_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    bundle_dir = tmp_path / "bundle"
+    archive_path = tmp_path / "bundle.zip"
+    marker = tmp_path / "marker"
+    marker.write_bytes(b"do not overwrite")
+    archive_path.symlink_to(marker)
+    monkeypatch.setattr(
+        FwupParams,
+        "from_product",
+        lambda _product: FwupParams("", 0, 0, 0, 0),
+    )
+
+    bundler = FwupBundler("w1a", "dvt", "dev")
+    bundler.generate_full(bundle_dir, [], "1.2.3")
+
+    assert not archive_path.is_symlink()
+    assert marker.read_bytes() == b"do not overwrite"
+
+
+def test_generate_delta_replaces_archive_for_next_hardware_revision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        FwupParams,
+        "from_product",
+        lambda _product: FwupParams("", 0, 0, 0, 0),
+    )
+    delta_info = FwupDeltaInfo("1.2.2", "1.2.3", tmp_path, tmp_path)
+    output_dir = tmp_path / "output"
+
+    def generate_for_revision(hardware_revision: str):
+        bundler = FwupBundler("w1a", hardware_revision, "dev")
+
+        def generate_patch(
+            _from_slot, _to_slot, patch_name, _info, bundle_dir, params, _key
+        ):
+            patch_path = Path(bundle_dir) / f"{params[patch_name]}.signed.patch"
+            patch_path.write_bytes(b"patch")
+            return Patch(patch_path, patch_path.stat().st_size)
+
+        monkeypatch.setattr(
+            bundler, "_generate_patch_and_copy_sig", generate_patch
+        )
+        return bundler.generate_delta(delta_info, output_dir, "key")
+
+    first_bundle = generate_for_revision("dvt")
+    second_bundle = generate_for_revision("evt")
+
+    assert first_bundle.zip_file == second_bundle.zip_file
+    with zipfile.ZipFile(second_bundle.zip_file) as archive:
+        archived_files = set(archive.namelist())
+    assert "w1a-evt-a-to-b.signed.patch" in archived_files
+    assert "w1a-dvt-a-to-b.signed.patch" not in archived_files

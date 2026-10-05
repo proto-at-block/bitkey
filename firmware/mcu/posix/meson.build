@@ -1,6 +1,7 @@
 mcu_srcs = [
   'src/mcu_init.c',
   'src/mcu_devinfo.c',
+  'src/mcu_usart.c',
 ]
 
 mcu_posix_includes = [

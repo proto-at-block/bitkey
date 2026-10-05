@@ -15,6 +15,10 @@ from elftools.dwarf.die import DIE
 from elftools.dwarf.dwarfinfo import DWARFInfo
 
 
+class AmbiguousFunctionError(LookupError):
+    """Raised when a function lookup matches more than one DWARF DIE."""
+
+
 def die_has_tag_value(
     die: DIE, tag: str, value: bytes, op: Callable = operator.eq
 ) -> bool:
@@ -127,23 +131,33 @@ def get_function_from_file(
 
     Returns:
         (DIE|None): DW_TAG_subprogram DIE, or None if not found
+
+    Raises:
+        AmbiguousFunctionError: More than one function DIE matches
     """
+    matching_function = None
+
     for cu in dwarf.iter_CUs():
-        die = cu.get_top_DIE()
+        top_die = cu.get_top_DIE()
 
         # Find the parent CU that is for the given file
-        if not die_has_tag_value(die, "DW_AT_name", file_fnmatch, fnmatch.fnmatch):
+        if not die_has_tag_value(
+            top_die, "DW_AT_name", file_fnmatch, fnmatch.fnmatch
+        ):
             continue
 
         # Look for the subprogram within the matching file's CU
-        for die in die.iter_children():
+        for die in top_die.iter_children():
             if die.tag != "DW_TAG_subprogram":
                 continue
             if die_has_tag_value(die, "DW_AT_name", function):
-                return die
+                if matching_function is not None:
+                    raise AmbiguousFunctionError(
+                        f"ambiguous {function!r} match for {file_fnmatch!r}"
+                    )
+                matching_function = die
 
-    # Not found
-    return None
+    return matching_function
 
 
 def die_search(

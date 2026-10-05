@@ -340,12 +340,8 @@ void rtos_thread_create_static(rtos_thread_t* thread, void (*func)(void*), const
   }
 }
 
-void rtos_thread_delete(rtos_thread_t* thread) {
-  posix_thread_t* t = (posix_thread_t*)thread->handle;
-  if (t && t->valid) {
-    pthread_cancel(t->thread);
-    t->valid = false;
-  }
+void rtos_thread_delete_self(void) {
+  pthread_exit(NULL);
 }
 
 void rtos_thread_start_scheduler(void) {}

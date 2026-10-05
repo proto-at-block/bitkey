@@ -11,6 +11,7 @@ display_usage() {
   echo "  -s, --service                    ECS service name to derive task configuration from (required)"
   echo "  -i, --image                      Docker image to run, including tag (required)"
   echo "  --command                        Oneoff command to run (default: oneoffs-job)"
+  echo "  --environment                    Environment override in NAME=VALUE form (repeatable)"
   echo "  --container                      Container name to update/execute (defaults to service task's single container)"
   echo "  --timeout                        Wait timeout in seconds for the task to stop (default: 3600)"
   echo "  -h, --help                       Display this help message"
@@ -21,6 +22,7 @@ ECS_CLUSTER_NAME=""
 ECS_SERVICE_NAME=""
 DOCKER_IMAGE=""
 ONEOFF_COMMAND="oneoffs-job"
+CONTAINER_ENVIRONMENT=()
 CONTAINER_NAME=""
 TIMEOUT_SECONDS="3600"
 
@@ -45,6 +47,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --command)
       ONEOFF_COMMAND="$2"
+      shift
+      ;;
+    --environment)
+      if [[ "$2" != *=* || "$2" == =* ]]; then
+        echo "--environment must be in NAME=VALUE form"
+        exit 1
+      fi
+      CONTAINER_ENVIRONMENT+=("$2")
       shift
       ;;
     --container)
@@ -131,6 +141,12 @@ if [[ "$(jq -r --arg container "${CONTAINER_NAME}" '.taskDefinition.containerDef
   exit 1
 fi
 
+container_environment_json="$(printf '%s\n' "${CONTAINER_ENVIRONMENT[@]}" | jq -Rsc '
+  split("\n")
+  | map(select(length > 0))
+  | map(capture("^(?<name>[^=]+)=(?<value>.*)$"))
+')"
+
 new_task_definition_json="$(jq -c \
   --arg image "${DOCKER_IMAGE}" \
   --arg container "${CONTAINER_NAME}" \
@@ -141,7 +157,9 @@ new_task_definition_json="$(jq -c \
       .containerDefinitions
       | map(
         if .name == $container
-        then .image = $image | .command = ($command | split(" "))
+        then
+          .image = $image
+          | .command = ($command | split(" "))
         else .
         end
       )
@@ -180,6 +198,13 @@ new_task_definition_arn="$(aws ecs register-task-definition \
 
 echo "Registered task definition ${new_task_definition_arn} for oneoffs command '${ONEOFF_COMMAND}'"
 
+container_overrides="$(jq -nc \
+  --arg container "${CONTAINER_NAME}" \
+  --arg command "${ONEOFF_COMMAND}" \
+  --argjson environment "${container_environment_json}" \
+  '{containerOverrides: [{name: $container, command: ($command | split(" ")), environment: $environment}]}'
+)"
+
 run_task_cmd=(
   aws ecs run-task
   --region "${AWS_REGION}"
@@ -187,6 +212,7 @@ run_task_cmd=(
   --task-definition "${new_task_definition_arn}"
   --launch-type "${launch_type}"
   --network-configuration "${network_configuration}"
+  --overrides "${container_overrides}"
 )
 
 if [[ -n "${platform_version}" && "${launch_type}" == "FARGATE" ]]; then

@@ -12,6 +12,8 @@ pub enum SpendRuleCheckError {
     OutputsDontBelongToDestinationWallet,
     #[error("Transaction spend total of {0} with existing spend of {1} for the day exceeds limit of {2}")]
     SpendLimitExceeded(u64, u64, u64),
+    #[error("Transaction change exceeds the daily change limit")]
+    ChangeLimitExceeded,
     #[error("Spending limit inactive")]
     SpendLimitInactive,
     #[error("Invalid sweep transaction. Contains outputs to origin wallet.")]

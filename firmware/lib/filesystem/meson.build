@@ -51,6 +51,15 @@ srcs = [
 
 incs = ['.', 'block_device', mpu_regions_includes, config_includes]
 
+fs_headers_deps = []
+if embedded_build
+  fs_headers_deps += mcu_dep
+endif
+fs_headers_dep = declare_dependency(
+  include_directories : ['.', config_includes, lfs_includes],
+  dependencies : fs_headers_deps,
+)
+
 if system == 'darwin' or system == 'linux'
   deps += perf_stubs_dep
 
@@ -61,8 +70,7 @@ if system == 'darwin' or system == 'linux'
   )
   fs_dep = declare_dependency(
     link_with : fs_lib,
-    include_directories : ['.', config_includes],
-    dependencies : [lfs_dep, lfs_testbd_dep]
+    dependencies : [fs_headers_dep, lfs_dep, lfs_testbd_dep]
   )
 else
   deps += perf_dep
@@ -74,8 +82,7 @@ else
   )
   fs_dep = declare_dependency(
     link_with : fs_lib,
-    include_directories : ['.', config_includes],
-    dependencies : [lfs_dep, mcu_dep]
+    dependencies : [fs_headers_dep, lfs_dep, mcu_dep]
   )
 endif
 

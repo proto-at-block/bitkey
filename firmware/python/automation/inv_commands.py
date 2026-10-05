@@ -9,21 +9,26 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
-from typing import Any, NamedTuple
+from typing import NamedTuple
 
 import allure
 import pytest
 import sh
 from bitkey.walletfs import WalletFS
+from bitkey.partition_info import PartitionInfo
 from bitkey import fw_version
 from bitkey.fwup import get_fwup_order_for_product
 from bitkey.wallet import Wallet
+from bitkey.gdb import detect_w3_jlinks
 from tasks.lib.paths import BUILD_FWUP_BUNDLE_DIR
 
 from .conftest import PlatformConfig
 
 logging.getLogger("sh").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+# W3 flashes the UXC before the Core.
+W3_FLASH_ORDER = {"w3-uxc": 0, "w3-core": 1}
 
 
 class FwupResult(NamedTuple):
@@ -48,6 +53,32 @@ class Inv:
         """
         self.request: pytest.FixtureRequest = request
         self.platform_config: PlatformConfig = platform_config
+        self._jlinks: dict[str, str] | None = None
+
+    @property
+    def jlinks(self) -> dict[str, str]:
+        """Maps each W3 platform to the J-Link attached to it.
+
+        The mapping is read from the silicon rather than configured per bench,
+        so swapping the two probes cannot misroute a flash. Detection runs once
+        per session, and only where several probes are in play: a single-MCU
+        product, or a run that asks the operator to switch probes by hand, does
+        not need `--jlink` at all.
+
+        :returns: mapping of platform name to J-Link serial number.
+        """
+        if self._jlinks is None:
+            switching_by_hand = bool(
+                self.request and self.request.config.option.no_multiple_jlinks)
+            self._jlinks = (detect_w3_jlinks()
+                            if self.platform_config.product == "w3" and not switching_by_hand
+                            else {})
+        return self._jlinks
+
+    def _jlink_args(self, platform: str | None) -> list[str]:
+        """Returns the ``--jlink`` argument for the probe attached to a platform, if known."""
+        serial = self.jlinks.get(platform) if platform else None
+        return ["--jlink", serial] if serial else []
 
     @allure.step("Clean")
     def clean(self) -> str:
@@ -92,7 +123,7 @@ class Inv:
         return result
 
     @allure.step("Erase")
-    def erase(self, platform: None | str = None) -> str:
+    def erase(self, platform: None | str = None, keep: tuple[str, ...] = ()) -> str:
         """Erases a target MCU.
 
         If ``platform`` is specified, then the specified platform is targetted
@@ -100,16 +131,20 @@ class Inv:
         products.
 
         :param platform: target platform to erase (default: w1).
+        :param keep: partitions to leave intact, e.g. ``("bio_flash",)``.
         :returns: output from the ``invoke`` for the erase task.
         """
-        erase_cmd: str = "inv erase -f"
+        erase_cmd = ["inv", "erase", "-f"]
         if platform:
-            erase_cmd = f"{erase_cmd} -p {platform}"
+            erase_cmd += ["-p", platform]
+        for partition in keep:
+            erase_cmd += ["--keep", partition]
+        erase_cmd += self._jlink_args(platform)
 
         decoded_result: str = ""
 
         logger.info("Erasing firmware.")
-        erase_result: bytes = subprocess.check_output(erase_cmd, shell=True)
+        erase_result: bytes = subprocess.check_output(erase_cmd)
         decoded_result += erase_result.decode("utf-8")
 
         logger.info(f"{decoded_result}")
@@ -128,17 +163,17 @@ class Inv:
         :param platform: target platform to flash (default: w1).
         :returns: output from the ``invoke`` for the ``flash`` task.
         """
-        flash_cmd: str = "inv flash -f --no-backup --no-bootloader"
+        flash_cmd = ["inv", "flash", "-f", "--no-backup", "--no-bootloader"]
         if target:
-            flash_cmd = f"{flash_cmd} -t {target}"
-
+            flash_cmd += ["-t", target]
         if platform:
-            flash_cmd = f"{flash_cmd} -p {platform}"
+            flash_cmd += ["-p", platform]
+        flash_cmd += self._jlink_args(platform)
 
         decoded_result: str = ""
 
         logger.info("Flashing firmware.")
-        flash_result: bytes = subprocess.check_output(flash_cmd, shell=True)
+        flash_result: bytes = subprocess.check_output(flash_cmd)
         decoded_result += flash_result.decode("utf-8")
 
         logger.info(f"{decoded_result}")
@@ -278,27 +313,42 @@ class Inv:
         fw_version.set(version)
 
     @allure.step("Backup Filesystem")
-    def backup_filesystem(self) -> str:
+    def backup_filesystem(self, target: str | None = None,
+                          platform: str | None = None) -> str:
         """Saves the file system of the MCU under test for restoration.
 
         This method is useful when wanting to perserve the filesystem of a
         device under test for restoration after a flashing operation.
 
+        :param target: build target of the MCU to back up (default: configured target).
+        :param platform: platform of the MCU (selects its partition table and its provisioned J-Link).
         :returns: output of the ``fs.backup`` command.
         """
-        result: Any = subprocess.check_output(
-            "inv fs.backup", shell=True, text=True)
-        return result
+        command = ["inv", "fs.backup"]
+        if target:
+            command += ["-t", target]
+        if platform:
+            command += ["-p", platform]
+        command += self._jlink_args(platform)
+        return subprocess.check_output(command, text=True)
 
     @allure.step("Restore Filesystem")
-    def restore_filesystem(self, file: str) -> str:
+    def restore_filesystem(self, file: str, target: str | None = None,
+                           platform: str | None = None) -> str:
         """Restores the ``littlefs`` filesystem of an MCU under test.
 
         :param file: path to the saved filesystem binary file.
+        :param target: build target of the MCU to restore (default: configured target).
+        :param platform: platform of the MCU (selects its partition table and its provisioned J-Link).
         :returns: output of the ``fs.restore`` command.
         """
-        result = sh.inv("fs.restore", "--file=%s" % file)
-        return result
+        command = ["inv", "fs.restore", "--file", file]
+        if target:
+            command += ["-t", target]
+        if platform:
+            command += ["-p", platform]
+        command += self._jlink_args(platform)
+        return subprocess.check_output(command, text=True)
 
     @allure.step("Backup, Flash, and Recover")
     def flash(self, targets: str | None | list[tuple[str, str]] = None) -> str:
@@ -320,6 +370,10 @@ class Inv:
         else:
             platforms_and_targets = targets[:]
 
+        if self.platform_config.product == "w3":
+            platforms_and_targets.sort(
+                key=lambda item: W3_FLASH_ORDER.get(item[0], len(W3_FLASH_ORDER)))
+
         if not platforms_and_targets:
             raise RuntimeError(f"Nothing to flash.")
 
@@ -332,19 +386,37 @@ class Inv:
 
             fs_backup_file: str = ""
             if persist_filesystem:
-                # Backup the filesystem to persist across flashing.
-                backup_result: str = self.backup_filesystem()
+                # Backup the filesystem to persist across flashing. A blank or
+                # unmountable filesystem (e.g. after an aborted run) saves nothing;
+                # the device is still flashed and the app formats it on first boot.
+                backup_result: str = self.backup_filesystem(target, platform)
                 result += backup_result
-                fs_backup_file = re.search(
-                    "saved as (.*).bin", backup_result).group(1) + ".bin"
+                saved = re.search(r"saved as (.*\.bin)", backup_result)
+                fs_backup_file = saved.group(1) if saved else ""
 
-            result += self.erase(platform=platform)
-            result += self.flash_mcu(target=target, platform=platform)
+            # Persisting the filesystem also means keeping the enrolled fingerprints:
+            # `inv erase` wipes every non-bootloader partition, and only the
+            # filesystem is backed up and restored, so bio_flash is skipped instead.
+            chip = self.platform_config.chips.get(platform) if platform else None
+            keep = ()
+            if persist_filesystem and chip and chip.partition:
+                if "bio_flash" in PartitionInfo(chip.partition).partition_names:
+                    keep = ("bio_flash",)
 
-            if fs_backup_file:
-                # Restore the filesystem without the previous PIN binary (if present).
-                fs = WalletFS(fs_backup_file)
-                fs.remove_file("unlock-secret.bin")
-                result += self.restore_filesystem(fs_backup_file)
+            try:
+                result += self.erase(platform=platform, keep=keep)
+                result += self.flash_mcu(target=target, platform=platform)
+            finally:
+                # Restore the filesystem even when flashing fails, so a transient
+                # programming error does not leave the device with an erased filesystem.
+                if fs_backup_file:
+                    # Restore the filesystem without the previous PIN binary (if present).
+                    chip = self.platform_config.chips.get(platform) if platform else None
+                    partition_info = PartitionInfo(chip.partition) if chip and chip.partition else None
+                    fs = WalletFS(fs_backup_file, partition_info=partition_info)
+                    if getattr(fs, "fs", None) is not None:
+                        fs.remove_file("unlock-secret.bin")
+                        fs.sync()
+                    result += self.restore_filesystem(fs_backup_file, target, platform)
 
         return result

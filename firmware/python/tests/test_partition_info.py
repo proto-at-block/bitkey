@@ -57,6 +57,16 @@ class TestPartitionInfo(unittest.TestCase):
         self.assertEqual(partition_info.filesystem_size, 128 * 1024)
         self.assertEqual(partition_info.filesystem_block_count, 16)
 
+    def test_partition_names(self):
+        """Partition names come back in layout order, so callers can check for optional ones."""
+        self.assertEqual(
+            PartitionInfo("w3a-core", config_dir=self.config_dir).partition_names,
+            ["bootloader", "filesystem", "application_a", "application_b", "bio_flash"])
+        self.assertNotIn(
+            "bio_flash", PartitionInfo("w3a-uxc", config_dir=self.config_dir).partition_names)
+        self.assertIn(
+            "bio_flash", PartitionInfo("w1a", config_dir=self.config_dir).partition_names)
+
     def test_missing_config_file(self):
         """Test error handling for missing partition config file."""
         with self.assertRaises(FileNotFoundError) as cm:

@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from shutil import copy
@@ -13,6 +12,7 @@ from bitkey_proto import wallet_pb2 as wallet_pb
 
 from .firmware_signer import FwupDeltaPatchGenerator
 from .fwup import FwupParams
+from .secure_archive import make_zip_archive
 
 
 @dataclass
@@ -267,7 +267,7 @@ class FwupBundler:
         for file in files:
             copy(file, output_dir)
 
-        shutil.make_archive(output_dir, "zip", output_dir)
+        make_zip_archive(output_dir)
 
     def _generate_full_multi_mcu(self, output_dir, files, version):
         """Generate a FWUP bundle for multi-MCU products (W3+)."""
@@ -305,7 +305,7 @@ class FwupBundler:
         for file in files:
             copy(file, output_dir)
 
-        shutil.make_archive(output_dir, "zip", output_dir)
+        make_zip_archive(output_dir)
 
     def _generate_patch_and_copy_sig(self, from_slot, to_slot, patch_name, info, output_dir, params, key_pem) -> Patch:
         from_image_type = info.from_image_type or self.image_type
@@ -369,7 +369,7 @@ class FwupBundler:
         b2a = self._generate_patch_and_copy_sig(
             "b", "a", "b2a_patch_name", info, bundle_dir, params, patch_signing_key_pem)
 
-        shutil.make_archive(bundle_dir, "zip", bundle_dir)
+        make_zip_archive(bundle_dir)
 
         # Note: don't use with_suffix here, since it'll lop off the stuff
         # after the last `.`
@@ -431,7 +431,7 @@ class FwupBundler:
         yaml_file.write_text(template.render(params))
         self._write_json(yaml_file)
 
-        shutil.make_archive(bundle_dir, "zip", bundle_dir)
+        make_zip_archive(bundle_dir)
 
         # Return largest patches for compatibility with DeltaBundle interface
         if not all_patches or len(all_patches) < 2:

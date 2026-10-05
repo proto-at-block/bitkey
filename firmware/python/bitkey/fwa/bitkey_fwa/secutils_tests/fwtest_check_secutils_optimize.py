@@ -160,8 +160,14 @@ def main(args: Optional[List[str]] = None) -> None:
     if parsed.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    run_cscope(root_fw_dir)
     elf_pairs = get_elf_pairs()
+    if not elf_pairs:
+        raise RuntimeError(
+            "No matching application/loader ELF pairs found; no firmware was analyzed."
+        )
+
+    run_cscope(root_fw_dir)
+
     for pair in elf_pairs:
         # For every pair of files, run the tests.
         print(f"Testing: Application={pair[0]}, Bootloader={pair[1]}")

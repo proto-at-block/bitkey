@@ -1,5 +1,6 @@
 #include "attributes.h"
 #include "bip32.h"
+#include "crypto_task_utils.h"
 #include "ipc.h"
 #include "key_manager_task_impl.h"
 #include "log.h"
@@ -55,8 +56,8 @@ bool crypto_task_get_and_clear_signature(uint8_t expected_hash[SHA256_DIGEST_SIZ
 
   const bool hashes_match =
     memcmp_s(crypto_thread_priv.hash, expected_hash, SHA256_DIGEST_SIZE) == 0;
-  const bool indices_match = memcmp_s(crypto_thread_priv.indices_scratch, expected_indices,
-                                      num_indices * sizeof(uint32_t)) == 0;
+  const bool indices_match =
+    crypto_task_indices_match(&crypto_thread_priv.derivation_path, expected_indices, num_indices);
   if (!hashes_match) {
     LOGE("Hash mismatch");
   } else if (!indices_match) {

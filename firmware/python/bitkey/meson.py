@@ -56,7 +56,7 @@ class Target:
 
     @property
     def variant(self) -> BuildVariant:
-        if "-dev" in self.target or "mfgtest" in self.target:
+        if re.search(r"-(?:dev|mfgtest-(?:dev|prod))(?=\.|$)", self.target):
             return BuildVariant.DEV
         else:
             return BuildVariant.PROD
@@ -318,6 +318,10 @@ class MesonBuild:
 
     def target_path(self, target=None) -> pathlib.Path:
         target = target if target else self._target
+        if not self._build_dir.joinpath("meson-info").is_dir():
+            # Prebuilt artifacts unpacked into the build directory carry no
+            # Meson metadata, so locate the output file directly.
+            return self.find_file(pathlib.Path(str(target)).name)
         for t in self.targets:
             if t["name"] == str(target):
                 return pathlib.Path(t["filename"][0])

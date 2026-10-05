@@ -26,17 +26,19 @@ def chipinfo(c, chip: Optional[str] = None):
         c.run(f"{COMMANDER_BIN} device info --device={device}")
 
 
-@task(help={
+@task(iterable=["keep"], help={
     "platform": "Target platform",
     "jlink": "J-Link serial number",
     "force": "Skip flash erase warnings",
+    "keep": "Partition to leave intact, e.g. bio_flash (repeatable)",
 })
-def erase(c, platform: str | None = None, jlink: str | None = None, force: bool = False) -> None:
+def erase(c, platform: str | None = None, jlink: str | None = None, force: bool = False,
+          keep: list[str] | None = None) -> None:
     """Erases all non-bootloader regions of a target MCU."""
     platform = platform or c.platform
-    target = get_defaults()[platform]["target"]
-    mb = MesonBuild(c, platform=platform, target=target)
-    chip = mb.platform["jlink_gdb_chip"]
+    # Erasing needs only the chip name, so it must not depend on a build existing.
+    chip = get_defaults()[platform]["jlink_gdb_chip"]
+    keep = set(keep or [])
 
     prompt = click.style(
         "[WARNING] Erasing flash may remove necessary files. Continue?", fg="red")
@@ -73,12 +75,19 @@ def erase(c, platform: str | None = None, jlink: str | None = None, force: bool 
             raise click.ClickException(
                 f"Invalid partitions configuration for {product}"
             ) from e
+        names = {p.get("name", "") for p in partitions}
+        if unknown := keep - names:
+            raise click.ClickException(
+                f"Unknown partition(s) to keep for {product}: {', '.join(sorted(unknown))}")
         for partition in partitions:
             name = partition.get("name", "")
             start_offset: int = offset
             region_size: int = util.size_to_bytes(partition.get("size"))
             offset += region_size
             if not name or name.lower() == "bootloader":
+                continue
+            if name in keep:
+                click.echo(f"Keeping {name}")
                 continue
 
             click.echo(
@@ -144,8 +153,11 @@ def flash(c, target=None, image=None, platform=None, erase=False, force=False, n
                 mb.platform["bootloader_image"])
             if loader_target:
                 bl_elf = mb.target_path(loader_target.elf)
-                gdb.flash(bl_elf)
-        gdb.flash(elf)
+                if not gdb.flash(bl_elf):
+                    raise click.ClickException(
+                        f"Failed to flash {bl_elf.name}")
+        if not gdb.flash(elf):
+            raise click.ClickException(f"Failed to flash {elf.name}")
 
 
 @task(help={

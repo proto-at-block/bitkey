@@ -108,3 +108,10 @@ streaming_signing_test = executable('streaming-signing-test',
   dependencies : [wallet_dep, test_deps],
 )
 test('streaming_signing test', streaming_signing_test)
+
+crypto_task_test = executable('crypto-task-test',
+  'src/core/crypto_task_test.c',
+  include_directories : ['inc-private'],
+  dependencies : [bip32_dep, wstd_dep, test_deps],
+)
+test('crypto_task test', crypto_task_test)

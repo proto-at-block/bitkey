@@ -64,6 +64,8 @@ static rtos_timer_t* timers[3] = {0};
 
 extern const uint32_t delay_table[];
 extern unlock_delay_status_t delay_status;
+extern uint32_t fake_retry_counter;
+extern unlock_err_t fake_limit_response_read_result;
 
 static void advance_time_ms(uint32_t time_ms) {
   global_time_ms += time_ms;
@@ -165,6 +167,11 @@ static void init(void) {
   sleep_start_power_timer();
   auth_init((auth_config_t){.expiry_ms = 60000}, (auth_callbacks_t){.on_lock = NULL});
   unlock_init_and_begin_delay();
+}
+
+static void init_with_limit_response_read_error(void) {
+  fake_limit_response_read_result = UNLOCK_STORAGE_ERR;
+  init();
 }
 
 static void provision_default(void) {
@@ -293,6 +300,22 @@ Test(unlock_test, enforces_limit_response, .init = init) {
   cr_assert_eq(unlock_check_secret(&wrong, &remaining_duration, &retry_counter),
                UNLOCK_LIMIT_RESPONSE_TAKEN);
   cr_assert_eq(removed_files, true);
+}
+
+Test(unlock_test, defaults_to_wipe_on_limit_response_read_error,
+     .init = init_with_limit_response_read_error) {
+  provision_default();
+
+  fake_retry_counter = ATTEMPT_LIMIT;
+
+  unlock_secret_t wrong = g_secret;
+  wrong.bytes[0] ^= 1;
+
+  uint32_t remaining_duration;
+  uint32_t retry_counter;
+  cr_assert_eq(unlock_check_secret(&wrong, &remaining_duration, &retry_counter),
+               UNLOCK_LIMIT_RESPONSE_TAKEN);
+  cr_assert(removed_files);
 }
 
 Test(unlock_test, preserves_delay_period, .init = init) {

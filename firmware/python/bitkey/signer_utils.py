@@ -13,6 +13,7 @@ from bitkey.fwa.bitkey_fwa.constants import (
     SIGNER_PRODUCTION,
     SIGNER_STAGING,
 )
+from bitkey.semver_utils import validate_semver
 
 IMAGE_TYPES = ["bl", "app", "patch"]
 KEY_TYPES = ["dev", "prod", "prod-proto"]
@@ -68,6 +69,7 @@ def semver_to_int(ver: semver.VersionInfo) -> int:
     """Convert semver to u32.
     2 digits for major, 2 for minor, and 3 for patch.
     """
+    validate_semver(ver)
     return int(f"{ver.major:02d}{ver.minor:02d}{ver.patch:03d}")
 
 
@@ -96,7 +98,10 @@ class FirmwareSignerException(Exception):
 
 
 class AssetInfo:
-    def __init__(self, app_version: str, slot: str, product: str, image_type: str, chip_id: Optional[bytes] = None):
+    def __init__(self, app_version: Optional[str], slot: str, product: str, image_type: str, chip_id: Optional[bytes] = None):
+        if app_version is not None:
+            validate_semver(semver.VersionInfo.parse(app_version))
+
         self.app_version = app_version
         self.slot = slot
         self.product = product
