@@ -4,7 +4,7 @@ import bitkey.account.AccountConfigService
 import bitkey.auth.AuthTokenScope
 import bitkey.relationships.Relationships
 import build.wallet.account.AccountService
-import build.wallet.account.AccountStatus
+import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppGlobalAuthKey
@@ -14,23 +14,22 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
 import build.wallet.catchingResult
-import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.random.SecureRandom
 import build.wallet.crypto.random.nextBytes
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.PrivilegedActionProof
-import build.wallet.f8e.sync.F8eSyncSequencer
 import build.wallet.isOk
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
-import build.wallet.mapResult
-import build.wallet.platform.app.AppSessionManager
+import build.wallet.worker.RunStrategy
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 
 @BitkeyInject(AppScope::class)
@@ -40,14 +39,18 @@ class RelationshipsServiceImpl(
   private val relationshipsEnrollmentAuthenticationDao: RelationshipsEnrollmentAuthenticationDao,
   private val relationshipsCrypto: RelationshipsCrypto,
   private val relationshipsCodeBuilder: RelationshipsCodeBuilder,
-  private val appSessionManager: AppSessionManager,
   private val accountService: AccountService,
   private val accountConfigService: AccountConfigService,
   private val clock: Clock,
   appCoroutineScope: CoroutineScope,
-  private val relationshipsSyncFrequency: RelationshipsSyncFrequency,
+  relationshipsSyncFrequency: RelationshipsSyncFrequency,
 ) : RelationshipsService, SyncRelationshipsWorker {
-  private val f8eSyncSequencer = F8eSyncSequencer()
+  override val runStrategy: Set<RunStrategy> = setOf(
+    RunStrategy.Periodic(interval = relationshipsSyncFrequency.value),
+    RunStrategy.OnEvent(observer = accountService.activeAccount().distinctUntilChanged())
+  )
+
+  private val workerSyncLock = Mutex()
 
   private fun relationshipsF8eClient() = relationshipsF8eClientProvider.get()
 
@@ -70,23 +73,10 @@ class RelationshipsServiceImpl(
   }
 
   override suspend fun executeWork() {
-    // Sync relationships with f8e
-    accountService.accountStatus()
-      .mapResult { it as? AccountStatus.ActiveAccount }
-      .map { it.get()?.account }
-      .distinctUntilChanged()
-      .flatMapLatest { account ->
-        account?.let {
-          tickerFlow(relationshipsSyncFrequency.value)
-            .map { account }
-            .filter { appSessionManager.isAppForegrounded() }
-        } ?: emptyFlow()
-      }
-      .collectLatest { account ->
-        f8eSyncSequencer.run(account) {
-          syncAndVerifyRelationships(account)
-        }
-      }
+    workerSyncLock.withLock {
+      val account = (accountService.accountStatus().first().get() as? ActiveAccount)?.account ?: return
+      syncAndVerifyRelationships(account)
+    }
   }
 
   override suspend fun removeRelationshipWithoutSyncing(

@@ -1,6 +1,7 @@
 package build.wallet.recovery
 
 import bitkey.account.HardwareType
+import bitkey.auth.AccountAuthTokens
 import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.bitcoin.BitcoinNetworkType
@@ -55,6 +56,15 @@ class LostAppAndCloudRecoveryServiceFake(
     return completeAuthResult
   }
 
+  var reauthenticateWithHardwareResult: Result<AccountAuthTokens, Error> =
+    Ok(AccountAuthTokensMock)
+
+  override suspend fun reauthenticateWithHardware(
+    accountId: FullAccountId,
+    session: String,
+    hwSignedChallenge: String,
+  ): Result<AccountAuthTokens, Error> = reauthenticateWithHardwareResult
+
   var initiateRecoveryResult: Result<Unit, InitiateDelayNotifyRecoveryError> = Ok(Unit)
 
   override suspend fun initiateRecovery(
@@ -96,6 +106,7 @@ class LostAppAndCloudRecoveryServiceFake(
     cancelResult = Ok(Unit)
     initiateRecoveryResult = Ok(Unit)
     initiateAuthResult = Ok(InitiateAuthenticationSuccessMock)
+    reauthenticateWithHardwareResult = Ok(AccountAuthTokensMock)
     completeAuthResult =
       Ok(
         CompletedAuth.WithDirectKeys(

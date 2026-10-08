@@ -57,6 +57,9 @@ class AuthTokensServiceImplTests : FunSpec({
   beforeTest {
     authTokenDao.reset()
     appAuthPublicKeyProvider.reset()
+    authenticationF8eClient.reset()
+    accountAuthenticator.reset()
+    f8eAuthSignatureStatusProvider.clear()
     accountConfigService.reset()
     signedAccessTokenCache.reset()
   }
@@ -95,6 +98,90 @@ class AuthTokensServiceImplTests : FunSpec({
       .shouldBeTypeOf<AuthTokenDaoMock.SetTokensParams>()
       .tokens.shouldBe(newTokens)
     f8eAuthSignatureStatusProvider.authSignatureStatus().value.shouldBe(AuthSignatureStatus.Authenticated)
+  }
+
+  test("preserves refresh token expiration when Cognito reuses the refresh token") {
+    val refreshToken = RefreshToken("refresh-token")
+    val refreshTokenExpiresAt = Instant.parse("2030-01-01T00:00:00Z")
+    authTokenDao.getTokensResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken("old-access-token"),
+        refreshToken = refreshToken,
+        accessTokenExpiresAt = Instant.DISTANT_PAST,
+        refreshTokenExpiresAt = refreshTokenExpiresAt
+      )
+    )
+    authenticationF8eClient.refreshResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken("new-access-token"),
+        refreshToken = refreshToken,
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE,
+        refreshTokenExpiresAt = null
+      )
+    )
+
+    val tokens = service.refreshAccessTokenWithApp(f8eEnvironment, accountId, Global).shouldBeOk()
+
+    tokens.refreshTokenExpiresAt.shouldBe(refreshTokenExpiresAt)
+    authTokenDao.setTokensCalls.awaitItem()
+      .shouldBeTypeOf<AuthTokenDaoMock.SetTokensParams>()
+      .tokens.refreshTokenExpiresAt.shouldBe(refreshTokenExpiresAt)
+  }
+
+  test("does not preserve expiration when Cognito rotates the refresh token") {
+    val oldExpiration = Instant.parse("2030-01-01T00:00:00Z")
+    authTokenDao.getTokensResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken("old-access-token"),
+        refreshToken = RefreshToken("old-refresh-token"),
+        accessTokenExpiresAt = Instant.DISTANT_PAST,
+        refreshTokenExpiresAt = oldExpiration
+      )
+    )
+    authenticationF8eClient.refreshResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken("new-access-token"),
+        refreshToken = RefreshToken("new-refresh-token"),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE,
+        refreshTokenExpiresAt = null
+      )
+    )
+
+    val tokens = service.refreshAccessTokenWithApp(f8eEnvironment, accountId, Global).shouldBeOk()
+
+    tokens.refreshTokenExpiresAt.shouldBeNull()
+    authTokenDao.setTokensCalls.awaitItem()
+      .shouldBeTypeOf<AuthTokenDaoMock.SetTokensParams>()
+      .tokens.refreshTokenExpiresAt.shouldBeNull()
+  }
+
+  test("uses a new expiration when Cognito provides one") {
+    val oldExpiration = Instant.parse("2030-01-01T00:00:00Z")
+    val newExpiration = Instant.parse("2031-01-01T00:00:00Z")
+    val refreshToken = RefreshToken("refresh-token")
+    authTokenDao.getTokensResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken("old-access-token"),
+        refreshToken = refreshToken,
+        accessTokenExpiresAt = Instant.DISTANT_PAST,
+        refreshTokenExpiresAt = oldExpiration
+      )
+    )
+    authenticationF8eClient.refreshResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken("new-access-token"),
+        refreshToken = refreshToken,
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE,
+        refreshTokenExpiresAt = newExpiration
+      )
+    )
+
+    val tokens = service.refreshAccessTokenWithApp(f8eEnvironment, accountId, Global).shouldBeOk()
+
+    tokens.refreshTokenExpiresAt.shouldBe(newExpiration)
+    authTokenDao.setTokensCalls.awaitItem()
+      .shouldBeTypeOf<AuthTokenDaoMock.SetTokensParams>()
+      .tokens.refreshTokenExpiresAt.shouldBe(newExpiration)
   }
 
   test("successfully refresh refresh token") {
@@ -136,7 +223,7 @@ class AuthTokensServiceImplTests : FunSpec({
     ).shouldBeErrOfType<AuthStorageError>()
   }
 
-  test("authenticate with f8e from scratch after refresh failure") {
+  test("authenticate with f8e from scratch after refresh token is rejected with bad request") {
     val originalAccessToken = "original-access-token"
     val originalRefreshToken = "original-refresh-token"
     val newAccessToken = "new-access-token"
@@ -149,7 +236,7 @@ class AuthTokensServiceImplTests : FunSpec({
       )
     )
     authenticationF8eClient.refreshResult =
-      Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.Unauthorized)))
+      Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.BadRequest)))
     val newTokens = AccountAuthTokens(
       accessToken = AccessToken(newAccessToken),
       refreshToken = RefreshToken(originalRefreshToken),
@@ -174,12 +261,56 @@ class AuthTokensServiceImplTests : FunSpec({
       .tokens.shouldBe(authData.authTokens)
   }
 
+  test("does not authenticate with app key after transient refresh failure") {
+    val networkError = HttpError.NetworkError(Error("offline"))
+    authTokenDao.getTokensResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken("original-access-token"),
+        refreshToken = RefreshToken("original-refresh-token"),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
+      )
+    )
+    authenticationF8eClient.refreshResult = Err(networkError)
+
+    service.refreshAccessTokenWithApp(
+      f8eEnvironment,
+      accountId,
+      Global
+    ).shouldBeErrOfType<AuthNetworkError>().cause.shouldBe(networkError)
+
+    accountAuthenticator.authCalls.expectNoEvents()
+    authTokenDao.setTokensCalls.expectNoEvents()
+  }
+
+  test("does not authenticate with app key after server refresh failure") {
+    val serverError = HttpError.ServerError(
+      HttpResponseMock(HttpStatusCode.InternalServerError)
+    )
+    authTokenDao.getTokensResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken("original-access-token"),
+        refreshToken = RefreshToken("original-refresh-token"),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
+      )
+    )
+    authenticationF8eClient.refreshResult = Err(serverError)
+
+    service.refreshAccessTokenWithApp(
+      f8eEnvironment,
+      accountId,
+      Global
+    ).shouldBeErrOfType<AuthNetworkError>().cause.shouldBe(serverError)
+
+    accountAuthenticator.authCalls.expectNoEvents()
+    authTokenDao.setTokensCalls.expectNoEvents()
+  }
+
   test("failure to get a new fresh token sets auth signature to unauthenticated") {
     val originalAccessToken = "original-access-token"
     val originalRefreshToken = "original-refresh-token"
 
     authenticationF8eClient.refreshResult =
-      Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.Unauthorized)))
+      Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.BadRequest)))
     accountAuthenticator.authResults =
       mutableListOf(Err(AuthSignatureMismatch))
 

@@ -97,7 +97,6 @@ interface FeatureFlagsComponent {
   fun sellBitcoinMaxAmountFeatureFlag(featureFlagDao: FeatureFlagDao) =
     SellBitcoinMaxAmountFeatureFlag(featureFlagDao)
 
-
   @Provides
   @SingleIn(AppScope::class)
   fun provideNfcSessionRetryAttemptsFeatureFlag(featureFlagDao: FeatureFlagDao) =
@@ -174,6 +173,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun appKeyWalletFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    AppKeyWalletFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun ageRangeVerificationFeatureFlag(
     featureFlagDao: FeatureFlagDao,
     appVariant: AppVariant,
@@ -238,7 +242,8 @@ interface FeatureFlagsComponent {
     w3PairingMinFirmwareVersionFeatureFlag: W3PairingMinFirmwareVersionFeatureFlag,
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
     transactionNotesFeatureFlag: TransactionNotesFeatureFlag,
-    transactionNotesSyncFrequencySecondsFeatureFlag: TransactionNotesSyncFrequencySecondsFeatureFlag,
+    transactionNotesSyncFrequencySecondsFeatureFlag:
+      TransactionNotesSyncFrequencySecondsFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
     chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
     configurableDelayNotifyFeatureFlag: ConfigurableDelayNotifyFeatureFlag,
@@ -261,6 +266,7 @@ interface FeatureFlagsComponent {
     iosCloudKitBackupFeatureFlag: IosCloudKitBackupFeatureFlag,
     vaultsFeatureFlag: VaultsFeatureFlag,
     wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
+    appKeyWalletFeatureFlag: AppKeyWalletFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       bdk2FeatureFlag,
@@ -301,7 +307,8 @@ interface FeatureFlagsComponent {
       asyncNfcSigningFeatureFlag,
       cloudBackupForceReuploadTimestampFeatureFlag,
       vaultsFeatureFlag,
-      wipeHardwareLoggedOutFeatureFlag
+      wipeHardwareLoggedOutFeatureFlag,
+      appKeyWalletFeatureFlag
     )
   }
 }

@@ -70,5 +70,5 @@ void display_controller_handle_action_menu(void);
 void display_controller_handle_action_lock_device(void);
 void display_controller_handle_action_power_off(void);
 void display_controller_handle_action_start_enrollment(void);
-void display_controller_handle_action_delete_fingerprint(uint8_t fingerprint_index);
+void display_controller_handle_action_delete_fingerprint(uint8_t visual_index);
 void display_controller_handle_action_page_confirmed(void);

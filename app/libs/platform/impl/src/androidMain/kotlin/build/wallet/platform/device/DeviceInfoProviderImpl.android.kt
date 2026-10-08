@@ -1,5 +1,6 @@
 package build.wallet.platform.device
 
+import android.app.KeyguardManager
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
@@ -20,6 +21,11 @@ class DeviceInfoProviderImpl(
           Build.MODEL.contains("google_sdk") ||
           Build.DEVICE.contains("emu64a"),
       deviceNickname = getDeviceNickname()
+    )
+
+  override fun getDeviceLockState(): DeviceLockState =
+    deviceLockStateFromIsDeviceSecure(
+      (context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)?.isDeviceSecure
     )
 
   private fun getDeviceNickname(): String? {

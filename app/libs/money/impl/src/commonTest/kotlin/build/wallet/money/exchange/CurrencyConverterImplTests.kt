@@ -23,16 +23,21 @@ class CurrencyConverterImplTests : FunSpec({
   val exchangeRateDao = ExchangeRateDaoFake()
   val accountService = AccountServiceFake()
   val exchangeRateF8eClient = ExchangeRateF8eClientFake()
+  val exchangeRateService = ExchangeRateServiceFake()
   val converter = CurrencyConverterImpl(
     accountService = accountService,
     exchangeRateDao = exchangeRateDao,
-    exchangeRateF8eClient = exchangeRateF8eClient
+    exchangeRateF8eClient = exchangeRateF8eClient,
+    exchangeRateService = exchangeRateService
   )
 
   beforeTest {
     accountService.reset()
     exchangeRateDao.reset()
     exchangeRateF8eClient.reset()
+    // Live rates now come from the environment-filtered service flow, so tests seed
+    // rates there. Historical rates still come from the DAO.
+    exchangeRateService.exchangeRates.value = emptyList()
   }
 
   test("Convert zero amount from USD to BTC") {
@@ -100,7 +105,7 @@ class CurrencyConverterImplTests : FunSpec({
 
   test("Convert historical amount from BTC to USD, time is null") {
     exchangeRateDao.historicalExchangeRates.value = emptyMap()
-    exchangeRateDao.allExchangeRates.value = listOf(USDtoBTC(0.5))
+    exchangeRateService.exchangeRates.value = listOf(USDtoBTC(0.5))
 
     // Should have the same behavior as getting the current rate if time is null
     converter.convert(BitcoinMoney.btc(1.toBigDecimal()), USD, null).test {
@@ -121,7 +126,7 @@ class CurrencyConverterImplTests : FunSpec({
   test("Convert historical amount from BTC to USD, historical rate not in DB, F8e success") {
     val time = Instant.fromEpochMilliseconds(1673338945736L)
     val differentTime = Instant.fromEpochMilliseconds(1773338945736L)
-    exchangeRateDao.allExchangeRates.value = listOf(USDtoBTC(0.1))
+    exchangeRateService.exchangeRates.value = listOf(USDtoBTC(0.1))
     exchangeRateDao.historicalExchangeRates.value = mapOf(differentTime to listOf(USDtoBTC(0.2)))
     accountService.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
 
@@ -149,7 +154,7 @@ class CurrencyConverterImplTests : FunSpec({
   test("Convert historical amount from BTC to USD, historical rate not in DB, F8e failure") {
     val time = Instant.fromEpochMilliseconds(1673338945736L)
     val differentTime = Instant.fromEpochMilliseconds(1773338945736L)
-    exchangeRateDao.allExchangeRates.value = listOf(USDtoBTC(0.1))
+    exchangeRateService.exchangeRates.value = listOf(USDtoBTC(0.1))
     exchangeRateDao.storeHistoricalExchangeRate(USDtoBTC(0.5), differentTime)
     exchangeRateF8eClient.historicalBtcToUsdExchangeRate.value =
       Err(NetworkError(Throwable()))
@@ -159,7 +164,7 @@ class CurrencyConverterImplTests : FunSpec({
     // to update
     converter.convert(BitcoinMoney.btc(1.toBigDecimal()), USD, time).test {
       awaitItem().shouldBe(FiatMoney.usd(10.toBigDecimal()))
-      exchangeRateDao.allExchangeRates.value = listOf(USDtoBTC(2.0))
+      exchangeRateService.exchangeRates.value = listOf(USDtoBTC(2.0))
       awaitItem().shouldBe(FiatMoney.usd(0.5.toBigDecimal()))
     }
   }

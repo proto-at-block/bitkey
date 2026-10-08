@@ -200,6 +200,19 @@ bool bio_flash_storage_exists(void) {
   return crc == header.crc32;
 }
 
+bool bio_flash_storage_has_data(void) {
+  const uint8_t* base = flash_base();
+  if (base == NULL) {
+    return false;
+  }
+  for (uint32_t offset = 0; offset < flash_capacity(); offset++) {
+    if (base[offset] != 0xFF) {
+      return true;
+    }
+  }
+  return false;
+}
+
 uint32_t bio_flash_storage_max_size(void) {
   return max_template_size();
 }

@@ -1,0 +1,9 @@
+ALTER TABLE exchangeRateEntity ADD COLUMN f8eEnvironment TEXT;
+
+-- Existing rows predate this column, so the environment that produced them is unknown.
+-- A rate is only valid for the environment it came from, so rather than assuming these
+-- belong to the current one, drop them and let the next sync repopulate. Rates are a
+-- short-lived cache (6-minute freshness window), so this costs at most one refresh.
+DELETE FROM exchangeRateEntity;
+
+PRAGMA foreign_key_check;

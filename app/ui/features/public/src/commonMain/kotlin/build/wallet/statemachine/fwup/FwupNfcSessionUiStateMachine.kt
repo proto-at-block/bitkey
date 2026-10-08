@@ -23,6 +23,10 @@ interface FwupNfcSessionUiStateMachine :
  *   [FirmwareDataService]). When non-empty, only the specified MCUs will be updated.
  * @property hardwareTypeOverride: When provided, overrides the hardware type detection
  *   from account config. Used by debug menu when real hardware is enabled.
+ * @property allowUnpairedHardware: When true, skips the paired-hardware check so that a
+ *   device other than the currently-paired one can be updated. Debug menu only: the check
+ *   is fail-closed on W3 (serial comparison), which otherwise blocks every tap of an
+ *   unpaired device. Must remain false for all customer-facing flows.
  * @property onBack: Callback for exiting the NFC session without completion (i.e. user taps 'Cancel').
  * @property onDone: Callback for exiting the NFC session after completion.
  * @property onError: Error callback so that we can show the error as a half-sheet on
@@ -33,6 +37,7 @@ data class FwupNfcSessionUiProps(
   val selectedMcuUpdates: ImmutableList<McuFwupData> = persistentListOf(),
   val hardwareTypeOverride: HardwareType? = null,
   val showNativeSheetOnIos: Boolean = false,
+  val allowUnpairedHardware: Boolean = false,
   val onBack: () -> Unit,
   val onDone: () -> Unit,
   val onError: (

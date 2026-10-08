@@ -41,6 +41,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.ui.components.toolbar.collapsibleToolbarTopPadding
 import build.wallet.ui.components.card.CardContainer
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
@@ -125,7 +126,7 @@ class AppearancePreferenceBodyModel(
           .verticalScroll(scrollState)
           .padding(horizontal = APPEARANCE_HORIZONTAL_PADDING)
       ) {
-        Spacer(modifier = Modifier.height(APPEARANCE_TOOLBAR_RESERVED_HEIGHT))
+        Spacer(modifier = Modifier.height(appearanceToolbarReservedHeight()))
 
         Label(
           modifier = Modifier
@@ -241,11 +242,12 @@ class AppearancePreferenceBodyModel(
     title: String,
     collapseProgress: Float,
   ) {
+    val topPadding = collapsibleToolbarTopPadding()
     Box(
       modifier = Modifier
         .fillMaxWidth()
         .height(
-          APPEARANCE_TOP_PADDING +
+          topPadding +
             APPEARANCE_TOOLBAR_HEIGHT +
             APPEARANCE_TOOLBAR_BOTTOM_PADDING +
             APPEARANCE_TOOLBAR_BOTTOM_GRADIENT_HEIGHT
@@ -254,13 +256,13 @@ class AppearancePreferenceBodyModel(
       Box(
         modifier = Modifier
           .fillMaxWidth()
-          .height(APPEARANCE_TOP_PADDING + APPEARANCE_TOOLBAR_HEIGHT + APPEARANCE_TOOLBAR_BOTTOM_PADDING)
+          .height(topPadding + APPEARANCE_TOOLBAR_HEIGHT + APPEARANCE_TOOLBAR_BOTTOM_PADDING)
           .background(WalletTheme.colors.background)
       ) {
         Box(
           modifier = Modifier
             .padding(
-              top = APPEARANCE_TOP_PADDING,
+              top = topPadding,
               start = APPEARANCE_HORIZONTAL_PADDING,
               end = APPEARANCE_HORIZONTAL_PADDING
             )
@@ -509,13 +511,14 @@ private fun appearancePreferenceSnapshotModel(
   onBitcoinPriceCardPreferenceClick = {}
 )
 
-private val APPEARANCE_TOP_PADDING: Dp = 8.dp
 private val APPEARANCE_HORIZONTAL_PADDING: Dp = 20.dp
 private val APPEARANCE_TOOLBAR_HEIGHT: Dp = 48.dp
 private val APPEARANCE_TOOLBAR_BOTTOM_PADDING: Dp = 8.dp
 private val APPEARANCE_TOOLBAR_BOTTOM_GRADIENT_HEIGHT: Dp = 20.dp
-private val APPEARANCE_TOOLBAR_RESERVED_HEIGHT =
-  APPEARANCE_TOP_PADDING +
+
+@Composable
+private fun appearanceToolbarReservedHeight(): Dp =
+  collapsibleToolbarTopPadding() +
     APPEARANCE_TOOLBAR_HEIGHT +
     APPEARANCE_TOOLBAR_BOTTOM_PADDING +
     APPEARANCE_TOOLBAR_BOTTOM_GRADIENT_HEIGHT

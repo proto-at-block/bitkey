@@ -75,6 +75,11 @@ class AccountAuthenticatorImpl(
     val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
     return authF8eClient
       .completeAuthentication(f8eEnvironment, username, signature, session)
-      .mapError { AuthNetworkError("Cannot complete authentication: ${it.message}") }
+      .mapError {
+        AuthNetworkError(
+          message = "Cannot complete authentication: ${it.message}",
+          cause = it
+        )
+      }
   }
 }

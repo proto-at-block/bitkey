@@ -7,15 +7,36 @@ import build.wallet.bitcoin.wallet.SpendingWalletDescriptor
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeSameInstanceAs
+import java.io.File
+import java.nio.file.Files
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import uniffi.bdk.KeychainKind
 
 class BdkWalletProviderImplV2Tests : FunSpec({
-  val provider =
-    BdkWalletProviderImpl(
+  lateinit var provider: BdkWalletProviderImpl
+  lateinit var directory: File
+
+  beforeTest {
+    directory = Files.createTempDirectory("test-bdk2").toFile()
+    provider = BdkWalletProviderImpl(
       bdkWalletFactory = BdkWalletFactoryMock(),
       bdkDatabaseConfigProvider = BdkDatabaseConfigProviderMock(),
-      fileDirectoryProvider = FileDirectoryProviderFakeV2()
+      fileDirectoryProvider = object : FileDirectoryProvider {
+        override fun appDir(): String = directory.absolutePath
+      }
     )
+  }
+
+  afterTest {
+    directory.deleteRecursively()
+  }
 
   test("getPersister caches instances per identifier") {
     val persister1 = provider.getPersister("test-wallet")
@@ -38,10 +59,39 @@ class BdkWalletProviderImplV2Tests : FunSpec({
 
     wallet1.shouldBeSameInstanceAs(wallet2)
   }
+
+  test("concurrent callers share one persister") {
+    val persisters = concurrently { provider.getPersister("concurrent-persister") }
+    persisters.forEach { it.shouldBeSameInstanceAs(persisters.first()) }
+  }
+
+  test("concurrent callers share one wallet") {
+    val descriptor = SpendingWalletDescriptor(
+      identifier = "concurrent-wallet",
+      networkType = BitcoinNetworkType.BITCOIN,
+      receivingDescriptor = Spending(EXTERNAL_DESCRIPTOR),
+      changeDescriptor = Spending(INTERNAL_DESCRIPTOR)
+    )
+    val wallets = concurrently { provider.getBdkWalletV2(descriptor).shouldBeOk() }
+    wallets.forEach { it.shouldBeSameInstanceAs(wallets.first()) }
+    val address = wallets.first().revealNextAddress(KeychainKind.EXTERNAL)
+    wallets.forEach { it.derivationIndex(KeychainKind.EXTERNAL).shouldBe(address.index) }
+  }
 })
 
-private class FileDirectoryProviderFakeV2 : FileDirectoryProvider {
-  override fun appDir(): String = "/tmp/test-bdk2"
+private suspend fun <T> concurrently(block: () -> T): List<T> = coroutineScope {
+  val ready = Channel<Unit>(8)
+  val start = CompletableDeferred<Unit>()
+  val callers = List(8) {
+    async(Dispatchers.IO) {
+      ready.send(Unit)
+      start.await()
+      block()
+    }
+  }
+  repeat(callers.size) { ready.receive() }
+  start.complete(Unit)
+  callers.awaitAll()
 }
 
 private const val EXTERNAL_DESCRIPTOR =

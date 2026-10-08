@@ -67,9 +67,25 @@ class ExchangeRateServiceImpl(
 
   /**
    * Caches the latest exchange rates from the local database.
+   *
+   * Only rates fetched from the active f8e environment are emitted. Rates are stored
+   * with the environment that produced them, and different environments serve
+   * different prices, so a rate from any other environment is not a staler version of
+   * the same price — it is the wrong price. Filtering here rather than at each call
+   * site means every consumer (send, spending limits, balances, transaction metadata)
+   * is covered, including across the window between an environment switch and the
+   * first sync against the new environment.
    */
-  override val exchangeRates: StateFlow<List<ExchangeRate>> = exchangeRateDao.allExchangeRates()
-    .stateIn(appScope, SharingStarted.Eagerly, emptyList())
+  override val exchangeRates: StateFlow<List<ExchangeRate>> =
+    exchangeRateDao.allExchangeRatesWithEnvironment()
+      .combine(activeF8eEnvironment()) { rates, environment ->
+        when (environment) {
+          null -> emptyList()
+          else -> rates.filter { it.f8eEnvironment == environment }.map { it.exchangeRate }
+        }
+      }
+      .distinctUntilChanged()
+      .stateIn(appScope, SharingStarted.Eagerly, emptyList())
 
   /**
    * Executes the sync of exchange rates.
@@ -80,7 +96,10 @@ class ExchangeRateServiceImpl(
    */
   override suspend fun executeWork() {
     // Cache latest active f8e environment
-    activeF8eEnvironment().first()?.run { updateExchangeRates(this) }
+    activeF8eEnvironment().first()?.run {
+      invalidateRatesFromOtherEnvironments(this)
+      updateExchangeRates(this)
+    }
   }
 
   override fun mostRecentRatesSinceDurationForCurrency(
@@ -99,9 +118,10 @@ class ExchangeRateServiceImpl(
   override suspend fun syncRates(): Result<List<ExchangeRate>, Error> {
     val f8eEnvironment = activeF8eEnvironment().first()
       ?: return Ok(emptyList()) // No environment means no account that needs rates
+    invalidateRatesFromOtherEnvironments(f8eEnvironment)
     return exchangeRateF8eClient.getExchangeRates(f8eEnvironment)
       .map { rates ->
-        rates.forEach { exchangeRateDao.storeExchangeRate(it) }
+        rates.forEach { exchangeRateDao.storeExchangeRate(it, f8eEnvironment) }
         rates // Return the freshly fetched rates
       }
       .mapError { Error("Failed to sync exchange rates", it) }
@@ -113,6 +133,19 @@ class ExchangeRateServiceImpl(
   }
 
   /**
+   * Drops locally cached rates that did not come from [environment], so rates fetched
+   * from a previous environment are never used to convert amounts against the current
+   * one.
+   *
+   * Provenance is read from storage rather than tracked in memory, so this also covers
+   * a switch followed by a process restart: rate rows persist across launches, and an
+   * in-memory marker would come back empty and let them through.
+   */
+  private suspend fun invalidateRatesFromOtherEnvironments(environment: F8eEnvironment) {
+    exchangeRateDao.deleteRatesNotFrom(environment)
+  }
+
+  /**
    * Pulls latest exchange rates from given f8e environment and stores them
    * in the local database.
    */
@@ -121,21 +154,27 @@ class ExchangeRateServiceImpl(
     // Ignore any failures
     exchangeRateF8eClient.getExchangeRates(f8eEnvironment)
       .onSuccess { rates ->
-        rates.forEach { exchangeRateDao.storeExchangeRate(it) }
+        rates.forEach { exchangeRateDao.storeExchangeRate(it, f8eEnvironment) }
       }
   }
 
   private fun activeF8eEnvironment(): Flow<F8eEnvironment?> {
-    return accountService.activeAccount()
-      .map {
-        when (it) {
-          // Lite Accounts do not require exchange rates as they have no funds/never see fiat amounts:
-          is LiteAccount -> null
-          // When there is no account, sync rates with the default config, as it might be needed for recovery steps:
-          null -> accountConfigService.defaultConfig().value.f8eEnvironment
-          else -> it.config.f8eEnvironment
-        }
+    // Combined rather than reading defaultConfig().value inside map: with no active
+    // account, activeAccount() emits null once and does not re-emit, so a snapshot read
+    // would never observe a later change to the default environment (which is how the
+    // environment is switched during onboarding, before an account exists).
+    return combine(
+      accountService.activeAccount(),
+      accountConfigService.defaultConfig()
+    ) { account, defaultConfig ->
+      when (account) {
+        // Lite Accounts do not require exchange rates as they have no funds/never see fiat amounts:
+        is LiteAccount -> null
+        // When there is no account, sync rates with the default config, as it might be needed for recovery steps:
+        null -> defaultConfig.f8eEnvironment
+        else -> account.config.f8eEnvironment
       }
+    }.distinctUntilChanged()
   }
 
   private fun List<ExchangeRate>.timeRetrievedForCurrency(currency: Currency): Instant? {

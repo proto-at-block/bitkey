@@ -12,4 +12,6 @@ class DeviceInfoProviderImpl : DeviceInfoProvider {
       isEmulator = false,
       deviceNickname = null // JVM tests don't have device nicknames
     )
+
+  override fun getDeviceLockState(): DeviceLockState = DeviceLockState.Unknown
 }

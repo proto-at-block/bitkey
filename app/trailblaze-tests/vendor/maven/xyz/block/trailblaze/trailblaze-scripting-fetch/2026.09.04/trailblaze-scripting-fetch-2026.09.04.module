@@ -1,0 +1,119 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-scripting-fetch",
+    "version": "2026.09.04",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.5"
+    }
+  },
+  "variants": [
+    {
+      "name": "metadataApiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "non-jvm",
+        "org.gradle.usage": "kotlin-metadata",
+        "org.jetbrains.kotlin.platform.type": "common"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-scripting-fetch-metadata-2026.09.04.jar",
+          "url": "trailblaze-scripting-fetch-2026.09.04.jar",
+          "size": 828,
+          "sha512": "5cfd6211edee1e894723cabf6eb899ac911a6a6295f7f989efd0840290efd2e51398f3a67689d7a1fc28bb1e9c4470b7e6b7c6d77973b1bd89aa7c55bd5d072b",
+          "sha256": "839eb1f7512567ad2b8b224be574e29c7cd173969be7e906fff53e25067dce85",
+          "sha1": "6ba15807c8b3224bb5a1ef2b82355dc896560508",
+          "md5": "01e3cf65adf78288018ef11d4b2379bf"
+        }
+      ]
+    },
+    {
+      "name": "metadataSourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "non-jvm",
+        "org.gradle.usage": "kotlin-runtime",
+        "org.jetbrains.kotlin.platform.type": "common"
+      },
+      "files": [
+        {
+          "name": "trailblaze-scripting-fetch-kotlin-2026.09.04-sources.jar",
+          "url": "trailblaze-scripting-fetch-2026.09.04-sources.jar",
+          "size": 12942,
+          "sha512": "26e7c62980b464b163f9e804c1574546d1694c27788f66080d7b98990bb53ef7b8572e20d5562666ef8fdcddce073158eecf722ceb82844befd44040653f2c8b",
+          "sha256": "7dbc608d5bc49c6ddf1373a2fda50b2dd46616b8cf591a88003ca1cae32da9c5",
+          "sha1": "e09751f1f7108427410673380059f34e6a767816",
+          "md5": "7f01ce2e2b60abdcc5a80c6e73636308"
+        }
+      ]
+    },
+    {
+      "name": "jvmApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-scripting-fetch-jvm/2026.09.04/trailblaze-scripting-fetch-jvm-2026.09.04.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-scripting-fetch-jvm",
+        "version": "2026.09.04"
+      }
+    },
+    {
+      "name": "jvmRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-scripting-fetch-jvm/2026.09.04/trailblaze-scripting-fetch-jvm-2026.09.04.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-scripting-fetch-jvm",
+        "version": "2026.09.04"
+      }
+    },
+    {
+      "name": "jvmSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-scripting-fetch-jvm/2026.09.04/trailblaze-scripting-fetch-jvm-2026.09.04.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-scripting-fetch-jvm",
+        "version": "2026.09.04"
+      }
+    }
+  ]
+}

@@ -115,7 +115,8 @@ class SecurityActionsFunctionalTest : FunSpec({
   val firmwareDataService = FirmwareDataServiceFake()
   firmwareDataService.pendingUpdate = FirmwareDataPendingUpdateMock
   val hardwareDeviceActionFactory = HardwareDeviceActionFactoryImpl(
-    firmwareDataService
+    firmwareDataService,
+    accountService
   )
   val txVerificationActionFactory = TxVerificationActionFactoryFake()
 

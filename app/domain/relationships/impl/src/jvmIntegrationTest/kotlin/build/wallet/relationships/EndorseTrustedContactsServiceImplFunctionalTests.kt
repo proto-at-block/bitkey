@@ -79,7 +79,6 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       relationshipsEnrollmentAuthenticationDao = relationshipsEnrollmentAuthenticationDao,
       relationshipsCrypto = relationshipsCrypto,
       relationshipsCodeBuilder = app.relationshipsCodeBuilder,
-      appSessionManager = app.appSessionManager,
       accountService = accountService,
       appCoroutineScope = app.appCoroutineScope,
       clock = clock,

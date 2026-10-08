@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.address.BitcoinAddressService
+import build.wallet.bitcoin.wallet.AppKeyWalletService
 import build.wallet.bitcoin.invoice.BitcoinInvoice
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoder
 import build.wallet.compose.collections.emptyImmutableList
@@ -72,6 +73,7 @@ class AddressQrCodeUiStateMachineImpl(
   private val addressQrCodeLoadingDuration: AddressQrCodeLoadingDuration,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val descriptorRepairUiStateMachine: DescriptorRepairUiStateMachine,
+  private val appKeyWalletService: AppKeyWalletService,
 ) : AddressQrCodeUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -79,7 +81,8 @@ class AddressQrCodeUiStateMachineImpl(
     var state: State by remember {
       mutableStateOf(State.LoadingAddressUiState())
     }
-    val partners by produceState(emptyImmutableList()) {
+    val partners by produceState(emptyImmutableList(), props.showPartners) {
+      if (!props.showPartners) return@produceState
       getTransferPartnerListF8eClient.getTransferPartners(
         fullAccountId = props.account.keybox.fullAccountId,
         f8eEnvironment = props.account.keybox.config.f8eEnvironment
@@ -102,7 +105,10 @@ class AddressQrCodeUiStateMachineImpl(
     }
 
     val scope = rememberStableCoroutineScope()
-    val isW3 = props.account.config.hardwareType == HardwareType.W3
+    val supportsHardwareVerification =
+      props.addressSource == AddressQrCodeUiProps.AddressSource.BitkeyWallet
+    val shouldVerifyOnHardware =
+      props.account.config.hardwareType == HardwareType.W3 && supportsHardwareVerification
 
     when (val currentState = state) {
       is State.LoadingAddressUiState -> {
@@ -112,7 +118,11 @@ class AddressQrCodeUiStateMachineImpl(
             val startMark = TimeSource.Monotonic.markNow()
 
             coroutineBinding {
-              val addressInfo = bitcoinAddressService.generateAddressInfo().bind()
+              val addressInfo = when (props.addressSource) {
+                AddressQrCodeUiProps.AddressSource.BitkeyWallet -> bitcoinAddressService.generateAddressInfo()
+                AddressQrCodeUiProps.AddressSource.AppKeyWallet ->
+                  appKeyWalletService.generateAddressInfo(props.account.keybox.activeSpendingKeyset)
+              }.bind()
               val addressInvoice = bitcoinInvoiceUrlEncoder.encode(
                 invoice = BitcoinInvoice(address = addressInfo.address)
               )
@@ -234,7 +244,7 @@ class AddressQrCodeUiStateMachineImpl(
           content =
             QrCode(
               address = currentState.addressInfo?.address?.address,
-              hideAddressByDefault = isW3,
+              hideAddressByDefault = shouldVerifyOnHardware,
               partners = partners,
               qrCodeState = currentState.qrCodeState,
               onPartnerClick = { /* Disabled during address loading */ },
@@ -243,7 +253,8 @@ class AddressQrCodeUiStateMachineImpl(
               onCopyClick = {},
               onShareClick = {},
               isRefreshing = true
-            )
+            ),
+          title = props.title
         ).asModalFullScreen()
 
       is State.AddressLoadedUiState ->
@@ -265,7 +276,7 @@ class AddressQrCodeUiStateMachineImpl(
           content =
             QrCode(
               address = currentState.addressInfo.address.address,
-              hideAddressByDefault = isW3,
+              hideAddressByDefault = shouldVerifyOnHardware,
               qrCodeState = currentState.qrCodeState,
               partners = partners,
               onPartnerClick = { partner ->
@@ -279,7 +290,7 @@ class AddressQrCodeUiStateMachineImpl(
               },
               copyButtonIcon = currentState.copyStatus.icon(),
               copyButtonLabelText = currentState.copyStatus.labelText(),
-              onVerifyClick = if (isW3) {
+              onVerifyClick = if (shouldVerifyOnHardware) {
                 {
                   state = State.VerifyingOnDevice(
                     addressInfo = currentState.addressInfo,
@@ -310,7 +321,8 @@ class AddressQrCodeUiStateMachineImpl(
                   completion = null
                 )
               }
-            )
+            ),
+          title = props.title
         ).asModalFullScreen()
 
       is State.ErrorLoadingAddressUiState ->
@@ -323,7 +335,8 @@ class AddressQrCodeUiStateMachineImpl(
             Error(
               title = "We couldn’t create an address",
               subline = "We are looking into this. Please try again later."
-            )
+            ),
+          title = props.title
         ).asModalFullScreen()
 
       is State.LoadingPartnerRedirect ->
@@ -333,7 +346,7 @@ class AddressQrCodeUiStateMachineImpl(
           content =
             QrCode(
               address = currentState.addressInfo.address.address,
-              hideAddressByDefault = isW3,
+              hideAddressByDefault = shouldVerifyOnHardware,
               qrCodeState = currentState.qrCodeState,
               partners = partners,
               onPartnerClick = { /* Disable during loading */ },
@@ -342,7 +355,8 @@ class AddressQrCodeUiStateMachineImpl(
               onCopyClick = { /* Disable during loading */ },
               onShareClick = { /* Disable during loading */ },
               loadingPartnerId = currentState.partnerInfo.partnerId.value
-            )
+            ),
+          title = props.title
         ).asModalFullScreen()
 
       is State.PartnerRedirectError ->
@@ -360,7 +374,8 @@ class AddressQrCodeUiStateMachineImpl(
             Error(
               title = "Couldn't open ${currentState.partnerInfo.name}",
               subline = "Please try again later."
-            )
+            ),
+          title = props.title
         ).asModalFullScreen()
 
       is State.VerifyingOnDevice ->

@@ -28,6 +28,7 @@ import build.wallet.ui.components.callout.Callout
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.toolbar.Toolbar
+import build.wallet.ui.components.toolbar.collapsibleToolbarTopPadding
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
@@ -64,8 +65,9 @@ fun HeroFormScreen(
       val viewportHeight = maxHeight
       val scrollState = rememberScrollState()
       var heroImageHeightPx by remember { mutableIntStateOf(0) }
+      val heroToolbarTopPadding = collapsibleToolbarTopPadding()
       val solidToolbarHeightPx = with(LocalDensity.current) {
-        (HeroToolbarTopPadding + HeroToolbarHeight + HeroToolbarBottomPadding).toPx()
+        (heroToolbarTopPadding + HeroToolbarHeight + HeroToolbarBottomPadding).toPx()
       }
       val toolbarBackgroundAlpha by remember(scrollState, heroImageHeightPx, solidToolbarHeightPx) {
         derivedStateOf {
@@ -180,11 +182,12 @@ private fun HeroStickyToolbar(
   background: Color,
   backgroundAlpha: Float,
 ) {
+  val topPadding = collapsibleToolbarTopPadding()
   Box(
     modifier = Modifier
       .fillMaxWidth()
       .height(
-        HeroToolbarTopPadding +
+        topPadding +
           HeroToolbarHeight +
           HeroToolbarBottomPadding +
           HeroToolbarBottomGradientHeight
@@ -193,7 +196,7 @@ private fun HeroStickyToolbar(
     Box(
       modifier = Modifier
         .fillMaxWidth()
-        .height(HeroToolbarTopPadding + HeroToolbarHeight + HeroToolbarBottomPadding)
+        .height(topPadding + HeroToolbarHeight + HeroToolbarBottomPadding)
         .let {
           if (backgroundAlpha > 0f) {
             it.background(background.copy(alpha = background.alpha * backgroundAlpha))
@@ -205,7 +208,7 @@ private fun HeroStickyToolbar(
       Box(
         modifier = Modifier
           .padding(
-            top = HeroToolbarTopPadding,
+            top = topPadding,
             start = horizontalPadding,
             end = horizontalPadding
           )
@@ -246,7 +249,6 @@ private fun HeroContent.drawable(): DrawableResource =
     HeroContent.PromoCodeHeader -> Res.drawable.bitkey_gallery
   }
 
-private val HeroToolbarTopPadding = 8.dp
 private val HeroToolbarHeight = 48.dp
 private val HeroToolbarBottomPadding = 8.dp
 private val HeroToolbarBottomGradientHeight = 20.dp

@@ -4,11 +4,14 @@ import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
 import androidx.core.content.FileProvider
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import build.wallet.catchingResult
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.data.MimeType
+import com.github.michaelbull.result.onFailure
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 import java.io.File
@@ -17,8 +20,6 @@ import java.io.File
 class SharingManagerImpl(
   private val activity: Activity,
 ) : SharingManager {
-  private var completion: ((Boolean) -> Unit)? = null
-
   override fun shareText(
     text: String,
     title: String,
@@ -39,11 +40,15 @@ class SharingManagerImpl(
     completion: ((Boolean) -> Unit)?,
   ) {
     catchingResult {
-      // Set the sharing manager to this instance so we can call the completion callback
-      // upon the user selecting a share action
-      SharingManagerBroadcastReceiver.setManager(this)
+      // Park the callback itself, not this manager. The chooser's selection broadcast can arrive
+      // after the activity is gone, and this receiver's field is static, so anything reachable from
+      // here outlives the activity — holding the activity-scoped manager leaked it.
+      //
+      // Registered before the chooser is launched so a selection can't be missed, and replaces any
+      // previous share's callback: only the most recent chooser can still be on screen.
+      SharingManagerBroadcastReceiver.setPendingCompletion(completion)
+      clearPendingCompletionWhenActivityIsDestroyed()
 
-      this.completion = completion
       val intent = Intent(Intent.ACTION_SEND).apply {
         type = mimeType.name
         putExtra(Intent.EXTRA_TITLE, title)
@@ -78,10 +83,38 @@ class SharingManagerImpl(
       val chooser = Intent.createChooser(intent, title, pendingIntent.intentSender)
 
       activity.startActivity(chooser)
+    }.onFailure {
+      // The chooser never opened, so no selection broadcast is coming. Drop the callback rather
+      // than leaving it parked for the next share to inherit.
+      SharingManagerBroadcastReceiver.setPendingCompletion(null)
     }.logFailure { "Error sharing a file." }
   }
 
   override fun completed() {
-    completion?.invoke(true)
+    SharingManagerBroadcastReceiver.takePendingCompletion()?.invoke(true)
+  }
+
+  /**
+   * Drops the pending completion if the activity is destroyed before the chooser reports back.
+   *
+   * The callback itself holds no `Activity`, but callers are free to capture their own state — a
+   * state machine's Compose setter, for instance — which can reach the activity indirectly. Since a
+   * dismissed chooser sends no broadcast, without this the callback would sit in the receiver's
+   * static field for the rest of the process.
+   *
+   * The observer is added per share and removes itself once it fires, so repeated shares don't
+   * accumulate observers.
+   */
+  private fun clearPendingCompletionWhenActivityIsDestroyed() {
+    val lifecycleOwner = activity as? LifecycleOwner ?: return
+
+    lifecycleOwner.lifecycle.addObserver(
+      object : DefaultLifecycleObserver {
+        override fun onDestroy(owner: LifecycleOwner) {
+          SharingManagerBroadcastReceiver.setPendingCompletion(null)
+          owner.lifecycle.removeObserver(this)
+        }
+      }
+    )
   }
 }

@@ -17,6 +17,8 @@ import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import bitkey.recovery.DelayNotifyServiceFake
 import bitkey.recovery.DescriptorBackupError
 import bitkey.recovery.DescriptorBackupPreparedData
+import build.wallet.auth.AuthNetworkError
+import build.wallet.auth.AuthSignatureMismatch
 import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock2
@@ -115,6 +117,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     uploadCalls = turbines.create("upload calls")
   )
   val authTokensService = AuthTokensServiceFake()
+  val lostAppAndCloudRecoveryService = LostAppAndCloudRecoveryServiceFake()
   val actionProofService = bitkey.privilegedactions.ActionProofServiceFake()
 
   // Restore relationshipsKeysRepository so it is still passed and used
@@ -141,7 +144,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     provisionAppAuthKeyTransactionProvider = ProvisionAppAuthKeyTransactionProviderFake(),
     firmwareDataService = firmwareDataService,
     minFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
-    authTokensService = authTokensService
+    authTokensService = authTokensService,
+    lostAppAndCloudRecoveryService = lostAppAndCloudRecoveryService
   )
 
   beforeTest {
@@ -156,6 +160,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     fingerprintResetMinFirmwareVersionFeatureFlag.reset()
     firmwareDataService.reset()
     authTokensService.reset()
+    lostAppAndCloudRecoveryService.reset()
     actionProofService.reset()
     delegatedDecryptionKeyService.reset()
     // Set up tokens so PreparingProofAndKeyTransferState can refresh
@@ -256,11 +261,94 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitUntil { it is AwaitingProofOfPossessionForCancellationData }.let {
         it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
-        it.authTokens?.accessToken.shouldBe(AccessToken("fake-access-token"))
+        it.authTokens?.accessToken?.raw?.startsWith("fake-access-token-").shouldBe(true)
         it.addProof(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")))
       }
 
       awaitItem().shouldBeTypeOf<CancellingData>()
+    }
+  }
+
+  test("lost app cancellation uses cancellation hardware reauthentication context") {
+    authTokensService.refreshAccessTokenError = AuthSignatureMismatch
+    val recovery = recovery()
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>().cancel()
+      awaitItem().shouldBeTypeOf<CancellingData>()
+      awaitItem().shouldBeTypeOf<AwaitingHardwareReauthenticationData>().let {
+        it.purpose.shouldBe(HardwareReauthenticationPurpose.Cancellation)
+      }
+    }
+  }
+
+  test("W3 lost app cancellation does not use recovery approval for reauthentication") {
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w3a-core-evt"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+    authTokensService.refreshAccessTokenError = AuthSignatureMismatch
+    val recovery = recovery()
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>().cancel()
+      awaitItem().shouldBeTypeOf<CancellingData>()
+      awaitItem().shouldBeTypeOf<FailedToCancelRecoveryData>().let {
+        it.cause.shouldBe(AuthSignatureMismatch)
+        it.onAcknowledge()
+      }
+      awaitItem().shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>()
+    }
+  }
+
+  test("lost app cancellation preserves hardware reauthentication connectivity failure") {
+    authTokensService.refreshAccessTokenError = AuthSignatureMismatch
+    val networkError = HttpError.NetworkError(Error("offline"))
+    lostAppAndCloudRecoveryService.reauthenticateWithHardwareResult =
+      Err(AuthNetworkError(cause = networkError))
+    val recovery = recovery()
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>().cancel()
+      awaitItem().shouldBeTypeOf<CancellingData>()
+      awaitItem().shouldBeTypeOf<AwaitingHardwareReauthenticationData>()
+        .onSignedChallenge("signed-hardware-challenge")
+      awaitItem().shouldBeTypeOf<CancellingData>()
+      awaitItem().shouldBeTypeOf<FailedToCancelRecoveryData>().let {
+        it.cause.shouldBe(lostAppAndCloudRecoveryService.reauthenticateWithHardwareResult.error)
+        it.isNetworkError.shouldBe(true)
+      }
+    }
+  }
+
+  test("lost app cancellation recomputes recovery state after refresh failure") {
+    val networkError = HttpError.NetworkError(Error("offline"))
+    authTokensService.refreshAccessTokenError = AuthNetworkError(cause = networkError)
+    val recovery = recovery()
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>().cancel()
+      awaitItem().shouldBeTypeOf<CancellingData>()
+      awaitItem().shouldBeTypeOf<FailedToCancelRecoveryData>().let {
+        it.cause.shouldBe(authTokensService.refreshAccessTokenError)
+        it.isNetworkError.shouldBe(true)
+        delay(delayDuration)
+        it.onAcknowledge()
+      }
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+    }
+  }
+
+  test("lost app cancellation failure returns to ready state after delay") {
+    authTokensService.refreshAccessTokenError = Error("server failure")
+    val recovery = recovery()
+    delay(delayDuration)
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>().cancel()
+      awaitItem().shouldBeTypeOf<CancellingData>()
+      awaitItem().shouldBeTypeOf<FailedToCancelRecoveryData>().onAcknowledge()
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>()
     }
   }
 
@@ -440,8 +528,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
 
         csekDao.setResult = Err(IllegalStateException())
         it.nfcTransaction.onCancel()
@@ -462,8 +549,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         csekDao.setResult = Err(IllegalStateException())
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
@@ -491,8 +577,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.startComplete()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -522,8 +607,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -604,8 +688,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.startComplete()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -643,6 +726,52 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     }
   }
 
+  test("lost app completion proceeds without hardware reauthentication when refresh succeeds") {
+    delay(delayDuration)
+
+    stateMachine.test(props(recovery())) {
+      awaitItem().shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>()
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>().startComplete()
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      awaitItem().shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      authTokensService.refreshAccessTokenCalls.shouldBe(
+        listOf(StillRecoveringInitiatedRecoveryMock.fullAccountId to AuthTokenScope.Global)
+      )
+    }
+  }
+
+  test("lost app completion does not request hardware after transient refresh failure") {
+    authTokensService.refreshAccessTokenError = Error("offline")
+    delay(delayDuration)
+
+    stateMachine.test(props(recovery())) {
+      awaitItem().shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>()
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>().startComplete()
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      awaitItem().shouldBeTypeOf<FailedToRotateAuthData>().cause.message.shouldBe("offline")
+    }
+  }
+
+  test("lost app completion reauthenticates with hardware after app signature mismatch") {
+    authTokensService.refreshAccessTokenError = AuthSignatureMismatch
+    delay(delayDuration)
+
+    stateMachine.test(props(recovery())) {
+      awaitItem().shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>()
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>().startComplete()
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+
+      awaitItem().shouldBeTypeOf<AwaitingHardwareReauthenticationData>().let { data ->
+        data.authChallenge.shouldBe(build.wallet.f8e.auth.InitiateAuthenticationSuccessMock)
+        data.onSignedChallenge("signed-hardware-challenge")
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      awaitItem().shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+    }
+  }
+
   test("complete recovery") {
     val recovery = recovery()
     // Move clock ahead of delay period
@@ -654,8 +783,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -738,8 +866,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -820,8 +947,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -910,8 +1036,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -1528,8 +1653,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.startComplete()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -1671,8 +1795,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -1746,8 +1869,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.startComplete()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcTransaction.onSuccess(
           SignedChallengeAndSeks(
             signedChallenge = fakeChallenge,
@@ -1789,8 +1911,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.startComplete()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcSession.shouldBeTypeOf<RecoveryNfcSession.Standard<*>>()
       }
 
@@ -1817,8 +1938,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.startComplete()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+      awaitW1Tap1Data().let {
         it.nfcSession.shouldBeTypeOf<RecoveryNfcSession.Standard<*>>()
       }
 
@@ -2212,14 +2332,22 @@ private fun RecoveryNfcSession.confirmableOnCancel() {
   confirmable.onCancel()
 }
 
+private suspend fun ReceiveTurbine<RecoveryInProgressData>.awaitW1Tap1Data():
+  AwaitingChallengeAndCsekSignedWithHardwareData {
+  var item = awaitItem()
+  while (item is RotatingAuthKeysWithF8eData) {
+    item = awaitItem()
+  }
+  return item.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+}
+
 private suspend fun ReceiveTurbine<RecoveryInProgressData>.awaitW3Tap1Data():
   AwaitingChallengeAndCsekSignedWithHardwareData {
-  val item = awaitItem()
-  return when (item) {
-    is AwaitingChallengeAndCsekSignedWithHardwareData -> item
-    is ReadyToCompleteRecoveryData -> awaitItem().shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-    else -> error("Expected W3 tap 1 prompt, got $item")
+  var item = awaitItem()
+  while (item is RotatingAuthKeysWithF8eData || item is ReadyToCompleteRecoveryData) {
+    item = awaitItem()
   }
+  return item.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
 }
 
 private fun createFirmwareDeviceInfo(

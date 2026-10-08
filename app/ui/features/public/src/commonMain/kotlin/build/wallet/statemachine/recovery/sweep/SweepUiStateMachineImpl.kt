@@ -5,9 +5,6 @@ import bitkey.account.HardwareType
 import bitkey.account.isW3Hardware
 import bitkey.privilegedactions.HardwareVerificationPrivilegedActionService
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.keys.extractAccountIndex
@@ -100,7 +97,7 @@ class SweepUiStateMachineImpl(
         onInitiateSigning = { data -> initiatedSigningForData = data }
       )
       ScreenState.ShowingHelpText -> sweepInactiveHelpModel(
-        id = InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_HELP,
+        id = props.sweepContext.screenIds.help,
         presentationStyle = props.presentationStyle,
         onLearnMore = {
           screenState = ScreenState.ShowingLearnMore("https://support.bitkey.world/hc/en-us/articles/28019865146516-How-do-I-access-funds-sent-to-a-previously-created-Bitkey-address")
@@ -131,14 +128,7 @@ class SweepUiStateMachineImpl(
       }
       is ScreenState.ShowingMultipleTransactionsWarning -> {
         multipleTransactionsWarningScreenModel(
-          id = when (props.sweepContext) {
-            is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-              App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
-              Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
-            }
-            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
-            else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
-          },
+          id = props.sweepContext.screenIds.multipleTransactionsWarning,
           transactionCount = uiState.psbtsToSign.size,
           onContinue = {
             screenState = ScreenState.SigningSinglePsbt(
@@ -202,28 +192,14 @@ class SweepUiStateMachineImpl(
       /** Terminal error state: PSBT generation failed */
       is GeneratePsbtsFailedData ->
         generatePsbtsFailedScreenModel(
-          id = when (props.sweepContext) {
-            is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-              App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR
-              Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR
-            }
-            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_GENERATING_PSBTS_ERROR
-            else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATE_PSBTS_ERROR
-          },
+          id = props.sweepContext.screenIds.generatePsbtsError,
           onPrimaryButtonClick = props.onExit ?: { sweepData.retry() },
           presentationStyle = props.presentationStyle
         )
 
       is NoFundsFoundData ->
         zeroBalancePrompt(
-          id = when (props.sweepContext) {
-            is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-              App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
-              Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
-            }
-            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_ZERO_BALANCE
-            else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_ZERO_BALANCE
-          },
+          id = props.sweepContext.screenIds.zeroBalance,
           onDone = sweepData.proceed,
           presentationStyle = props.presentationStyle,
           eyebrow = if (props.sweepContext is SweepContext.W3Upgrade) "Step 4 of 4" else null
@@ -280,14 +256,7 @@ class SweepUiStateMachineImpl(
             }
 
             sweepFundsPrompt(
-              id = when (props.sweepContext) {
-                is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-                  App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-                  Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-                }
-                is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SIGN_PSBTS_PROMPT
-                else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SIGN_PSBTS_PROMPT
-              },
+              id = props.sweepContext.screenIds.signPsbtsPrompt,
               fee = moneyAmountUiStateMachine.model(
                 MoneyAmountUiProps(
                   primaryMoney = sweepData.totalFeeAmount,
@@ -358,14 +327,7 @@ class SweepUiStateMachineImpl(
       /** Server+App signing and broadcasting the transactions */
       is SigningAndBroadcastingSweepsData ->
         broadcastingScreenModel(
-          id = when (props.sweepContext) {
-            is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-              App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
-              Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING
-            }
-            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_BROADCASTING
-            else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_BROADCASTING
-          },
+          id = props.sweepContext.screenIds.broadcasting,
           context = props.sweepContext,
           onBack = props.onExit ?: {
             logDebug { "Back not available" }
@@ -408,14 +370,7 @@ class SweepUiStateMachineImpl(
           }
           else ->
             sweepSuccessScreenModel(
-              id = when (props.sweepContext) {
-                is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-                  App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
-                  Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS
-                }
-                is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SUCCESS
-                else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SUCCESS
-              },
+              id = props.sweepContext.screenIds.success,
               recoveredFactor = (props.sweepContext as? SweepContext.Recovery)?.recoveredFactor,
               onDone = sweepData.proceed,
               presentationStyle = props.presentationStyle
@@ -424,14 +379,7 @@ class SweepUiStateMachineImpl(
 
       is SweepCompleteNoData ->
         sweepSuccessScreenModel(
-          id = when (props.sweepContext) {
-            is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-              App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
-              Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS
-            }
-            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SUCCESS
-            else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SUCCESS
-          },
+          id = props.sweepContext.screenIds.success,
           recoveredFactor = (props.sweepContext as? SweepContext.Recovery)?.recoveredFactor,
           onDone = sweepData.proceed,
           presentationStyle = props.presentationStyle
@@ -440,14 +388,7 @@ class SweepUiStateMachineImpl(
       /** Terminal error state: Sweep failed */
       is SweepFailedData ->
         sweepFailedScreenModel(
-          id = when (props.sweepContext) {
-            is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-              App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
-              Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_FAILED
-            }
-            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_FAILED
-            else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_FAILED
-          },
+          id = props.sweepContext.screenIds.failed,
           onRetry = sweepData.retry,
           onExit = props.onExit ?: { sweepData.retry() },
           presentationStyle = props.presentationStyle,
@@ -570,14 +511,7 @@ class SweepUiStateMachineImpl(
    */
   private fun generatingPsbtsLoadingScreen(props: SweepUiProps): ScreenModel {
     return generatingPsbtsBodyModel(
-      id = when (props.sweepContext) {
-        is SweepContext.Recovery -> when (props.sweepContext.recoveredFactor) {
-          App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
-          Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
-        }
-        is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_GENERATING_PSBTS
-        else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATING_PSBTS
-      },
+      id = props.sweepContext.screenIds.generatingPsbts,
       onBack = props.onExit,
       presentationStyle = props.presentationStyle
     )

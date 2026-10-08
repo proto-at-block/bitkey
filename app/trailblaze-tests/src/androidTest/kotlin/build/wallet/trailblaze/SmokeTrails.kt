@@ -18,9 +18,11 @@ class SmokeTrails {
   val rule = AndroidTrailblazeRule()
 
   @Test
-  fun welcomeScreen() = rule.runFromAsset("bitkey/smoke/welcome-screen/android-phone.trail.yaml")
+  fun welcomeScreen() = rule.runFromAsset("bitkey/smoke/welcome-screen/welcome-screen.trail.yaml")
 
   @Test
   fun newWalletOnboarding() =
-    rule.runFromAsset("bitkey/smoke/new-wallet-onboarding/android-phone.trail.yaml")
+    rule.runFromAsset(
+      "bitkey/smoke/new-wallet-onboarding/new-wallet-onboarding.trail.yaml",
+    )
 }

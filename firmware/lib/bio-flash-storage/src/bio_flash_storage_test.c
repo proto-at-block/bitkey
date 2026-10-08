@@ -244,6 +244,26 @@ Test(bio_flash_storage, exists_false_when_empty) {
   cr_assert_not(bio_flash_storage_exists());
 }
 
+Test(bio_flash_storage, has_data_false_when_partition_is_absent) {
+  bio_flash_storage_set_flash(NULL, 0);
+  cr_assert_not(bio_flash_storage_has_data());
+}
+
+Test(bio_flash_storage, has_data_false_when_partition_is_erased) {
+  cr_assert_not(bio_flash_storage_has_data());
+}
+
+Test(bio_flash_storage, has_data_detects_headerless_bytes_at_end_of_partition) {
+  flash_bio_backing[sizeof(flash_bio_backing) - 1] = 0x5A;
+  bio_flash_storage_init();
+  cr_assert_not(bio_flash_storage_exists());
+  cr_assert_not(bio_flash_storage_template_exists());
+  cr_assert(bio_flash_storage_has_data());
+
+  cr_assert(bio_flash_storage_erase());
+  cr_assert_not(bio_flash_storage_has_data());
+}
+
 Test(bio_flash_storage, save_then_erase) {
   uint8_t data[] = {1, 2, 3, 4};
   cr_assert(bio_flash_storage_save(data, sizeof(data)));

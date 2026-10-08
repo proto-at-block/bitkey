@@ -15,4 +15,12 @@ data class AddressQrCodeUiProps(
   val account: FullAccount,
   val onBack: () -> Unit,
   val onWebLinkOpened: (String, PartnerInfo, PartnershipTransaction) -> Unit,
-)
+  val addressSource: AddressSource = AddressSource.BitkeyWallet,
+  val showPartners: Boolean = true,
+  val title: String = "Receive",
+) {
+  sealed interface AddressSource {
+    data object BitkeyWallet : AddressSource
+    data object AppKeyWallet : AddressSource
+  }
+}

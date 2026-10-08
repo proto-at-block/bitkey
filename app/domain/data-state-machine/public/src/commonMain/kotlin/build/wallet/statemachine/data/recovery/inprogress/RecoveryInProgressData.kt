@@ -7,6 +7,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.PublicKey
@@ -54,6 +55,19 @@ sealed interface RecoveryInProgressData {
         endTime = delayPeriodEndTime
       )
   }
+
+  enum class HardwareReauthenticationPurpose {
+    Completion,
+    Cancellation,
+  }
+
+  data class AwaitingHardwareReauthenticationData(
+    val authChallenge: InitiateAuthenticationSuccess,
+    val hardwareType: HardwareType,
+    val purpose: HardwareReauthenticationPurpose,
+    val onSignedChallenge: (String) -> Unit,
+    val onCancel: () -> Unit,
+  ) : RecoveryInProgressData
 
   data class AwaitingProofOfPossessionForCancellationData(
     val appAuthKey: PublicKey<AppGlobalAuthKey>,

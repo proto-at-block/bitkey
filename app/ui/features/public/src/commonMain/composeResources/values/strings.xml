@@ -25,6 +25,7 @@
     <string name="setup_biometric_recommendation_title">Set up biometric login</string>
     <string name="update_firmware_recommendation_title">Update firmware</string>
     <string name="pair_device_recommendation_title">Add Bitkey hardware</string>
+    <string name="provision_hardware_descriptor_recommendation_title">Finish onboarding your device</string>
     <string name="transaction_verification_recommendation_title">Set up transaction verification</string>
     <string name="repair_keyset_mismatch_recommendation_title">Repair wallet data</string>
 </resources>

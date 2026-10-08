@@ -14,5 +14,6 @@ interface BdkWalletSyncerV2 {
     bdkWallet: Wallet,
     persister: Persister,
     networkType: BitcoinNetworkType,
+    forceFullScan: Boolean = false,
   ): Result<Unit, BdkError>
 }

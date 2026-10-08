@@ -209,8 +209,15 @@ NO_OPTIMIZE void handle_get_enrolled_fingerprints_internal(ipc_ref_t* UNUSED(mes
 NO_OPTIMIZE void handle_delete_fingerprint_internal(ipc_ref_t* message) {
   auth_delete_fingerprint_internal_t* cmd = (auth_delete_fingerprint_internal_t*)message->object;
 
-  bio_err_t err = bio_storage_delete_template(cmd->index);
-  bool success = (err == BIO_ERR_NONE);
+  uint32_t num_templates = 0;
+  bio_storage_get_template_count(&num_templates);
+
+  // Enforce the same minimum as phone-initiated removal at the storage owner.
+  bool success = false;
+  if (num_templates > 1) {
+    bio_err_t err = bio_storage_delete_template(cmd->index);
+    success = (err == BIO_ERR_NONE);
+  }
 
   // Send UI event to update display
   if (success) {

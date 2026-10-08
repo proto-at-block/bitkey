@@ -9,5 +9,6 @@ interface BdkWalletSyncer {
   suspend fun sync(
     bdkWallet: BdkWallet,
     networkType: BitcoinNetworkType,
+    waitForInFlightSync: Boolean = false,
   ): Result<Unit, BdkError>
 }

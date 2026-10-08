@@ -25,6 +25,7 @@ import build.wallet.statemachine.dev.FirmwareMetadataUiStateMachineImpl.State.Re
 import build.wallet.statemachine.dev.FirmwareMetadataUiStateMachineImpl.State.ShowingMetadataUiState
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
 import okio.ByteString.Companion.toByteString
@@ -74,7 +75,9 @@ class FirmwareMetadataUiStateMachineImpl(
 
       is ReadMetadataSuccessUiState -> {
         LaunchedEffect("showing-read-firmware-success") {
-          firmwareDeviceInfoDao.setDeviceInfo(currentState.firmwareInfoPair.first)
+          // Skips the write when a bench/unpaired device was tapped, so the paired
+          // device's identity isn't replaced in the shared DAO.
+          firmwareDeviceInfoDao.setDeviceInfoIfPaired(currentState.firmwareInfoPair.first)
           firmwareMetadataDao.setFirmwareMetadata(currentState.firmwareInfoPair.second)
           state = LoadingMetadataUiState
         }
@@ -120,6 +123,10 @@ class FirmwareMetadataUiStateMachineImpl(
               state = ReadMetadataSuccessUiState(fwInfoPair)
             },
             onCancel = { state = LoadingMetadataUiState },
+            // Reading metadata from a device that isn't the paired one is a core debug
+            // menu use case. Without this the prop defaults to Required(), which is
+            // fail-closed on W3 and rejects the tap before the session runs.
+            hardwareVerification = NotRequired,
             needsAuthentication = false,
             skipFirmwareTelemetry = true,
             screenPresentationStyle = Modal,

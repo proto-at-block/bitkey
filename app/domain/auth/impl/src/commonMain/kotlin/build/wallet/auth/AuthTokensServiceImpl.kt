@@ -14,6 +14,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthF8eClient
+import build.wallet.ktor.result.HttpError
 import build.wallet.logging.logFailure
 import build.wallet.platform.config.AppVariant
 import com.github.michaelbull.result.*
@@ -52,14 +53,20 @@ class AuthTokensServiceImpl(
       // Refresh auth tokens with f8e
       val newTokens = authF8eClient
         .refreshToken(f8eEnvironment, authTokens.refreshToken)
+        .map { refreshedTokens -> refreshedTokens.withPreservedRefreshTokenExpiration(authTokens) }
         .mapError { AuthNetworkError(cause = it) }
-        .orElse {
-          // The refresh token we passed to f8e is likely expired, so we need to re-authenticate.
-          if (appAuthPublicKey == null) {
-            // If we couldn't find an account or pending recovery, we won't be able to authenticate
-            Err(AccountMissing)
+        .orElse { refreshError ->
+          if (refreshError.isRejectedRefreshToken()) {
+            // Cognito rejected the refresh token, so authenticate again with the app key.
+            if (appAuthPublicKey == null) {
+              // If we couldn't find an account or pending recovery, we won't be able to authenticate.
+              Err(AccountMissing)
+            } else {
+              performAppAuth(appAuthPublicKey, scope)
+            }
           } else {
-            performAppAuth(appAuthPublicKey, scope)
+            // Preserve transient and server failures rather than incorrectly treating them as expiry.
+            Err(refreshError)
           }
         }
         .bind()
@@ -104,6 +111,15 @@ class AuthTokensServiceImpl(
       transform = { null }
     )
 
+  private fun AccountAuthTokens.withPreservedRefreshTokenExpiration(
+    previousTokens: AccountAuthTokens,
+  ): AccountAuthTokens =
+    if (refreshToken == previousTokens.refreshToken && refreshTokenExpiresAt == null) {
+      copy(refreshTokenExpiresAt = previousTokens.refreshTokenExpiresAt)
+    } else {
+      this
+    }
+
   private suspend fun storeAuthTokens(
     accountId: AccountId,
     newTokens: AccountAuthTokens,
@@ -129,6 +145,9 @@ class AuthTokensServiceImpl(
       accountConfig.f8eEnvironment
     }
   }
+
+  private fun AuthNetworkError.isRejectedRefreshToken(): Boolean =
+    (cause as? HttpError.ClientError)?.response?.status?.value in setOf(400, 401)
 
   private suspend fun performAppAuth(
     appAuthPublicKey: PublicKey<out AppAuthKey>,

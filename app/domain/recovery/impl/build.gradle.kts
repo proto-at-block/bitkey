@@ -12,6 +12,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        implementation(projects.domain.availabilityPublic)
         implementation(projects.domain.databasePublic)
         implementation(projects.domain.debugPublic)
         implementation(projects.domain.f8eClientPublic)
@@ -32,6 +33,7 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.domain.accountFake)
+        implementation(projects.domain.availabilityImpl)
         implementation(projects.domain.debugFake)
         implementation(projects.libs.encryptionImpl)
         implementation(projects.domain.featureFlagFake)

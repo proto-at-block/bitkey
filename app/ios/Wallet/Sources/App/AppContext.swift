@@ -21,9 +21,9 @@ class AppContext {
 
     // MARK: - Life Cycle
 
-    init(appVariant: AppVariant, window: UIWindow) {
+    init(appVariant: AppVariant, presentationContext: ScenePresentationContext) {
         self.deviceTokenProvider = DeviceTokenProviderImpl()
-        self.sharingManager = SharingManagerImpl()
+        self.sharingManager = SharingManagerImpl(presentationContext: presentationContext)
         let datadogRumMonitor = DatadogRumMonitorImpl()
         let cloudFileStore = CloudFileStoreImpl(iCloudDriveFileStore: iCloudDriveFileStore())
         let cloudKitQueryRunner = CloudKitQueryRunnerImpl()
@@ -63,7 +63,9 @@ class AppContext {
             firmwareCommsLogBuffer: FirmwareCommsLogBufferImpl(),
             frostWalletDescriptorFactory: FrostWalletDescriptorFactoryImpl(),
             hardwareAttestation: HardwareAttestationImpl(),
-            inAppBrowserNavigator: InAppBrowserNavigatorImpl(window: window),
+            inAppBrowserNavigator: InAppBrowserNavigatorImpl(
+                windowProvider: { presentationContext.window }
+            ),
             lightningInvoiceParser: LightningInvoiceParserImpl(),
             logWritersProvider: { context in [DatadogLogWriter(
                 logWriterContextStore: context,
@@ -93,7 +95,7 @@ class AppContext {
             chaincodeExtractor: ChaincodeExtractorImpl(),
             chaincodeDelegationServerKeyGenerator: ChaincodeDelegationServerKeyGeneratorImpl(),
             publicKeyUtils: PublicKeyUtilsImpl(),
-            ageRangeService: IosAgeRangeServiceImpl(window: window)
+            ageRangeService: IosAgeRangeServiceImpl(presentationContext: presentationContext)
         )
 
         // Create IosActivityComponent

@@ -135,23 +135,6 @@ static void display_controller_handle_uxc_send_result(bool success) {
 // Display flags sent with every show_screen command
 static SHARED_TASK_DATA uint32_t s_display_flags = fwpb_display_flag_DISPLAY_FLAG_ROTATE_180;
 
-void display_controller_query_fingerprint_status(void) {
-#ifdef EMBEDDED_BUILD
-  static SHARED_TASK_BSS auth_get_enrolled_fingerprints_internal_t cmd;
-
-  ipc_send(auth_port, &cmd, sizeof(cmd), IPC_AUTH_GET_ENROLLED_FINGERPRINTS_INTERNAL);
-#endif
-}
-
-static void display_controller_delete_fingerprint(uint8_t index) {
-#ifdef EMBEDDED_BUILD
-  static SHARED_TASK_BSS auth_delete_fingerprint_internal_t cmd;
-  cmd.index = index;
-
-  ipc_send(auth_port, &cmd, sizeof(cmd), IPC_AUTH_DELETE_FINGERPRINT_INTERNAL);
-#endif
-}
-
 // Extern declaration for scan flow handler
 extern const flow_handler_t scan_handler;
 
@@ -573,6 +556,14 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
       break;
     }
 
+    case UI_EVENT_FINGERPRINT_DELETED:
+    case UI_EVENT_FINGERPRINT_DELETE_FAILED:
+      if (controller.fingerprint_delete_pending) {
+        controller.fingerprint_delete_result_received = true;
+      }
+      display_controller_query_fingerprint_status();
+      break;
+
     case UI_EVENT_FINGERPRINT_STATUS: {
       // Handle fingerprint status response from auth task
       if (data && len == sizeof(auth_enrolled_fingerprints_response_t)) {
@@ -596,6 +587,12 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
             strncpy(controller.fingerprint_labels[idx], response->labels[i], 31);
             controller.fingerprint_labels[idx][31] = '\0';
           }
+        }
+
+        // Release the request only after its reply and an authoritative refresh.
+        if (controller.fingerprint_delete_result_received) {
+          controller.fingerprint_delete_pending = false;
+          controller.fingerprint_delete_result_received = false;
         }
       }
       break;
@@ -1186,17 +1183,17 @@ void display_controller_handle_action_start_enrollment(void) {
   }
 }
 
-void display_controller_handle_action_delete_fingerprint(uint8_t fingerprint_index) {
+void display_controller_handle_action_delete_fingerprint(uint8_t visual_index) {
   if (power_off_screen_active()) {
     return;
   }
 
-  if (fingerprint_index < FINGERPRINT_SLOT_COUNT) {
-    controller.fingerprint_enrolled[fingerprint_index] = false;
-    memset(controller.fingerprint_labels[fingerprint_index], 0,
-           sizeof(controller.fingerprint_labels[fingerprint_index]));
-
-    display_controller_delete_fingerprint(fingerprint_index);
+  const flow_handler_t* handler = flow_handlers[controller.current_flow];
+  if (handler && handler->on_action) {
+    flow_action_result_t result = handler->on_action(
+      &controller, fwpb_display_action_display_action_type_DISPLAY_ACTION_DELETE_FINGERPRINT,
+      visual_index);
+    handle_flow_action_result(result);
   }
 }
 

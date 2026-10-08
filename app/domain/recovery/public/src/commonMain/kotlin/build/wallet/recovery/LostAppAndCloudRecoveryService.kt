@@ -53,6 +53,17 @@ interface LostAppAndCloudRecoveryService {
   ): Result<CompletedAuth, Throwable>
 
   /**
+   * Completes a fresh hardware authentication challenge and replaces the global tokens used by an
+   * existing Lost App recovery. This does not change recovery state or generate new destination
+   * keys.
+   */
+  suspend fun reauthenticateWithHardware(
+    accountId: FullAccountId,
+    session: String,
+    hwSignedChallenge: String,
+  ): Result<AccountAuthTokens, Error>
+
+  /**
    * Initiates delay + notify recovery for Lost App/App Key. Process is initiated
    * through f8e, DN recovery is written into local state.
    *

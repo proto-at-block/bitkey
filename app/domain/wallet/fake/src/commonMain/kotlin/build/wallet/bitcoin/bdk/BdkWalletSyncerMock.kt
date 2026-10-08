@@ -21,6 +21,7 @@ class BdkWalletSyncerMock(
   override suspend fun sync(
     bdkWallet: BdkWallet,
     networkType: BitcoinNetworkType,
+    waitForInFlightSync: Boolean,
   ): Result<Unit, BdkError> {
     syncCalls.add(bdkWallet)
     delay(syncDelay)

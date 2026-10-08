@@ -9,6 +9,9 @@ import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.NO_RECOVERY_EXIS
 import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.auth.AuthTokensServiceFake
+import build.wallet.availability.AuthSignatureStatus.Authenticated
+import build.wallet.availability.AuthSignatureStatus.Unauthenticated
+import build.wallet.availability.F8eAuthSignatureStatusProviderImpl
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.HwAuthPublicKeyMock
@@ -52,6 +55,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   val authF8eClient = AuthF8eClientMock()
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
   val authTokensService = AuthTokensServiceFake()
+  val f8eAuthSignatureStatusProvider = F8eAuthSignatureStatusProviderImpl()
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
   val appKeysGenerator = AppKeysGeneratorMock()
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
@@ -74,6 +78,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     accountConfigService = accountConfigService,
     accountAuthenticator = accountAuthenticator,
     authTokensService = authTokensService,
+    f8eAuthSignatureStatusProvider = f8eAuthSignatureStatusProvider,
     deviceTokenManager = deviceTokenManager,
     appKeysGenerator = appKeysGenerator,
     listKeysetsF8eClient = listKeysetsF8eClient,
@@ -95,6 +100,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     authF8eClient.reset()
     accountAuthenticator.reset()
     authTokensService.reset()
+    f8eAuthSignatureStatusProvider.clear()
     deviceTokenManager.reset()
     listKeysetsF8eClient.reset()
     appKeysGenerator.reset()
@@ -143,6 +149,35 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
 
     recoveryDao.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
+  }
+
+  test("reauthenticateWithHardware replaces global tokens without changing recovery state") {
+    f8eAuthSignatureStatusProvider.updateAuthSignatureStatus(Unauthenticated)
+
+    val tokens = service.reauthenticateWithHardware(
+      accountId = FullAccountIdMock,
+      session = "session",
+      hwSignedChallenge = "signed-challenge"
+    ).shouldBeOk()
+
+    authTokensService.getTokens(FullAccountIdMock, bitkey.auth.AuthTokenScope.Global)
+      .shouldBeOk(tokens)
+    f8eAuthSignatureStatusProvider.authSignatureStatus().value.shouldBe(Authenticated)
+    recoveryDao.setLocalRecoveryProgressCalls.expectNoEvents()
+  }
+
+  test("reauthenticateWithHardware does not restore authentication when token storage fails") {
+    f8eAuthSignatureStatusProvider.updateAuthSignatureStatus(Unauthenticated)
+    authTokensService.setTokensError = Error("storage failure")
+
+    service.reauthenticateWithHardware(
+      accountId = FullAccountIdMock,
+      session = "session",
+      hwSignedChallenge = "signed-challenge"
+    ).shouldBeErrOfType<Error>()
+
+    f8eAuthSignatureStatusProvider.authSignatureStatus().value.shouldBe(Unauthenticated)
+    recoveryDao.setLocalRecoveryProgressCalls.expectNoEvents()
   }
 
   test("completeAuth returns WithDirectKeys when no descriptor backups available") {

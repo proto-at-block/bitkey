@@ -1,0 +1,221 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-agent",
+    "version": "2026.09.04",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.5"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.09.04"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-tools",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-ext",
+          "version": {
+            "requires": "1.2.0-beta"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-llm",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-model",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-agent-2026.09.04.jar",
+          "url": "trailblaze-agent-2026.09.04.jar",
+          "size": 330028,
+          "sha512": "7715626d0c9b85614b39647feaad3534dac3155b905fbb5703f668454743e1d942cec6e12f60598f2db242e578dac114434d084175ae81f6f7bc4db98aa4eacd",
+          "sha256": "efa6c714f55f79b07e18796693cd3cc6da0aa803b37719e8526df7eee2ee7ab0",
+          "sha1": "0553af8b02e5bf17395309805871aa51185a91a3",
+          "md5": "728c7f88c661a0f196e800e67dc31c72"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-tracing",
+          "version": {
+            "requires": "2026.09.04"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-clients",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1-0.6.x-compat"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.09.04"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-tools",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-ext",
+          "version": {
+            "requires": "1.2.0-beta"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-llm",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-model",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-reflect",
+          "version": {
+            "requires": "2.4.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-agent-2026.09.04.jar",
+          "url": "trailblaze-agent-2026.09.04.jar",
+          "size": 330028,
+          "sha512": "7715626d0c9b85614b39647feaad3534dac3155b905fbb5703f668454743e1d942cec6e12f60598f2db242e578dac114434d084175ae81f6f7bc4db98aa4eacd",
+          "sha256": "efa6c714f55f79b07e18796693cd3cc6da0aa803b37719e8526df7eee2ee7ab0",
+          "sha1": "0553af8b02e5bf17395309805871aa51185a91a3",
+          "md5": "728c7f88c661a0f196e800e67dc31c72"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "trailblaze-agent-2026.09.04-sources.jar",
+          "url": "trailblaze-agent-2026.09.04-sources.jar",
+          "size": 68890,
+          "sha512": "666b10b6348b561da6edc001421d10c84414ae3f3d44f6af11b43abc2b8869f2db5facd49563f83006c8970762375c5bde7cf58176a4b69d4ed243eecccee735",
+          "sha256": "e4eea9329a4bf7f67c7b7306334a75fac871783f3ee55a831a419c057cbec2ab",
+          "sha1": "74e9b0a43bf15013b36822b2f7caa103abe77a29",
+          "md5": "feb83977bd3d49e8513aa45d330aeca5"
+        }
+      ]
+    }
+  ]
+}

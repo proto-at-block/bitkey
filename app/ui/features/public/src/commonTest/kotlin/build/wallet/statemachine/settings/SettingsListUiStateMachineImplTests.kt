@@ -192,8 +192,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Mobile Devices",
           "Inheritance",
           "Private Wallet Update",
-          "Contact Us",
-          "Help Center"
+          "Contact Us"
         )
       )
     }
@@ -228,8 +227,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Custom Electrum Server",
           "UTXO Consolidation",
           "Private Wallet Update",
-          "Contact Us",
-          "Help Center"
+          "Contact Us"
         )
       )
     }

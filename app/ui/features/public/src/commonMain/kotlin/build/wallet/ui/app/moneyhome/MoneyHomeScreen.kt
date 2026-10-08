@@ -45,6 +45,7 @@ import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.refresh.PullToRefreshBox
 import build.wallet.ui.components.tabbar.Tab
 import build.wallet.ui.components.tabbar.TabBar
+import build.wallet.ui.components.toolbar.collapsibleToolbarTopPadding
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.components.toolbar.ToolbarAccessory
 import build.wallet.ui.compose.thenIf
@@ -300,7 +301,7 @@ fun MoneyHomeScreen(
 @Composable
 private fun MoneyHomeHeader() {
   // Reserve space for the fixed top toolbar.
-  Spacer(Modifier.height(MONEY_HOME_TOOLBAR_RESERVED_HEIGHT + MONEY_HOME_CONTENT_TOP_PADDING))
+  Spacer(Modifier.height(moneyHomeToolbarReservedHeight() + MONEY_HOME_CONTENT_TOP_PADDING))
 }
 
 @Composable
@@ -340,11 +341,12 @@ private fun BoxScope.MoneyHomeCollapsibleToolbar(
   collapseProgress: Float,
   inlineTitle: String?,
 ) {
+  val topPadding = collapsibleToolbarTopPadding()
   Box(
     modifier = Modifier
       .fillMaxWidth()
       .height(
-        MONEY_HOME_TOOLBAR_TOP_PADDING +
+        topPadding +
           MONEY_HOME_TOOLBAR_HEIGHT +
           MONEY_HOME_TOOLBAR_BOTTOM_PADDING +
           MONEY_HOME_TOOLBAR_BOTTOM_GRADIENT_HEIGHT
@@ -354,13 +356,13 @@ private fun BoxScope.MoneyHomeCollapsibleToolbar(
     Box(
       modifier = Modifier
         .fillMaxWidth()
-        .height(MONEY_HOME_TOOLBAR_RESERVED_HEIGHT)
+        .height(topPadding + MONEY_HOME_TOOLBAR_HEIGHT + MONEY_HOME_TOOLBAR_BOTTOM_PADDING)
         .background(WalletTheme.colors.background)
     ) {
       Box(
         modifier = Modifier
           .padding(
-            top = MONEY_HOME_TOOLBAR_TOP_PADDING,
+            top = topPadding,
             start = MONEY_HOME_HORIZONTAL_PADDING,
             end = MONEY_HOME_HORIZONTAL_PADDING
           )
@@ -464,12 +466,14 @@ fun LiteMoneyHomeScreen(
 }
 
 private val MONEY_HOME_HORIZONTAL_PADDING = 20.dp
-private val MONEY_HOME_TOOLBAR_TOP_PADDING = 8.dp
 private val MONEY_HOME_TOOLBAR_HEIGHT = 48.dp
 private val MONEY_HOME_TOOLBAR_BOTTOM_PADDING = 8.dp
 private val MONEY_HOME_TOOLBAR_BOTTOM_GRADIENT_HEIGHT = 20.dp
-private val MONEY_HOME_TOOLBAR_RESERVED_HEIGHT =
-  MONEY_HOME_TOOLBAR_TOP_PADDING + MONEY_HOME_TOOLBAR_HEIGHT + MONEY_HOME_TOOLBAR_BOTTOM_PADDING
+
+@Composable
+private fun moneyHomeToolbarReservedHeight() =
+  collapsibleToolbarTopPadding() + MONEY_HOME_TOOLBAR_HEIGHT + MONEY_HOME_TOOLBAR_BOTTOM_PADDING
+
 private val MONEY_HOME_CONTENT_TOP_PADDING = 24.dp
 private val MONEY_HOME_INLINE_TITLE_START_WITH_LEADING = 56.dp
 private val MONEY_HOME_INLINE_TITLE_END_PADDING = 56.dp

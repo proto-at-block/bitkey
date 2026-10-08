@@ -2,8 +2,11 @@ import Shared
 import UIKit
 
 class SharingManagerImpl: SharingManager {
+    private let presentationContext: ScenePresentationContext
 
-    public var mainWindow: UIWindow?
+    init(presentationContext: ScenePresentationContext) {
+        self.presentationContext = presentationContext
+    }
 
     // MARK: - SharingManager
 
@@ -14,11 +17,13 @@ class SharingManagerImpl: SharingManager {
                 completion?(KotlinBoolean(bool: completed))
             }
         }
-        // Inherit theme from the root view controller (which respects app's theme preference)
-        if let presenter = topViewController() {
-            ac.overrideUserInterfaceStyle = presenter.overrideUserInterfaceStyle
-            presenter.present(ac, animated: true)
+        guard let presenter = topViewController() else {
+            completion?(false)
+            return
         }
+        // Inherit theme from the root view controller (which respects app's theme preference)
+        ac.overrideUserInterfaceStyle = presenter.overrideUserInterfaceStyle
+        presenter.present(ac, animated: true)
     }
 
     func shareData(
@@ -56,11 +61,14 @@ class SharingManagerImpl: SharingManager {
                 // Cleanup: Remove the temporary file after sharing
                 try? FileManager.default.removeItem(at: tempFileURL)
             }
-            // Inherit theme from the root view controller (which respects app's theme preference)
-            if let presenter = topViewController() {
-                ac.overrideUserInterfaceStyle = presenter.overrideUserInterfaceStyle
-                presenter.present(ac, animated: true)
+            guard let presenter = topViewController() else {
+                try? FileManager.default.removeItem(at: tempFileURL)
+                completion?(false)
+                return
             }
+            // Inherit theme from the root view controller (which respects app's theme preference)
+            ac.overrideUserInterfaceStyle = presenter.overrideUserInterfaceStyle
+            presenter.present(ac, animated: true)
         } catch {
             log(.error, error: error) { "Error sharing file." }
             completion?(false)
@@ -74,14 +82,7 @@ class SharingManagerImpl: SharingManager {
     // MARK: - Private Methods
 
     private func topViewController() -> UIViewController? {
-        guard var topController = mainWindow?.rootViewController else {
-            return nil
-        }
-
-        while let presentedViewController = topController.presentedViewController {
-            topController = presentedViewController
-        }
-        return topController
+        presentationContext.topViewController
     }
 
 }

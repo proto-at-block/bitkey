@@ -6,11 +6,16 @@
 
 #include <criterion/criterion.h>
 
+#include <stdio.h>
 #include <string.h>
 
 static fwpb_display_command last_command;
 static uint32_t ui_execute_command_call_count = 0;
 static secure_bool_t stub_onboarding_complete = SECURE_FALSE;
+static uint32_t fingerprint_delete_call_count;
+static uint8_t last_deleted_fingerprint;
+static bool fingerprint_delete_send_succeeds;
+static uint32_t fingerprint_status_query_count;
 
 typedef struct {
   uint8_t count;
@@ -104,6 +109,16 @@ secure_bool_t onboarding_complete(void) {
 
 void onboarding_wipe_state(void) {}
 
+void display_controller_query_fingerprint_status(void) {
+  fingerprint_status_query_count++;
+}
+
+bool display_controller_delete_fingerprint(uint8_t slot_index) {
+  fingerprint_delete_call_count++;
+  last_deleted_fingerprint = slot_index;
+  return fingerprint_delete_send_succeeds;
+}
+
 static void boot_controller(void) {
   display_controller_init();
   display_controller_show_initial_screen();
@@ -123,6 +138,10 @@ static void reset_stubs(void) {
   memset(&last_command, 0, sizeof(last_command));
   ui_execute_command_call_count = 0;
   stub_onboarding_complete = SECURE_FALSE;
+  fingerprint_delete_call_count = 0;
+  last_deleted_fingerprint = UINT8_MAX;
+  fingerprint_delete_send_succeeds = true;
+  fingerprint_status_query_count = 0;
 }
 
 static void setup(void) {
@@ -130,6 +149,222 @@ static void setup(void) {
 }
 
 TestSuite(display_controller, .init = setup);
+
+static void send_fingerprint_status(uint8_t enrolled_mask) {
+  fingerprint_status_response_t status = {0};
+  for (uint8_t slot = 0; slot < FINGERPRINT_SLOT_COUNT; slot++) {
+    if (enrolled_mask & (1u << slot)) {
+      status.indices[status.count] = slot;
+      snprintf(status.labels[status.count], sizeof(status.labels[status.count]), "Fingerprint %u",
+               slot + 1u);
+      status.count++;
+    }
+  }
+  display_controller_handle_ui_event(UI_EVENT_FINGERPRINT_STATUS, &status, sizeof(status));
+}
+
+static void open_fingerprint_menu(uint8_t enrolled_mask) {
+  stub_onboarding_complete = SECURE_TRUE;
+  boot_controller();
+  display_controller_handle_ui_event(UI_EVENT_AUTH_SUCCESS, NULL, 0);
+  advance_ticks(4);
+  display_controller_handle_action_menu();
+  display_controller_handle_action_exit_with_data(
+    fwpb_display_menu_item_DISPLAY_MENU_ITEM_FINGERPRINTS);
+  send_fingerprint_status(enrolled_mask);
+  cr_assert_eq(last_command.command.show_screen.which_params,
+               fwpb_display_show_screen_menu_fingerprints_tag);
+}
+
+static void complete_fingerprint_removal(uint8_t remaining_mask) {
+  display_controller_handle_ui_event(UI_EVENT_FINGERPRINT_DELETED, NULL, 0);
+  send_fingerprint_status(remaining_mask);
+}
+
+static void show_fingerprint_menu_after_action(uint8_t remaining_slot) {
+  fingerprint_auth_data_t auth_data = {.template_index = remaining_slot};
+  display_controller_handle_ui_event(UI_EVENT_AUTH_SUCCESS, &auth_data, sizeof(auth_data));
+  cr_assert_eq(last_command.command.show_screen.which_params,
+               fwpb_display_show_screen_menu_fingerprints_tag);
+}
+
+Test(display_controller, removes_third_fingerprint_when_second_slot_is_empty) {
+  open_fingerprint_menu(0x5);
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[1],
+                   "Fingerprint 3");
+
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(fingerprint_delete_call_count, 1);
+  cr_assert_eq(last_deleted_fingerprint, 2);
+  complete_fingerprint_removal(0x1);
+
+  cr_assert(last_command.command.show_screen.params.menu_fingerprints.enrolled[0]);
+  cr_assert_not(last_command.command.show_screen.params.menu_fingerprints.enrolled[1]);
+  cr_assert_not(last_command.command.show_screen.params.menu_fingerprints.enrolled[2]);
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[0],
+                   "Fingerprint 1");
+}
+
+Test(display_controller, removes_second_fingerprint_when_first_slot_is_empty) {
+  open_fingerprint_menu(0x6);
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[0],
+                   "Fingerprint 2");
+
+  display_controller_handle_action_delete_fingerprint(0);
+  cr_assert_eq(fingerprint_delete_call_count, 1);
+  cr_assert_eq(last_deleted_fingerprint, 1);
+  complete_fingerprint_removal(0x4);
+
+  cr_assert(last_command.command.show_screen.params.menu_fingerprints.enrolled[0]);
+  cr_assert_not(last_command.command.show_screen.params.menu_fingerprints.enrolled[1]);
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[0],
+                   "Fingerprint 3");
+}
+
+Test(display_controller, removes_third_fingerprint_when_all_slots_are_enrolled) {
+  open_fingerprint_menu(0x7);
+
+  display_controller_handle_action_delete_fingerprint(2);
+  cr_assert_eq(fingerprint_delete_call_count, 1);
+  cr_assert_eq(last_deleted_fingerprint, 2);
+  complete_fingerprint_removal(0x3);
+
+  cr_assert(last_command.command.show_screen.params.menu_fingerprints.enrolled[0]);
+  cr_assert(last_command.command.show_screen.params.menu_fingerprints.enrolled[1]);
+  cr_assert_not(last_command.command.show_screen.params.menu_fingerprints.enrolled[2]);
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[1],
+                   "Fingerprint 2");
+}
+
+Test(display_controller, removes_selected_fingerprint_after_menu_reorders) {
+  open_fingerprint_menu(0x7);
+  display_controller_handle_action_delete_fingerprint(0);
+  cr_assert_eq(last_deleted_fingerprint, 0);
+  complete_fingerprint_removal(0x6);
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[1],
+                   "Fingerprint 3");
+
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(fingerprint_delete_call_count, 2);
+  cr_assert_eq(last_deleted_fingerprint, 2);
+  complete_fingerprint_removal(0x2);
+
+  cr_assert(last_command.command.show_screen.params.menu_fingerprints.enrolled[0]);
+  cr_assert_not(last_command.command.show_screen.params.menu_fingerprints.enrolled[1]);
+  cr_assert_not(last_command.command.show_screen.params.menu_fingerprints.enrolled[2]);
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[0],
+                   "Fingerprint 2");
+}
+
+Test(display_controller, keeps_fingerprint_order_while_removal_is_pending) {
+  open_fingerprint_menu(0x7);
+  display_controller_handle_action_delete_fingerprint(0);
+  show_fingerprint_menu_after_action(2);
+
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[0],
+                   "Fingerprint 1");
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[1],
+                   "Fingerprint 2");
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[2],
+                   "Fingerprint 3");
+}
+
+Test(display_controller, repeated_removal_does_not_change_the_displayed_fingerprint_order) {
+  open_fingerprint_menu(0x7);
+  display_controller_handle_action_delete_fingerprint(0);
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(fingerprint_delete_call_count, 1);
+  cr_assert_eq(last_deleted_fingerprint, 0);
+  show_fingerprint_menu_after_action(2);
+
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[0],
+                   "Fingerprint 1");
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[1],
+                   "Fingerprint 2");
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[2],
+                   "Fingerprint 3");
+}
+
+Test(display_controller, waits_for_deletion_reply_and_status_before_accepting_another_removal) {
+  open_fingerprint_menu(0x7);
+  display_controller_handle_action_delete_fingerprint(0);
+
+  // An earlier status query must not acknowledge the in-flight delete.
+  send_fingerprint_status(0x7);
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(fingerprint_delete_call_count, 1);
+
+  uint32_t queries_before_reply = fingerprint_status_query_count;
+  display_controller_handle_ui_event(UI_EVENT_FINGERPRINT_DELETED, NULL, 0);
+  cr_assert_eq(fingerprint_status_query_count, queries_before_reply + 1);
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(fingerprint_delete_call_count, 1);
+
+  send_fingerprint_status(0x6);
+  display_controller_handle_action_delete_fingerprint(0);
+  cr_assert_eq(fingerprint_delete_call_count, 2);
+  cr_assert_eq(last_deleted_fingerprint, 1);
+}
+
+Test(display_controller, failed_removal_keeps_the_fingerprint_and_allows_retry_after_refresh) {
+  open_fingerprint_menu(0x5);
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(last_deleted_fingerprint, 2);
+
+  display_controller_handle_ui_event(UI_EVENT_FINGERPRINT_DELETE_FAILED, NULL, 0);
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(fingerprint_delete_call_count, 1);
+
+  send_fingerprint_status(0x5);
+  cr_assert_str_eq(last_command.command.show_screen.params.menu_fingerprints.labels[1],
+                   "Fingerprint 3");
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(fingerprint_delete_call_count, 2);
+  cr_assert_eq(last_deleted_fingerprint, 2);
+}
+
+Test(display_controller, failed_send_does_not_block_removal_retry) {
+  open_fingerprint_menu(0x7);
+  fingerprint_delete_send_succeeds = false;
+  display_controller_handle_action_delete_fingerprint(0);
+
+  fingerprint_delete_send_succeeds = true;
+  display_controller_handle_action_delete_fingerprint(0);
+  cr_assert_eq(fingerprint_delete_call_count, 2);
+  cr_assert_eq(last_deleted_fingerprint, 0);
+}
+
+Test(display_controller, rejects_removal_of_empty_slots_and_the_last_fingerprint) {
+  open_fingerprint_menu(0x1);
+  display_controller_handle_action_delete_fingerprint(0);
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(fingerprint_delete_call_count, 0);
+
+  open_fingerprint_menu(0x5);
+  display_controller_handle_action_delete_fingerprint(2);
+  display_controller_handle_action_delete_fingerprint(UINT8_MAX);
+  cr_assert_eq(fingerprint_delete_call_count, 0);
+}
+
+Test(display_controller, pending_removal_survives_menu_exit_and_refreshes_while_away) {
+  open_fingerprint_menu(0x7);
+  display_controller_handle_action_delete_fingerprint(0);
+  display_controller_handle_action_back();
+  display_controller_handle_action_exit_with_data(
+    fwpb_display_menu_item_DISPLAY_MENU_ITEM_FINGERPRINTS);
+  send_fingerprint_status(0x7);
+  display_controller_handle_action_delete_fingerprint(1);
+  cr_assert_eq(fingerprint_delete_call_count, 1);
+
+  display_controller_handle_action_back();
+  complete_fingerprint_removal(0x6);
+  display_controller_handle_action_exit_with_data(
+    fwpb_display_menu_item_DISPLAY_MENU_ITEM_FINGERPRINTS);
+  send_fingerprint_status(0x6);
+  display_controller_handle_action_delete_fingerprint(0);
+  cr_assert_eq(fingerprint_delete_call_count, 2);
+  cr_assert_eq(last_deleted_fingerprint, 1);
+}
 
 Test(display_controller, uxc_send_failure_threshold_is_one_shot_and_resets_on_success) {
   uint8_t failure_count = 0;

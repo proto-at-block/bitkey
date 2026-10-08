@@ -204,6 +204,10 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
           .primaryButton.shouldNotBeNull()
           .onClick()
       }
+      awaitItem().apply {
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>()
+        bottomSheetModel.shouldBeNull()
+      }
     }
 
     w3StateMachine.test(props) {
@@ -224,6 +228,10 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
           .body.shouldBeInstanceOf<TapBitkeyIntroSheetBodyModel>()
           .primaryButton.shouldNotBeNull()
           .onClick()
+      }
+      awaitItem().apply {
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>()
+        bottomSheetModel.shouldBeNull()
       }
     }
 

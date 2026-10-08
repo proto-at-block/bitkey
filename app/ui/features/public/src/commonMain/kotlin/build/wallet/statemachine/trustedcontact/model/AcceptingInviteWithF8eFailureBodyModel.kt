@@ -116,6 +116,7 @@ fun AcceptingInviteWithF8eFailureBodyModel(
               INVITATION_EXPIRED -> "The invite code you entered has expired. Reach out to your contact to request a new code."
               RELATIONSHIP_ALREADY_ESTABLISHED -> "The enrollment for this code has already been completed by someone else."
               CONFLICT -> "Account is already a trusted contact for the customer."
+              FORBIDDEN -> "You can’t accept this invitation with this account."
             }
 
           val buttonText = when (f8eError.errorCode) {

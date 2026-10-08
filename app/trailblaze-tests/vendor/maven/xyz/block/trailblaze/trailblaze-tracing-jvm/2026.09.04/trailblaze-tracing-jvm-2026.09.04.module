@@ -1,0 +1,144 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "url": "../../trailblaze-tracing/2026.09.04/trailblaze-tracing-2026.09.04.module",
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-tracing",
+    "version": "2026.09.04",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.5"
+    }
+  },
+  "variants": [
+    {
+      "name": "jvmApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-tracing-jvm-2026.09.04.jar",
+          "url": "trailblaze-tracing-jvm-2026.09.04.jar",
+          "size": 71555,
+          "sha512": "19979a0059db45efe1c9a8230d4074b8cfa9b85165c99d6f32f17278d9983972a4118e7722518815a20a4affec072407335608bef92dfeb8a39801dafa0ac708",
+          "sha256": "a75507c8d07d01194aba8f2885c1e3d35fddfa26d6ebd420fa3639b5cb43ed14",
+          "sha1": "fa408482bcd4164a23e032c428910437c7e794af",
+          "md5": "80ecf4690a79ec21e22bbdc36f26fef3"
+        }
+      ]
+    },
+    {
+      "name": "jvmRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-reflect",
+          "version": {
+            "requires": "2.4.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-tools",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-model",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1-0.6.x-compat"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.11.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-tracing-jvm-2026.09.04.jar",
+          "url": "trailblaze-tracing-jvm-2026.09.04.jar",
+          "size": 71555,
+          "sha512": "19979a0059db45efe1c9a8230d4074b8cfa9b85165c99d6f32f17278d9983972a4118e7722518815a20a4affec072407335608bef92dfeb8a39801dafa0ac708",
+          "sha256": "a75507c8d07d01194aba8f2885c1e3d35fddfa26d6ebd420fa3639b5cb43ed14",
+          "sha1": "fa408482bcd4164a23e032c428910437c7e794af",
+          "md5": "80ecf4690a79ec21e22bbdc36f26fef3"
+        }
+      ]
+    },
+    {
+      "name": "jvmSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "files": [
+        {
+          "name": "trailblaze-tracing-jvm-2026.09.04-sources.jar",
+          "url": "trailblaze-tracing-jvm-2026.09.04-sources.jar",
+          "size": 23584,
+          "sha512": "ef5b6cf2c1e67b35164d2c67ec74bb51981b2875c918a1e633bc682fc9ec28c7d4a50dd572204ac8d7e1dc5811d19934d7f7935aad0124776e722abb7cf121e5",
+          "sha256": "9666bb1ce0110eba160a7e8fd103b075ff53eaf6583e5cc01df73fd34c6c9b08",
+          "sha1": "d31d74c2b101928d1fd306a39cdb4eb28cf29be2",
+          "md5": "4f9ad58415d87e2acc7ac8844251532f"
+        }
+      ]
+    }
+  ]
+}

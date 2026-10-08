@@ -88,12 +88,13 @@ data class AddressQrCodeBodyModel(
     onBack: () -> Unit,
     onRefreshClick: (() -> Unit)?,
     content: Content,
+    title: String = "Receive",
   ) : this(
     onBack = onBack,
     toolbarModel =
       ToolbarModel(
         leadingAccessory = CloseAccessory(onClick = onBack),
-        title = ToolbarTitleModel.Inline("Receive"),
+        title = ToolbarTitleModel.Inline(title),
         trailingAccessory = onRefreshClick?.let {
           ToolbarAccessoryModel.IconAccessory(
             model =

@@ -33,6 +33,7 @@ internal fun AmountEntryToolbar(
   modifier: Modifier = Modifier,
 ) {
   val backgroundColor = amountEntryBackgroundColor()
+  val topPadding = collapsibleToolbarTopPadding()
 
   Column(
     modifier = Modifier
@@ -42,7 +43,7 @@ internal fun AmountEntryToolbar(
       modifier = Modifier
         .fillMaxWidth()
         .defaultMinSize(
-          minHeight = AmountEntryToolbarTopPadding +
+          minHeight = topPadding +
             AmountEntryToolbarHeight +
             AmountEntryToolbarBottomPadding
         )
@@ -52,7 +53,7 @@ internal fun AmountEntryToolbar(
         modifier = Modifier
           .fillMaxWidth()
           .padding(
-            top = AmountEntryToolbarTopPadding,
+            top = topPadding,
             bottom = AmountEntryToolbarBottomPadding
           )
       ) {
@@ -128,7 +129,6 @@ private fun AmountEntryToolbarMiddleContent(
   }
 }
 
-private val AmountEntryToolbarTopPadding = 8.dp
 private val AmountEntryToolbarHeight = 48.dp
 private val AmountEntryToolbarBottomPadding = 8.dp
 private val AmountEntryToolbarBottomGradientHeight = 20.dp

@@ -29,7 +29,7 @@ data class Grant(
   }
 
   override fun hashCode(): Int {
-    return arrayOf(
+    return arrayOf<Any>(
       version,
       serializedRequest.contentHashCode(),
       appSignature.contentHashCode(),

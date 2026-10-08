@@ -1,0 +1,221 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-report",
+    "version": "2026.09.04",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.5"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "io.opentelemetry",
+          "module": "opentelemetry-bom",
+          "version": {
+            "requires": "1.61.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          }
+        },
+        {
+          "group": "io.opentelemetry",
+          "module": "opentelemetry-sdk"
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-report-2026.09.04.jar",
+          "url": "trailblaze-report-2026.09.04.jar",
+          "size": 1417756,
+          "sha512": "3d8da9ca63817ec02bb4ff34094089c3698ba9753d8148259ca9503aea6d6c6d0477058cf937a842a7ba0bac930b74d2fd8c2f37b91e2c85dccc8546946e732e",
+          "sha256": "f78431531517117874fbdf13a826ae692523f44c190da424b124f3ea01f740ce",
+          "sha1": "b749d4e92aa8595aaee301537cc729317e2d5857",
+          "md5": "1c567e5a81d3552148e3a413cd2df12d"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-capture",
+          "version": {
+            "requires": "2026.09.04"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-common",
+          "version": {
+            "requires": "2026.09.04"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.09.04"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-tracing",
+          "version": {
+            "requires": "2026.09.04"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1-0.6.x-compat"
+          }
+        },
+        {
+          "group": "io.opentelemetry",
+          "module": "opentelemetry-exporter-otlp"
+        },
+        {
+          "group": "io.opentelemetry",
+          "module": "opentelemetry-exporter-logging-otlp"
+        },
+        {
+          "group": "com.github.ajalt.clikt",
+          "module": "clikt",
+          "version": {
+            "requires": "5.0.3"
+          }
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-orchestra-models",
+          "version": {
+            "requires": "2.6.1"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "com.charleskorn.kaml",
+          "module": "kaml",
+          "version": {
+            "requires": "0.104.0"
+          }
+        },
+        {
+          "group": "io.opentelemetry",
+          "module": "opentelemetry-bom",
+          "version": {
+            "requires": "1.61.0"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          }
+        },
+        {
+          "group": "io.opentelemetry",
+          "module": "opentelemetry-sdk"
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          }
+        },
+        {
+          "group": "org.slf4j",
+          "module": "slf4j-simple",
+          "version": {
+            "requires": "2.0.17"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-report-2026.09.04.jar",
+          "url": "trailblaze-report-2026.09.04.jar",
+          "size": 1417756,
+          "sha512": "3d8da9ca63817ec02bb4ff34094089c3698ba9753d8148259ca9503aea6d6c6d0477058cf937a842a7ba0bac930b74d2fd8c2f37b91e2c85dccc8546946e732e",
+          "sha256": "f78431531517117874fbdf13a826ae692523f44c190da424b124f3ea01f740ce",
+          "sha1": "b749d4e92aa8595aaee301537cc729317e2d5857",
+          "md5": "1c567e5a81d3552148e3a413cd2df12d"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "trailblaze-report-2026.09.04-sources.jar",
+          "url": "trailblaze-report-2026.09.04-sources.jar",
+          "size": 1524564,
+          "sha512": "04f3b23cba6698a7c35a4b185f548123d5ae7b178c1a4d5dd80ad13e982ec6891736455c419038efd4a2fabf4913b893bf8e099be24c279383bd52de4a968b65",
+          "sha256": "84f43755ee8c4c888ba7d07ce6a2185a012b7af7ca855f0c8d1fb5454dc65109",
+          "sha1": "c3b648e37a90c9cf39782b0f078a491d2ec5451c",
+          "md5": "e246ade0a8d81c58d6860812f15932fe"
+        }
+      ]
+    }
+  ]
+}

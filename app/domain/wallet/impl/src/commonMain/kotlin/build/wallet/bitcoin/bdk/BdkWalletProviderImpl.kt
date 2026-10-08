@@ -20,6 +20,8 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.recoverCatching
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okio.ByteString.Companion.encodeUtf8
@@ -44,10 +46,10 @@ class BdkWalletProviderImpl(
   /**
    * Using suspending lock to ensure that we maintain a single [BdkWallet] instance
    * per descriptor set. This is to avoid BDK race conditions: https://github.com/bitcoindevkit/bdk/issues/915.
-   * Not applicable to modern BDK (V2Wallet) which maintains an internal lock
    */
   private val bdkLock = Mutex(locked = false)
   private val wallets = mutableMapOf<String, BdkWallet>()
+  private val bdkV2Lock = SynchronizedObject()
   private val walletsV2 = mutableMapOf<String, BdkV2Wallet>()
   private val persisters = mutableMapOf<String, Persister>()
 
@@ -63,32 +65,33 @@ class BdkWalletProviderImpl(
       }
     }
 
-  override fun getBdkWalletV2(walletDescriptor: WalletDescriptor): Result<BdkV2Wallet, Throwable> {
-    val key = walletDescriptor.identifier
-    walletsV2[key]?.let { return Ok(it) }
+  override fun getBdkWalletV2(walletDescriptor: WalletDescriptor): Result<BdkV2Wallet, Throwable> =
+    synchronized(bdkV2Lock) {
+      val key = walletDescriptor.identifier
+      walletsV2[key]?.let { return@synchronized Ok(it) }
 
-    val persister = getPersister(walletDescriptor.identifier)
-    val network = walletDescriptor.networkType.bdkNetworkV2
-    val externalDescriptor = Descriptor(walletDescriptor.receivingDescriptor.raw, network)
-    val internalDescriptor = Descriptor(walletDescriptor.changeDescriptor.raw, network)
+      val persister = getPersister(walletDescriptor.identifier)
+      val network = walletDescriptor.networkType.bdkNetworkV2
+      val externalDescriptor = Descriptor(walletDescriptor.receivingDescriptor.raw, network)
+      val internalDescriptor = Descriptor(walletDescriptor.changeDescriptor.raw, network)
 
-    return catchingResult {
-      BdkV2Wallet.load(externalDescriptor, internalDescriptor, persister)
+      catchingResult {
+        BdkV2Wallet.load(externalDescriptor, internalDescriptor, persister)
+      }
+        .recoverCatching {
+          BdkV2Wallet(externalDescriptor, internalDescriptor, network, persister)
+        }
+        .onSuccess { wallet ->
+          walletsV2[key] = wallet
+        }
+        .onFailure { error ->
+          val errorName = error::class.simpleName ?: "UnknownError"
+          logError { "BDK2 wallet create failed (error=$errorName)" }
+        }
     }
-      .recoverCatching {
-        BdkV2Wallet(externalDescriptor, internalDescriptor, network, persister)
-      }
-      .onSuccess { wallet ->
-        walletsV2[key] = wallet
-      }
-      .onFailure { error ->
-        val errorName = error::class.simpleName ?: "UnknownError"
-        logError { "BDK2 wallet create failed (error=$errorName)" }
-      }
-  }
 
-  override fun getPersister(identifier: String): Persister {
-    return persisters.getOrPut(identifier) {
+  override fun getPersister(identifier: String): Persister = synchronized(bdkV2Lock) {
+    persisters.getOrPut(identifier) {
       val databaseFileName = "$identifier-bdk.db"
       val databaseDir = fileDirectoryProvider.databasesDir()
       FileSystem.SYSTEM.createDirectories(databaseDir.toPath())

@@ -74,6 +74,7 @@ class FwupNfcUiStateMachineImpl(
               selectedMcuUpdates = props.selectedMcuUpdates,
               hardwareTypeOverride = props.hardwareTypeOverride,
               showNativeSheetOnIos = props.showNativeSheetOnIos,
+              allowUnpairedHardware = props.allowUnpairedHardware,
               onBack = {
                 uiState = ShowingUpdateInstructionsUiState()
               },

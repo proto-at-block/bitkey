@@ -70,7 +70,11 @@ class SpendingWalletV2Impl(
     loadBalanceAndTransactionsBestEffort()
   }
 
-  override suspend fun sync(): Result<Unit, Error> {
+  override suspend fun sync(): Result<Unit, Error> = sync(forceFullScan = false)
+
+  suspend fun fullScan(): Result<Unit, Error> = sync(forceFullScan = true)
+
+  private suspend fun sync(forceFullScan: Boolean): Result<Unit, Error> {
     return withContext(syncContext) {
       val isInitialSyncRequired = !hasCompletedBdk2InitialSync()
       if (isInitialSyncRequired) {
@@ -81,7 +85,8 @@ class SpendingWalletV2Impl(
         bdkWalletSyncerV2.sync(
           bdkWallet = bdkWallet,
           persister = persister,
-          networkType = networkType
+          networkType = networkType,
+          forceFullScan = forceFullScan
         )
           .mapError { SpendingWalletV2Error.SyncFailed(it) }
           .bind()

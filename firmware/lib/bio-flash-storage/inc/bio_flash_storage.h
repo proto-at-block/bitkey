@@ -38,6 +38,10 @@ bool bio_flash_storage_read(uint8_t* data, uint32_t* size_out);
 bool bio_flash_storage_erase(void);
 bool bio_flash_storage_exists(void);
 
+// Returns whether any non-erased bytes remain, even without a valid header.
+// Requires access to the bio_flash partition; use only from storage operations.
+bool bio_flash_storage_has_data(void);
+
 // Returns whether a template exists, using the cached flag (no flash access).
 // Safe to call from unprivileged tasks without MPU access to bio_flash.
 // Some tasks don't have enough MPU slots remaining, so this saves an MPU slot.

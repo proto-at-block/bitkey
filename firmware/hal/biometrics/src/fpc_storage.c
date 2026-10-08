@@ -428,7 +428,9 @@ bio_err_t bio_storage_delete_template(bio_template_id_t id) {
   if (id == BIO_FLASH_TEMPLATE_ID) {
     char filename[TEMPLATE_PATH_LEN] = {0};
     snprintf(filename, sizeof(filename), TEMPLATE_PATH_FORMAT, id);
-    bool in_flash = bio_flash_storage_exists();
+    // A failed erase can remove the header before later pages. Also detect
+    // residual data when boot has rebuilt the existence cache as empty.
+    bool in_flash = bio_flash_storage_template_exists() || bio_flash_storage_has_data();
     bool in_fs = fs_file_exists(filename);
 
     if (!in_flash && !in_fs) {
@@ -437,8 +439,8 @@ bio_err_t bio_storage_delete_template(bio_template_id_t id) {
     if (in_flash && !bio_flash_storage_erase()) {
       return BIO_ERR_GENERIC;
     }
-    if (in_fs) {
-      fs_remove(filename);
+    if (in_fs && fs_remove(filename) < 0) {
+      return BIO_ERR_GENERIC;
     }
   } else {
     char filename[TEMPLATE_PATH_LEN] = {0};
@@ -534,6 +536,14 @@ void bio_storage_migrate_to_flash(void) {
   // privileged auth task during bio_lib_init(), before any other task
   // calls onboarding_complete().
   bio_flash_storage_init();
+
+  // Invalid/headerless templates are absent from enumeration after reboot.
+  // Clear their residual bytes here; retry on later boots if erase fails.
+  if (!bio_flash_storage_template_exists() && bio_flash_storage_has_data() &&
+      !bio_flash_storage_erase()) {
+    LOGE("Bio flash cleanup failed");
+    return;
+  }
 
   // Migrate fingerprint template 3 from filesystem to the raw flash partition.
   // This is a one-time migration for devices that enrolled a 3rd fingerprint

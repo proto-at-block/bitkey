@@ -753,6 +753,13 @@ class FwupNfcSessionUiStateMachineImpl(
               skipFirmwareTelemetry = true,
               nfcFlowName = if (continuation != null) "fwup-confirmation" else "fwup",
               requirePairedHardware = when {
+                // Debug menu only: allows updating a device that isn't the paired one. The
+                // check is fail-closed on W3 (serial comparison), so it would otherwise
+                // reject every tap of an unpaired device.
+                props.allowUnpairedHardware -> {
+                  logInfo { "Bypassing hardware pairing check for unpaired hardware FWUP" }
+                  RequirePairedHardware.NotRequired
+                }
                 hwPubKey == null -> RequirePairedHardware.NotRequired
                 // EEK-restored keyboxes persist a sentinel string in place of a real hardware
                 // auth key, so pairing verification is impossible and must fail open (W-17444).

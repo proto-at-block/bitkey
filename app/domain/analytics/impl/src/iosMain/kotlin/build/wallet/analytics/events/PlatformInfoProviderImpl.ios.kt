@@ -16,9 +16,9 @@ class PlatformInfoProviderImpl(
   appId: AppId,
   appVersion: AppVersion,
   osVersionInfoProvider: OsVersionInfoProvider,
-  deviceInfoProvider: DeviceInfoProvider,
+  private val deviceInfoProvider: DeviceInfoProvider,
 ) : PlatformInfoProvider {
-  private val platformInfoLazy by lazy {
+  private val staticPlatformInfo by lazy {
     PlatformInfo(
       device_id = UIDevice.currentDevice.identifierForVendor?.UUIDString.orEmpty(),
       client_type = CLIENT_IOS_APP,
@@ -32,6 +32,8 @@ class PlatformInfoProviderImpl(
   }
 
   override fun getPlatformInfo(): PlatformInfo {
-    return platformInfoLazy
+    return staticPlatformInfo.copy(
+      device_lock_state = analyticsDeviceLockState(deviceInfoProvider.getDeviceLockState())
+    )
   }
 }

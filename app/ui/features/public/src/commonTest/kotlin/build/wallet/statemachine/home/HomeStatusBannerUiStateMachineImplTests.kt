@@ -190,7 +190,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
 
       awaitItem().shouldNotBeNull().apply {
         title.shouldBe("Your wallet is at risk")
-        subtitle.shouldBe("Verify with your Bitkey device to protect your funds →")
+        subtitle.shouldBe("Finish onboarding your device to keep your wallet secure →")
         onClick?.invoke()
         propsOnBannerClickCalls.awaitItem()
       }

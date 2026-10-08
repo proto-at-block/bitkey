@@ -1,0 +1,38 @@
+# Hand-authored recording for the welcome-screen smoke trail. Selectors reference stable
+# copy on ChooseAccountAccessScreen (app/ui/features/public). Re-record with the trailblaze
+# CLI if this drifts: docs/docs/mobile/testing/trailblaze.md
+#
+# Unified single-file schema (Trailblaze 2026.09.04): `config:` / `trailhead:` / `trail:`,
+# with per-step recordings keyed by device classifier under `recording:`. This replaces the
+# retired per-platform layout (blaze.yaml + android-phone.trail.yaml), whose list-root shape
+# the current parser rejects outright.
+config:
+  id: bitkey/smoke/welcome-screen
+  target: bitkey
+  description: The Bitkey welcome screen shows both onboarding actions
+  devices:
+    android: ANDROID_ONDEVICE_ACCESSIBILITY
+
+# Deterministic step 0: cold-launch the app before any assertions.
+trailhead:
+  step: Launch the world.bitkey.debug app
+  recording:
+    android-phone:
+      launchApp:
+        appId: world.bitkey.debug
+
+trail:
+  - verify: The Bitkey welcome screen is shown with a "Set up a new wallet" button and a "More options" button
+    recording:
+      android-phone:
+        - assertVisibleBySelector:
+            reason: Verify the primary onboarding action is visible on the welcome screen.
+            nodeSelector:
+              androidAccessibility:
+                # Buttons render their labels uppercase, so the accessibility text is uppercase.
+                textRegex: (?i)set up a new wallet
+        - assertVisibleBySelector:
+            reason: Verify the secondary onboarding action is visible on the welcome screen.
+            nodeSelector:
+              androidAccessibility:
+                textRegex: (?i)more options

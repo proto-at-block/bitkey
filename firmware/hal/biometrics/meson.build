@@ -70,3 +70,11 @@ bio_cmd_dep = declare_dependency(
   link_whole : bio_cmd_lib,
   dependencies : [bio_dep, shell_dep],
 )
+
+fpc_storage_test = executable('fpc-storage-test',
+  ['src/fpc_storage_test.c', 'src/fpc_storage.c'],
+  include_directories : [bio_includes, bio_platform_includes, security_config_includes],
+  c_args : ['-DFLASH_PAGE_SIZE=0x00002000UL'],
+  dependencies : [bio_deps, test_deps],
+)
+test('fpc storage test', fpc_storage_test)

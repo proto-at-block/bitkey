@@ -11,7 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
@@ -79,7 +81,11 @@ fun App(
     LocalDeviceInfo provides deviceInfo,
     LocalAccelerometer provides accelerometer,
     LocalTheme provides appTheme,
-    LocalHaptics provides haptics
+    LocalHaptics provides haptics,
+    // The app ships no localized resources, so an RTL system locale mirrors layout
+    // without any RTL content to justify it. Pin LTR for all Compose UI under App
+    // until the app supports right-to-left languages.
+    LocalLayoutDirection provides LayoutDirection.Ltr
   ) {
     WalletTheme {
       val backdropTheme =
@@ -92,42 +98,44 @@ fun App(
       } else {
         backdropTheme.backgroundColor()
       }
-      Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .background(rootBackgroundColor)
-      ) {
-        Navigator(
-          screen = UiModelContentScreen(model = model),
-          onBackPressed = { screen ->
-            val bodyModel = (screen as UiModelContentScreen).model.body
-            // Special case: Security Hub uses onHomeTabClick instead of onBack
-            if (bodyModel is SecurityHubBodyModel) {
-              bodyModel.onHomeTabClick()
-            } else {
-              // Let the BodyModel handle the back action explicitly
-              bodyModel.onBack?.invoke()
+      StatusBarGutter {
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .background(rootBackgroundColor)
+        ) {
+          Navigator(
+            screen = UiModelContentScreen(model = model),
+            onBackPressed = { screen ->
+              val bodyModel = (screen as UiModelContentScreen).model.body
+              // Special case: Security Hub uses onHomeTabClick instead of onBack
+              if (bodyModel is SecurityHubBodyModel) {
+                bodyModel.onHomeTabClick()
+              } else {
+                // Let the BodyModel handle the back action explicitly
+                bodyModel.onBack?.invoke()
+              }
+              // Never let the Navigator handle the back press
+              false
             }
-            // Never let the Navigator handle the back press
-            false
-          }
-        ) { navigator ->
-          // this effect is responsible for translating the stream of ScreenModels into a backstack
-          NavigatorModelEffect(
-            navigator = navigator,
-            model = model,
-            updatePresentationStyle = { screenPresentationStyle ->
-              previousPresentationStyle = currentPresentationStyle
-              currentPresentationStyle = screenPresentationStyle
+          ) { navigator ->
+            // this effect is responsible for translating the stream of ScreenModels into a backstack
+            NavigatorModelEffect(
+              navigator = navigator,
+              model = model,
+              updatePresentationStyle = { screenPresentationStyle ->
+                previousPresentationStyle = currentPresentationStyle
+                currentPresentationStyle = screenPresentationStyle
+              }
+            )
+            // This composable wraps the current screen and applies the appropriate animation
+            BitkeyTransition(
+              navigator = navigator,
+              previousPresentationStyle = previousPresentationStyle,
+              currentPresentationStyle = currentPresentationStyle
+            ) { screen ->
+              screen.Content()
             }
-          )
-          // This composable wraps the current screen and applies the appropriate animation
-          BitkeyTransition(
-            navigator = navigator,
-            previousPresentationStyle = previousPresentationStyle,
-            currentPresentationStyle = currentPresentationStyle
-          ) { screen ->
-            screen.Content()
           }
         }
       }

@@ -26,6 +26,8 @@ static void detect_glitch(void);
 NO_OPTIMIZE int main(void) {
   CHIP_Init();
   mcu_init();
+  // As early as possible: fielded loaders leave the UXC running until this call.
+  coproc_init(&uxc_coproc_cfg);
   board_id_init();
   mcu_smu_init();
   mpu_regions_init();
@@ -78,8 +80,6 @@ NO_OPTIMIZE int main(void) {
   secure_uart_channel_init(SECURE_UART_CHANNEL_CORE);
 
   fs_mount();
-
-  coproc_init(&uxc_coproc_cfg);
 
   memfault_platform_boot();
 

@@ -82,6 +82,19 @@ class BdkWalletSyncerV2ImplTests : FunSpec({
       }
   }
 
+  test("force full scan uses a full scan when wallet has a checkpoint") {
+    val wallet = BdkWalletSyncerV2WalletFake(checkpointHeight = 100u)
+
+    walletSyncer.sync(wallet, persister, BITCOIN, forceFullScan = true)
+
+    electrumClient.fullScanCalls.size.shouldBe(1)
+    electrumClient.syncCalls.shouldBeEmpty()
+    wallet.appliedUpdate.shouldBe(electrumClient.update)
+    datadogRumMonitor.startResourceLoadingCalls.awaitItem()
+    datadogRumMonitor.stopResourceLoadingCalls.awaitItem()
+    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+  }
+
   test("uses sync with revealed spks when wallet has checkpoint") {
     val wallet = BdkWalletSyncerV2WalletFake(checkpointHeight = 100u)
 

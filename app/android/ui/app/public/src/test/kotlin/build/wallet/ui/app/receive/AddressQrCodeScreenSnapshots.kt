@@ -3,6 +3,8 @@ package build.wallet.ui.app.receive
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
+import app.cash.paparazzi.DeviceConfig
+import build.wallet.kotest.paparazzi.IPHONE_DUO_UNFOLDED
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerInfo
@@ -126,6 +128,36 @@ class AddressQrCodeScreenSnapshots : FunSpec({
               onPartnerClick = {},
               onShareClick = {},
               onVerifyClick = {}
+            )
+        )
+      )
+    }
+  }
+
+  test("qr code screen unfolded w3 with hidden address") {
+    // Unfolded iPhone Duo: wide viewport uses the side-by-side layout and must still
+    // honor hideAddressByDefault.
+    paparazzi.snapshot(deviceConfig = DeviceConfig.IPHONE_DUO_UNFOLDED) {
+      val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
+      AddressQrCodeScreen(
+        model = AddressQrCodeBodyModel(
+          onBack = {},
+          onRefreshClick = {},
+          content =
+            AddressQrCodeBodyModel.Content.QrCode(
+              address = address,
+              qrCodeState = QrCodeState.Success(
+                runBlocking {
+                  QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
+                }
+              ),
+              copyButtonIcon = Icon.Copy,
+              copyButtonLabelText = "Copy",
+              onCopyClick = {},
+              onPartnerClick = {},
+              onShareClick = {},
+              onVerifyClick = {},
+              hideAddressByDefault = true
             )
         )
       )

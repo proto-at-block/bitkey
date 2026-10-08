@@ -14,14 +14,14 @@ void coproc_init(const coproc_cfg_t* cfg) {
   ASSERT(cfg != NULL);
   memcpy(&_coproc_cfg, cfg, sizeof(*cfg));
 
+  if (_coproc_cfg.power.reset.gpio != NULL) {
+    /* Hold in reset (assumes active low), before removing power. */
+    mcu_gpio_configure(_coproc_cfg.power.reset.gpio, false);
+  }
+
   if (_coproc_cfg.power.en.gpio != NULL) {
     /* Do not power on (assumes active high). */
     mcu_gpio_configure(_coproc_cfg.power.en.gpio, false);
-  }
-
-  if (_coproc_cfg.power.reset.gpio != NULL) {
-    /* Hold in reset (assumes active low). */
-    mcu_gpio_configure(_coproc_cfg.power.reset.gpio, false);
   }
 
   if (_coproc_cfg.power.boot.gpio != NULL) {

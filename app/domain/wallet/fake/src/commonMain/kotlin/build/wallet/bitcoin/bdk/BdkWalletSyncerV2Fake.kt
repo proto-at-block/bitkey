@@ -24,6 +24,7 @@ class BdkWalletSyncerV2Fake(
     bdkWallet: Wallet,
     persister: Persister,
     networkType: BitcoinNetworkType,
+    forceFullScan: Boolean,
   ): Result<Unit, BdkError> {
     syncCalls.add(bdkWallet)
     delay(syncDelay)

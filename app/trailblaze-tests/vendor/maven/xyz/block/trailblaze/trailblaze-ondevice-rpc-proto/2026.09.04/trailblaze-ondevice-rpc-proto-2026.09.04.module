@@ -1,0 +1,140 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-ondevice-rpc-proto",
+    "version": "2026.09.04",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.5"
+    }
+  },
+  "variants": [
+    {
+      "name": "metadataApiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "non-jvm",
+        "org.gradle.usage": "kotlin-metadata",
+        "org.jetbrains.kotlin.platform.type": "common"
+      },
+      "dependencies": [
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.09.04"
+          }
+        },
+        {
+          "group": "com.squareup.wire",
+          "module": "wire-runtime",
+          "version": {
+            "requires": "5.3.3"
+          }
+        },
+        {
+          "group": "com.squareup.wire",
+          "module": "wire-runtime",
+          "version": {
+            "requires": "5.3.3"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-ondevice-rpc-proto-metadata-2026.09.04.jar",
+          "url": "trailblaze-ondevice-rpc-proto-2026.09.04.jar",
+          "size": 755,
+          "sha512": "5655bca5ff5f5bef79d8c88c2c3e84ef0f9dbe49ce47c4b422f408c4e665ae39be3afa7b5a7cbb9c1d86a5a1663991884138f548af372c425f182f04e5f1f72b",
+          "sha256": "15962c5e34cb8f731debdd2c1699a64190330c0f39cbf39818baa86ef56a3d9e",
+          "sha1": "e48a9db83343dcc91082b6c6c9942a7f58797e44",
+          "md5": "86c22e460123f61b4022cdf0c2d69f3a"
+        }
+      ]
+    },
+    {
+      "name": "metadataSourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "non-jvm",
+        "org.gradle.usage": "kotlin-runtime",
+        "org.jetbrains.kotlin.platform.type": "common"
+      },
+      "files": [
+        {
+          "name": "trailblaze-ondevice-rpc-proto-kotlin-2026.09.04-sources.jar",
+          "url": "trailblaze-ondevice-rpc-proto-2026.09.04-sources.jar",
+          "size": 117762,
+          "sha512": "95d30c62f54d92ebacaac4681e507e9a7328ecd9275bf8fdd27512d845729d148290a43bda9029623c95b79a4019afcf81cbec3ab9adff817002b34c9e2de8bd",
+          "sha256": "19e1a14b6a6591494248c55fdec159cf65efe82b069ea31575d6f9788de69fa3",
+          "sha1": "aa631d108d0b04afbcbd48f948ff934f1c218105",
+          "md5": "5d344257df742299ad4f4aa1285278fe"
+        }
+      ]
+    },
+    {
+      "name": "jvmApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-ondevice-rpc-proto-jvm/2026.09.04/trailblaze-ondevice-rpc-proto-jvm-2026.09.04.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-ondevice-rpc-proto-jvm",
+        "version": "2026.09.04"
+      }
+    },
+    {
+      "name": "jvmRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-ondevice-rpc-proto-jvm/2026.09.04/trailblaze-ondevice-rpc-proto-jvm-2026.09.04.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-ondevice-rpc-proto-jvm",
+        "version": "2026.09.04"
+      }
+    },
+    {
+      "name": "jvmSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "available-at": {
+        "url": "../../trailblaze-ondevice-rpc-proto-jvm/2026.09.04/trailblaze-ondevice-rpc-proto-jvm-2026.09.04.module",
+        "group": "xyz.block.trailblaze",
+        "module": "trailblaze-ondevice-rpc-proto-jvm",
+        "version": "2026.09.04"
+      }
+    }
+  ]
+}

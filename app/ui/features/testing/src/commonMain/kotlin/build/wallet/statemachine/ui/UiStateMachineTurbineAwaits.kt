@@ -238,7 +238,11 @@ inline fun ScreenModel.toSimpleString(): String {
       append(", statusBannerModel=${it::class.simpleName}")
     }
     bottomSheetModel?.let {
-      append(", bottomSheetModel=${it::class.simpleName}")
+      // Print the sheet's concrete body type, not `SheetModel`, which is useless for debugging.
+      append(", bottomSheetModel=SheetModel(${it.body.toSimpleString()})")
+    }
+    alertModel?.let {
+      append(", alertModel=${it::class.simpleName}")
     }
     append(")")
   }

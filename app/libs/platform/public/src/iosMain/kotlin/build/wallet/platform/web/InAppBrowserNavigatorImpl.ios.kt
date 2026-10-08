@@ -7,7 +7,7 @@ import platform.UIKit.UIWindow
 import platform.darwin.NSObject
 
 class InAppBrowserNavigatorImpl(
-  private val window: UIWindow,
+  private val windowProvider: () -> UIWindow?,
 ) : InAppBrowserNavigator {
   private var onCloseBrowser: (() -> Unit)? = null
   private var safariViewController: SFSafariViewController? = null
@@ -20,7 +20,7 @@ class InAppBrowserNavigatorImpl(
     url: String,
     onClose: () -> Unit,
   ) {
-    val topViewController = window.rootViewController ?: return
+    val topViewController = windowProvider()?.rootViewController ?: return
     if (topViewController.presentedViewController is SFSafariViewController) {
       return
     }

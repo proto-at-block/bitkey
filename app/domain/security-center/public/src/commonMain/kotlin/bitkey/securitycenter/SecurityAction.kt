@@ -47,6 +47,10 @@ enum class SecurityActionRecommendation(
     actionType = SecurityActionType.HARDWARE_DEVICE,
     hasEducation = false
   ),
+  PROVISION_HARDWARE_DESCRIPTOR(
+    actionType = SecurityActionType.HARDWARE_DEVICE,
+    hasEducation = false
+  ),
   BACKUP_MOBILE_KEY(
     actionType = SecurityActionType.APP_KEY_BACKUP,
     hasEducation = false

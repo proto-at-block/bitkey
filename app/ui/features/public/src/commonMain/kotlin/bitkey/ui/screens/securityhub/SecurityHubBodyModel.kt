@@ -54,6 +54,7 @@ import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.tabbar.Tab
 import build.wallet.ui.components.tabbar.TabBar
 import build.wallet.ui.components.toolbar.ToolbarAccessory
+import build.wallet.ui.components.toolbar.collapsibleToolbarTopPadding
 import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.StandardClick
@@ -125,7 +126,7 @@ data class SecurityHubBodyModel(
   override fun render(modifier: Modifier) {
     val localDensity = LocalDensity.current
     val scrollState = rememberScrollState()
-    val contentTopPaddingDp = SECURITY_HUB_TOOLBAR_RESERVED_HEIGHT + SECURITY_HUB_CONTENT_TOP_PADDING
+    val contentTopPaddingDp = securityHubToolbarReservedHeight() + SECURITY_HUB_CONTENT_TOP_PADDING
     val shouldRenderAllSetPill =
       showAllSetState &&
         !isOffline
@@ -474,11 +475,12 @@ private fun SecurityHubTopToolbar(
   modifier: Modifier = Modifier,
   trailingToolbarAccessoryModel: ToolbarAccessoryModel,
 ) {
+  val topPadding = collapsibleToolbarTopPadding()
   Box(
     modifier = modifier
       .fillMaxWidth()
       .height(
-        SECURITY_HUB_TOP_PADDING +
+        topPadding +
           SECURITY_HUB_TOOLBAR_HEIGHT +
           SECURITY_HUB_TOOLBAR_BOTTOM_PADDING +
           SECURITY_HUB_TOOLBAR_BOTTOM_GRADIENT_HEIGHT
@@ -487,13 +489,13 @@ private fun SecurityHubTopToolbar(
     Box(
       modifier = Modifier
         .fillMaxWidth()
-        .height(SECURITY_HUB_TOOLBAR_RESERVED_HEIGHT)
+        .height(topPadding + SECURITY_HUB_TOOLBAR_HEIGHT + SECURITY_HUB_TOOLBAR_BOTTOM_PADDING)
         .background(WalletTheme.colors.background)
     ) {
       Box(
         modifier = Modifier
           .padding(
-            top = SECURITY_HUB_TOP_PADDING,
+            top = topPadding,
             start = SECURITY_HUB_HORIZONTAL_PADDING,
             end = SECURITY_HUB_HORIZONTAL_PADDING
           )
@@ -1014,13 +1016,14 @@ private fun SecurityAction.statusColor(): Color =
     SecurityActionState.Disabled -> DisabledGrey
   }
 
-private val SECURITY_HUB_TOP_PADDING: Dp = 8.dp
 private val SECURITY_HUB_HORIZONTAL_PADDING: Dp = 20.dp
 private val SECURITY_HUB_TOOLBAR_HEIGHT: Dp = 48.dp
 private val SECURITY_HUB_TOOLBAR_BOTTOM_PADDING: Dp = 8.dp
 private val SECURITY_HUB_TOOLBAR_BOTTOM_GRADIENT_HEIGHT: Dp = 20.dp
-private val SECURITY_HUB_TOOLBAR_RESERVED_HEIGHT: Dp =
-  SECURITY_HUB_TOP_PADDING + SECURITY_HUB_TOOLBAR_HEIGHT + SECURITY_HUB_TOOLBAR_BOTTOM_PADDING
+
+@Composable
+private fun securityHubToolbarReservedHeight(): Dp =
+  collapsibleToolbarTopPadding() + SECURITY_HUB_TOOLBAR_HEIGHT + SECURITY_HUB_TOOLBAR_BOTTOM_PADDING
 private val SECURITY_HUB_CONTENT_TOP_PADDING: Dp = 24.dp
 
 private fun SecurityActionRecommendation.title(): StringResource =
@@ -1039,6 +1042,7 @@ private fun SecurityActionRecommendation.title(): StringResource =
     ENABLE_EMAIL_NOTIFICATIONS -> Res.string.enable_email_recommendation_title
     UPDATE_FIRMWARE -> Res.string.update_firmware_recommendation_title
     PAIR_HARDWARE_DEVICE -> Res.string.pair_device_recommendation_title
+    PROVISION_HARDWARE_DESCRIPTOR -> Res.string.provision_hardware_descriptor_recommendation_title
     ENABLE_TRANSACTION_VERIFICATION -> Res.string.transaction_verification_recommendation_title
     REPAIR_KEYSET_MISMATCH -> Res.string.repair_keyset_mismatch_recommendation_title
   }

@@ -101,6 +101,8 @@ typedef struct display_controller_t {
   // Fingerprint enrollment state
   bool fingerprint_enrolled[FINGERPRINT_SLOT_COUNT];    // Which slots have enrolled fingerprints
   char fingerprint_labels[FINGERPRINT_SLOT_COUNT][32];  // Labels for enrolled fingerprints
+  bool fingerprint_delete_pending;
+  bool fingerprint_delete_result_received;
 
   // Battery state
   uint8_t battery_percent;
@@ -434,3 +436,4 @@ flow_action_result_t display_controller_power_off_on_action(
 
 // Helper functions
 void display_controller_query_fingerprint_status(void);
+bool display_controller_delete_fingerprint(uint8_t slot_index);

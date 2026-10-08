@@ -30,4 +30,19 @@ enum class InactiveWalletSweepEventTrackerScreenId : EventTrackerScreenId {
 
   /** Screen shown while awaiting hardware verification before sweep */
   INACTIVE_WALLET_SWEEP_HARDWARE_VERIFICATION_REQUIRED,
+
+  /** Loading screen shown while generating an App Key Wallet sweep PSBT. */
+  APP_KEY_WALLET_SWEEP_GENERATING_PSBT,
+
+  /** Prompt to review and confirm the App Key Wallet sweep. */
+  APP_KEY_WALLET_SWEEP_SIGN_PSBT_PROMPT,
+
+  /** Loading screen shown while broadcasting the App Key Wallet sweep. */
+  APP_KEY_WALLET_SWEEP_BROADCASTING,
+
+  /** Success screen shown after the App Key Wallet sweep is broadcast. */
+  APP_KEY_WALLET_SWEEP_SUCCESS,
+
+  /** Failure screen shown when the App Key Wallet sweep cannot be completed. */
+  APP_KEY_WALLET_SWEEP_FAILED,
 }

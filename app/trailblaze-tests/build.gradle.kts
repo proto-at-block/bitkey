@@ -12,11 +12,11 @@ plugins {
  * (the tag is the published version string). See vendor/update-vendored-trailblaze.sh for
  * why (upstream's published artifacts are unusable on-device) and how to bump.
  */
-val trailblazeVersion = "2026.06.01"
+val trailblazeVersion = "2026.09.04"
 
-/** Versions mirror trailblaze's own catalog at the pinned build (tag v2026.06.01). */
-val koogVersion = "1.0.0"
-val ktor3Version = "3.3.3"
+/** Versions mirror trailblaze's own catalog at the pinned build (tag v2026.09.04). */
+val koogVersion = "1.2.0"
+val ktor3Version = "3.5.0"
 
 android {
   namespace = "build.wallet.trailblaze"

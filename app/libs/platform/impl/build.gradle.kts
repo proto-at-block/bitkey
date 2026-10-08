@@ -31,6 +31,7 @@ kotlin {
       dependencies {
         implementation(libs.android.browser)
         implementation(libs.android.core.ktx)
+        implementation(libs.android.lifecycle.runtime)
         implementation(libs.android.pdfbox)
         implementation(libs.android.biometric)
         api(libs.android.age.signals)

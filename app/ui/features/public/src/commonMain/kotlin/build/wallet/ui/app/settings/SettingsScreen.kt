@@ -26,7 +26,7 @@ import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.toolbar.CollapsibleToolbar
-import build.wallet.ui.components.toolbar.CollapsibleToolbarReservedHeight
+import build.wallet.ui.components.toolbar.collapsibleToolbarReservedHeight
 import build.wallet.ui.components.toolbar.CollapsibleToolbarTitleCollapseRange
 import build.wallet.ui.components.toolbar.LinearInlineTitleAlpha
 import build.wallet.ui.model.icon.IconBackgroundType.Transient
@@ -72,7 +72,7 @@ fun SettingsScreen(
         .padding(horizontal = SETTINGS_HORIZONTAL_PADDING)
     ) {
       // Reserved space for the fixed top toolbar.
-      Spacer(modifier = Modifier.height(CollapsibleToolbarReservedHeight))
+      Spacer(modifier = Modifier.height(collapsibleToolbarReservedHeight()))
       Label(
         modifier = Modifier
           .padding(top = SETTINGS_LARGE_TITLE_TOP_SPACING)

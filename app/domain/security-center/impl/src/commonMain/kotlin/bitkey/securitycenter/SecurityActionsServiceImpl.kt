@@ -103,6 +103,7 @@ class SecurityActionsServiceImpl(
 
         val atRiskRecommendations = recommendations.filter {
           it == SecurityActionRecommendation.PAIR_HARDWARE_DEVICE ||
+            it == SecurityActionRecommendation.PROVISION_HARDWARE_DESCRIPTOR ||
             it == SecurityActionRecommendation.BACKUP_MOBILE_KEY ||
             it == SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS ||
             it == SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH

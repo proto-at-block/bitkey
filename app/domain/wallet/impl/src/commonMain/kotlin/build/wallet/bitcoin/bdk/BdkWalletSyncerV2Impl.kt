@@ -59,6 +59,7 @@ class BdkWalletSyncerV2Impl(
     bdkWallet: Wallet,
     persister: Persister,
     networkType: BitcoinNetworkType,
+    forceFullScan: Boolean,
   ): Result<Unit, BdkError> =
     coroutineBinding {
       logDebug { "Attempting BDK 2 wallet sync..." }
@@ -109,7 +110,8 @@ class BdkWalletSyncerV2Impl(
             performSync(
               bdkWallet = bdkWallet,
               persister = persister,
-              electrumServer = electrumServer
+              electrumServer = electrumServer,
+              forceFullScan = forceFullScan
             )
           }
 
@@ -146,11 +148,12 @@ class BdkWalletSyncerV2Impl(
     bdkWallet: Wallet,
     persister: Persister,
     electrumServer: ElectrumServer,
+    forceFullScan: Boolean,
   ): Result<Unit, BdkError> {
     val electrumUrl = electrumServer.electrumServerDetails.url()
     return catchingResult {
       electrumClientProvider.withClient(electrumUrl) { client ->
-        val update = client.runScan(bdkWallet)
+        val update = client.runScan(bdkWallet, forceFullScan)
         bdkWallet.applyUpdate(update)
         bdkWallet.persist(persister)
         Unit
@@ -174,8 +177,11 @@ class BdkWalletSyncerV2Impl(
       }
   }
 
-  private fun ElectrumClient.runScan(wallet: Wallet): Update {
-    return if (wallet.latestCheckpoint().height == 0u) {
+  private fun ElectrumClient.runScan(
+    wallet: Wallet,
+    forceFullScan: Boolean,
+  ): Update {
+    return if (forceFullScan || wallet.latestCheckpoint().height == 0u) {
       // No checkpoint yet; full scan to discover any previously used addresses.
       wallet.startFullScan()
         .buildRequest()

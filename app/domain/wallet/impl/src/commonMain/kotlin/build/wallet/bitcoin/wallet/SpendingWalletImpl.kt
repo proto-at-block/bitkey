@@ -63,9 +63,13 @@ class SpendingWalletImpl(
     getUnspentOutputs().onSuccess { unspentOutputsState.value = it }
   }
 
-  override suspend fun sync(): Result<Unit, Error> =
+  override suspend fun sync(): Result<Unit, Error> = sync(waitForInFlightSync = false)
+
+  suspend fun fullScan(): Result<Unit, Error> = sync(waitForInFlightSync = true)
+
+  private suspend fun sync(waitForInFlightSync: Boolean): Result<Unit, Error> =
     coroutineBinding {
-      bdkWalletSyncer.sync(bdkWallet, networkType)
+      bdkWalletSyncer.sync(bdkWallet, networkType, waitForInFlightSync)
         .logFailure { "Error syncing wallet" }
         .bind()
 

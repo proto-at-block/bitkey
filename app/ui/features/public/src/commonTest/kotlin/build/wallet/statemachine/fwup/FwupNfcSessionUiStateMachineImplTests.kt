@@ -13,6 +13,7 @@ import build.wallet.analytics.v1.Action.ACTION_APP_FWUP_MCU_UPDATE_STARTED
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.EekKeyboxMock
+import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.Companion.LEGACY_EAK_PUBLIC_KEY
@@ -262,6 +263,56 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       val params = nfcTransactor.transactCalls.awaitItem()
         .shouldBeTypeOf<NfcSession.Parameters>()
       params.requirePairedHardware.shouldBe(NfcSession.RequirePairedHardware.NotRequired)
+
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+      }
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
+      onDoneCalls.awaitItem()
+    }
+  }
+
+  // Debug menu unpaired hardware
+  // The debug menu updates bench devices that aren't paired with the account. The pairing
+  // check is fail-closed on W3 (serial comparison), so it must be bypassed there or every
+  // tap of an unpaired device is rejected before the session body runs.
+
+  test("allowUnpairedHardware bypasses hardware pairing check") {
+    keyboxDao.activeKeybox.value = Ok(KeyboxMock)
+    nfcTransactor.transactResult = Ok(FwupTransactionResult.Completed)
+
+    stateMachine.test(props.copy(allowUnpairedHardware = true)) {
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val params = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      params.requirePairedHardware.shouldBe(NfcSession.RequirePairedHardware.NotRequired)
+
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+      }
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
+      onDoneCalls.awaitItem()
+    }
+  }
+
+  test("pairing check is required by default for a normal keybox") {
+    // Guards the contrast: the bypass above must come from the flag, not from the mock
+    // keybox happening to lack a usable hardware auth key.
+    keyboxDao.activeKeybox.value = Ok(KeyboxMock)
+    nfcTransactor.transactResult = Ok(FwupTransactionResult.Completed)
+
+    stateMachine.test(props) {
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val params = nfcTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      params.requirePairedHardware
+        .shouldBeTypeOf<NfcSession.RequirePairedHardware.Required>()
 
       awaitBody<FwupNfcBodyModel> {
         status.shouldBeTypeOf<Success>()

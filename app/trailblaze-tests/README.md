@@ -143,10 +143,16 @@ When upstream fixes its Android-variant publishing and ships stable releases, de
 trails/                                  # bundled into the test APK as assets
   config/trailblaze.yaml                 # LLM defaults for AUTHORING sessions only
   bitkey/<area>/<C-testrail-id-or-slug>/
-    blaze.yaml                           # natural-language source (portable, re-recordable)
-    android-phone.trail.yaml             # deterministic recording replayed in CI
+    <scenario>.trail.yaml                # unified single-file trail replayed in CI:
+                                         #   natural language + per-classifier recordings
 src/androidTest/.../SmokeTrails.kt       # JUnit classes: rule.runFromAsset("<path under trails/>")
 ```
+
+Each trail is ONE file per test (Trailblaze's unified schema): a `config:` block, an
+optional `trailhead:`, and a `trail:` list whose steps carry their recordings under
+`recording:` keyed by device classifier (`android-phone`). The retired two-file layout
+(`blaze.yaml` + `<classifier>.trail.yaml`) is no longer parsed. Schema reference:
+`trails/README.md` at the repo root.
 
 Trail authoring workflow (TestRail case → recorded trail): see
 `docs/docs/mobile/testing/trailblaze.md`.

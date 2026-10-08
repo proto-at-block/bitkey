@@ -1,6 +1,7 @@
 srcs = [
   'src/battery_rescale.c',
   'src/display_controller.c',
+  'src/fingerprint_commands.c',
   'src/flows/scan.c',
   'src/flows/menu.c',
   'src/flows/money_movement.c',

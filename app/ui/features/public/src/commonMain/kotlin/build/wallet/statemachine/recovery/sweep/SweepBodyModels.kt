@@ -149,6 +149,8 @@ sealed interface SweepFundsPromptContext {
   data class Recovery(val recoveredFactor: PhysicalFactor) : SweepFundsPromptContext
 
   data object InactiveWallet : SweepFundsPromptContext
+
+  data object AppKeyWallet : SweepFundsPromptContext
 }
 
 fun sweepFundsPrompt(
@@ -208,16 +210,18 @@ data class SweepFundsPromptBodyModel(
           onClick = StandardClick { onHelpClick() },
           testTag = "sweep-funds-help"
         )
-      ).takeIf { sweepContext !is SweepFundsPromptContext.Recovery }
+      ).takeIf { sweepContext == SweepFundsPromptContext.InactiveWallet }
     ),
     header = formHeroIconHeader(
       headline = when (sweepContext) {
         is SweepFundsPromptContext.Recovery -> "Finalize recovery"
-        is SweepFundsPromptContext.InactiveWallet -> "Transfer funds to active wallet"
+        SweepFundsPromptContext.InactiveWallet -> "Transfer funds to active wallet"
+        SweepFundsPromptContext.AppKeyWallet -> "Transfer funds to your Bitkey wallet"
       },
       subline = when (sweepContext) {
         is SweepFundsPromptContext.Recovery -> null
-        is SweepFundsPromptContext.InactiveWallet -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
+        SweepFundsPromptContext.InactiveWallet -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
+        SweepFundsPromptContext.AppKeyWallet -> "Move these funds from your App Key Wallet so they appear in your main Bitkey balance."
       },
       icon = null
     ),
@@ -225,8 +229,11 @@ data class SweepFundsPromptBodyModel(
       FormMainContentModel.DataList(
         items = immutableListOf(
           FormMainContentModel.DataList.Data(
-            title = "Sent From",
-            sideText = "Old wallet"
+            title = "Sent from",
+            sideText = when (sweepContext) {
+              SweepFundsPromptContext.AppKeyWallet -> "App Key Wallet"
+              else -> "Old wallet"
+            }
           )
         )
       ),
@@ -258,12 +265,14 @@ data class SweepFundsPromptBodyModel(
     primaryButton =
       ButtonModel(
         text = when (sweepContext) {
-          is SweepFundsPromptContext.Recovery -> "Complete Recovery"
-          is SweepFundsPromptContext.InactiveWallet -> "Confirm Transfer"
+          is SweepFundsPromptContext.Recovery -> "Complete recovery"
+          SweepFundsPromptContext.InactiveWallet,
+          SweepFundsPromptContext.AppKeyWallet -> "Confirm transfer"
         },
         requiresBitkeyInteraction = when (sweepContext) {
           is SweepFundsPromptContext.Recovery -> sweepContext.recoveredFactor == App
-          is SweepFundsPromptContext.InactiveWallet -> false
+          SweepFundsPromptContext.InactiveWallet,
+          SweepFundsPromptContext.AppKeyWallet -> false
         },
         treatment = Primary,
         onClick = onSubmit,
@@ -334,11 +343,12 @@ fun broadcastingScreenModel(
   context: SweepContext,
   onBack: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
+  title: String? = null,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
   body =
     LoadingBodyModel(
-      title = when (context) {
+      title = title ?: when (context) {
         is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> "Updating wallet..."
         else -> "Recovering funds..."
       },
@@ -403,12 +413,16 @@ fun sweepSuccessScreenModel(
   recoveredFactor: PhysicalFactor?,
   onDone: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
+  title: String? = null,
+  subline: String? = null,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
   body = SweepSuccessScreenBodyModel(
     id = id,
     recoveredFactor = recoveredFactor,
-    onDone = onDone
+    onDone = onDone,
+    title = title,
+    subline = subline
   )
 )
 
@@ -416,6 +430,8 @@ data class SweepSuccessScreenBodyModel(
   override val id: EventTrackerScreenId?,
   val recoveredFactor: PhysicalFactor?,
   val onDone: () -> Unit,
+  val title: String?,
+  val subline: String?,
 ) : FormBodyModel(
     id = id,
     onBack = onDone,
@@ -424,12 +440,12 @@ data class SweepSuccessScreenBodyModel(
         leadingAccessory = CloseAccessory(onClick = onDone)
       ),
     header = formHeroIconHeader(
-      headline = when (recoveredFactor) {
+      headline = title ?: when (recoveredFactor) {
         App -> "Your App Key recovery is complete!"
         Hardware -> "Success!"
         null -> "Your transfer is complete!"
       },
-      subline = when (recoveredFactor) {
+      subline = subline ?: when (recoveredFactor) {
         App, null -> "You can now safely use this phone to manage your Bitkey. Take precautions to avoid sending money to your old wallet."
         Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use. Take precautions to avoid sending money to your old wallet."
       },
@@ -501,13 +517,15 @@ fun sweepFailedScreenModel(
   errorData: ErrorData,
   onRetry: () -> Unit,
   onExit: () -> Unit,
+  title: String = "The transactions failed to broadcast",
 ) = ScreenModel(
   presentationStyle = presentationStyle,
   body = SweepFailedScreenBodyModel(
     id = id,
     errorData = errorData,
     onRetry = onRetry,
-    onExit = onExit
+    onExit = onExit,
+    title = title
   )
 )
 
@@ -516,6 +534,7 @@ private data class SweepFailedScreenBodyModel(
   override val errorData: ErrorData,
   val onRetry: () -> Unit,
   val onExit: () -> Unit,
+  val title: String,
 ) : FormBodyModel(
     id = id,
     onBack = onExit,
@@ -525,7 +544,7 @@ private data class SweepFailedScreenBodyModel(
       ),
     header =
       FormHeaderModel(
-        headline = "The transactions failed to broadcast"
+        headline = title
       ),
     primaryButton =
       ButtonModel(

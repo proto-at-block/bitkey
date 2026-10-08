@@ -1,5 +1,6 @@
 package build.wallet
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -7,11 +8,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.sensor.Accelerometer
 import build.wallet.statemachine.root.AppUiStateMachine
 import build.wallet.ui.app.App
+import build.wallet.ui.app.LocalAppVariant
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
 import build.wallet.ui.theme.ThemePreferenceService
@@ -27,6 +30,7 @@ class ComposeIosAppUIControllerImpl(
   private val accelerometer: Accelerometer,
   private val themePreferenceService: ThemePreferenceService,
   private val haptics: Haptics,
+  private val appVariant: AppVariant,
 ) : ComposeIosAppUIController {
   @OptIn(ExperimentalForeignApi::class)
   override val viewController: UIViewController = ComposeUIViewController {
@@ -50,13 +54,15 @@ class ComposeIosAppUIControllerImpl(
       }
     }
 
-    App(
-      model = model,
-      deviceInfo = deviceInfo,
-      accelerometer = accelerometer,
-      themePreferenceService = themePreferenceService,
-      haptics = haptics
-    )
+    CompositionLocalProvider(LocalAppVariant provides appVariant) {
+      App(
+        model = model,
+        deviceInfo = deviceInfo,
+        accelerometer = accelerometer,
+        themePreferenceService = themePreferenceService,
+        haptics = haptics
+      )
+    }
   }.also {
     // We set the background color to black to avoid white flashes on black screens
     // (nfc, onboarding, etc.) throughout the app.

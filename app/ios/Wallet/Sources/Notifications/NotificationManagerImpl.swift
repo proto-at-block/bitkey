@@ -117,10 +117,7 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
     // MARK: - UNUserNotificationCenterDelegate Methods
 
     @MainActor
-    public func userNotificationCenter(
-        _: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+    public func didReceive(response: UNNotificationResponse) async {
         // We include navigation deeplinks in some of our notifications
         let userInfo = response.notification.request.content.userInfo
         if !userInfo.isEmpty {
@@ -135,6 +132,14 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
         default:
             break
         }
+    }
+
+    @MainActor
+    public func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        await didReceive(response: response)
     }
 
     public func userNotificationCenter(

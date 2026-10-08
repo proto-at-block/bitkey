@@ -106,6 +106,7 @@ class SecurityActionsServiceImplTest : FunSpec({
         SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS -> false
         SecurityActionRecommendation.ENABLE_SMS_NOTIFICATIONS -> false
         SecurityActionRecommendation.PROVISION_APP_KEY_TO_HARDWARE -> true
+        SecurityActionRecommendation.PROVISION_HARDWARE_DESCRIPTOR -> false
         else -> true
       }
 
@@ -198,6 +199,7 @@ class SecurityActionsServiceImplTest : FunSpec({
         SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS -> false
         SecurityActionRecommendation.ENABLE_SMS_NOTIFICATIONS -> false
         SecurityActionRecommendation.PAIR_HARDWARE_DEVICE -> false
+        SecurityActionRecommendation.PROVISION_HARDWARE_DESCRIPTOR -> false
         SecurityActionRecommendation.BACKUP_MOBILE_KEY -> false
         SecurityActionRecommendation.UPDATE_FIRMWARE -> false
         SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH -> false

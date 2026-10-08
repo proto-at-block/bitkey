@@ -6,6 +6,7 @@ import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.address.BitcoinAddressServiceFake
+import build.wallet.bitcoin.wallet.AppKeyWalletServiceFake
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoderMock
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -91,6 +92,8 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     DescriptorRepairUiStateMachine,
     ScreenStateMachineMock<DescriptorRepairUiProps>("descriptor-repair") {}
 
+  val appKeyWalletService = AppKeyWalletServiceFake(turbines::create)
+
   val stateMachine = AddressQrCodeUiStateMachineImpl(
     clipboard = clipboard,
     restoreCopyAddressStateDelay = RestoreCopyAddressStateDelay(10.milliseconds),
@@ -106,7 +109,8 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     eventTracker = eventTracker,
     addressQrCodeLoadingDuration = AddressQrCodeLoadingDuration(0.milliseconds),
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-    descriptorRepairUiStateMachine = descriptorRepairUiStateMachine
+    descriptorRepairUiStateMachine = descriptorRepairUiStateMachine,
+    appKeyWalletService = appKeyWalletService
   )
 
   val onBackCalls = turbines.create<Unit>("back calls")
@@ -126,6 +130,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     bitcoinAddressService.reset()
+    appKeyWalletService.reset()
     qrCodeService.reset()
     themePreferenceService.clearThemePreference()
     getTransferPartnerListF8eClient.reset()
@@ -133,6 +138,29 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     partnershipTransactionsService.reset()
     deepLinkHandler.reset()
     nfcCommands.reset()
+  }
+
+  test("app-key wallet uses its address source and hides partners") {
+    stateMachine.test(
+      props(account = FullAccountW3Mock).copy(
+        addressSource = AddressQrCodeUiProps.AddressSource.AppKeyWallet,
+        showPartners = false,
+        title = "App Key Wallet"
+      )
+    ) {
+      awaitBody<AddressQrCodeBodyModel>()
+      awaitBody<AddressQrCodeBodyModel> {
+        toolbarModel.title.shouldBe(build.wallet.ui.model.toolbar.ToolbarTitleModel.Inline("App Key Wallet"))
+        content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>().apply {
+          partners.size.shouldBe(0)
+          hideAddressByDefault.shouldBe(false)
+          onVerifyClick.shouldBeNull()
+        }
+      }
+      appKeyWalletService.generateAddressInfoCalls.awaitItem()
+        .shouldBe(FullAccountMock.keybox.activeSpendingKeyset)
+      cancelAndIgnoreRemainingEvents()
+    }
   }
 
   test("show screen with address and QR code w/ light mode") {

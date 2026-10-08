@@ -113,10 +113,7 @@ flow_action_result_t display_controller_fingerprint_menu_on_tick(display_control
 flow_action_result_t display_controller_fingerprint_menu_on_event(display_controller_t* controller,
                                                                   ui_event_type_t event,
                                                                   const void* data, uint32_t len) {
-  if (event == UI_EVENT_FINGERPRINT_DELETED || event == UI_EVENT_FINGERPRINT_DELETE_FAILED) {
-    display_controller_query_fingerprint_status();
-    return flow_result_handled();
-  } else if (event == UI_EVENT_FINGERPRINT_STATUS) {
+  if (event == UI_EVENT_FINGERPRINT_STATUS) {
     controller->nav.fingerprint_menu.show_authenticated = false;
     update_screen_params(controller);
     display_controller_show_screen(controller, fwpb_display_show_screen_menu_fingerprints_tag,
@@ -164,9 +161,22 @@ flow_action_result_t display_controller_fingerprint_menu_on_action(
     }
   } else if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_DELETE_FINGERPRINT) {
     uint8_t visual_index = (uint8_t)data;
-    if (visual_index < FINGERPRINT_SLOT_COUNT) {
+    if (visual_index < FINGERPRINT_SLOT_COUNT && !controller->fingerprint_delete_pending) {
       uint8_t slot_index = visual_to_slot(controller->fingerprint_enrolled, visual_index);
-      display_controller_handle_action_delete_fingerprint(slot_index);
+      uint8_t enrolled_count = 0;
+      for (uint8_t slot = 0; slot < FINGERPRINT_SLOT_COUNT; slot++) {
+        enrolled_count += controller->fingerprint_enrolled[slot];
+      }
+      if (!controller->fingerprint_enrolled[slot_index] || enrolled_count <= 1) {
+        return flow_result_handled();
+      }
+
+      // Keep the displayed mapping stable and allow only one outstanding command.
+      controller->fingerprint_delete_pending = true;
+      controller->fingerprint_delete_result_received = false;
+      if (!display_controller_delete_fingerprint(slot_index)) {
+        controller->fingerprint_delete_pending = false;
+      }
     }
     return flow_result_handled();
   }

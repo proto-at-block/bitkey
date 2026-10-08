@@ -15,6 +15,7 @@ import bitkey.recovery.DelayNotifyCancellationRequest.CancelLostAppAndCloudRecov
 import bitkey.recovery.DelayNotifyCancellationRequest.CancelLostHardwareRecovery
 import bitkey.recovery.DescriptorBackupService.SsekUnsealCheckResult
 import build.wallet.auth.AuthProtocolError
+import build.wallet.auth.AuthSignatureMismatch
 import build.wallet.auth.AuthTokensService
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.extractAccountIndex
@@ -54,6 +55,7 @@ import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.CancelDelayNotifyRecoveryError
 import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletionAttemptFailedDueToServerCancellation
+import build.wallet.recovery.LostAppAndCloudRecoveryService
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.*
@@ -116,6 +118,7 @@ class RecoveryInProgressDataStateMachineImpl(
   private val minFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
   private val firmwareDataService: FirmwareDataService,
   private val authTokensService: AuthTokensService,
+  private val lostAppAndCloudRecoveryService: LostAppAndCloudRecoveryService,
 ) : RecoveryInProgressDataStateMachine {
   @Composable
   override fun model(props: RecoveryInProgressProps): RecoveryInProgressData {
@@ -148,7 +151,7 @@ class RecoveryInProgressDataStateMachineImpl(
             state = getHwProofOfPossessionOrCancelDirectly(
               props = props,
               rollbackFromAwaitingProofOfPossession = {
-                state = dataState
+                state = calculateInitialState(props.recovery)
               }
             )
           }
@@ -165,14 +168,11 @@ class RecoveryInProgressDataStateMachineImpl(
           // for some reason (F8e or NFC error).
           canCancelRecovery = props.recovery is InitiatedRecovery || props.recovery is RotatedAuthKeys,
           startComplete = {
-            state = AwaitingChallengeAndSeksSignedWithHardwareState(
-              challenge = DelayNotifyChallenge.fromParts(
-                type = DelayNotifyChallenge.Type.RECOVERY,
-                app = props.recovery.appGlobalAuthKey,
-                recovery = props.recovery.appRecoveryAuthKey,
-                hw = props.recovery.hardwareAuthKey
-              )
-            )
+            state = if (props.recovery.factorToRecover == App) {
+              RefreshingLostAppAuthenticationState
+            } else {
+              awaitingRecoveryChallengeState(props.recovery)
+            }
           },
           cancel = {
             state =
@@ -185,6 +185,60 @@ class RecoveryInProgressDataStateMachineImpl(
           },
           physicalFactor = props.recovery.factorToRecover
         )
+      }
+
+      RefreshingLostAppAuthenticationState -> {
+        LaunchedEffect("refresh-lost-app-authentication") {
+          val environment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
+          authTokensService.refreshAccessTokenWithApp(
+            f8eEnvironment = environment,
+            accountId = props.recovery.fullAccountId,
+            scope = AuthTokenScope.Global
+          ).onSuccess {
+            state = awaitingRecoveryChallengeState(props.recovery)
+          }.onFailure { refreshError ->
+            if (refreshError is AuthSignatureMismatch) {
+              lostAppAndCloudRecoveryService.initiateAuth(props.recovery.hardwareAuthKey)
+                .onSuccess { challenge ->
+                  state = AwaitingLostAppHardwareReauthenticationState(
+                    authChallenge = challenge,
+                    hardwareType = currentHardwareType()
+                  )
+                }
+                .onFailure { error -> state = FailedToRotateAuthState(error) }
+            } else {
+              state = FailedToRotateAuthState(refreshError)
+            }
+          }
+        }
+        RotatingAuthKeysWithF8eData(props.recovery.factorToRecover)
+      }
+
+      is AwaitingLostAppHardwareReauthenticationState ->
+        AwaitingHardwareReauthenticationData(
+          authChallenge = dataState.authChallenge,
+          hardwareType = dataState.hardwareType,
+          purpose = HardwareReauthenticationPurpose.Completion,
+          onSignedChallenge = { signedChallenge ->
+            state = CompletingLostAppHardwareReauthenticationState(
+              authChallenge = dataState.authChallenge,
+              signedChallenge = signedChallenge
+            )
+          },
+          onCancel = { state = ReadyToCompleteRecoveryState }
+        )
+
+      is CompletingLostAppHardwareReauthenticationState -> {
+        LaunchedEffect("complete-lost-app-hardware-reauthentication") {
+          lostAppAndCloudRecoveryService.reauthenticateWithHardware(
+            accountId = props.recovery.fullAccountId,
+            session = dataState.authChallenge.session,
+            hwSignedChallenge = dataState.signedChallenge
+          ).onSuccess {
+            state = awaitingRecoveryChallengeState(props.recovery)
+          }.onFailure { error -> state = FailedToRotateAuthState(error) }
+        }
+        RotatingAuthKeysWithF8eData(props.recovery.factorToRecover)
       }
 
       is RotatingAuthTokensState -> {
@@ -260,13 +314,86 @@ class RecoveryInProgressDataStateMachineImpl(
                 } else {
                   FailedToCancelRecoveryState(
                     cause = error,
-                    isNetworkError = error.isNetworkError()
+                    isNetworkError = error.isNetworkError(),
+                    rollback = dataState.rollback
                   )
                 }
             }
         }
 
         return CancellingData(props.recovery.factorToRecover)
+      }
+
+      is RefreshingLostAppCancellationAuthenticationState -> {
+        LaunchedEffect("refresh-lost-app-cancellation-authentication") {
+          val environment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
+          authTokensService.refreshAccessTokenWithApp(
+            f8eEnvironment = environment,
+            accountId = props.recovery.fullAccountId,
+            scope = AuthTokenScope.Global
+          ).onSuccess {
+            state = ResolvingHardwareTypeForCancellationState(dataState.rollback)
+          }.onFailure { refreshError ->
+            if (refreshError is AuthSignatureMismatch && currentHardwareType() == HardwareType.W1) {
+              lostAppAndCloudRecoveryService.initiateAuth(props.recovery.hardwareAuthKey)
+                .onSuccess { challenge ->
+                  state = AwaitingLostAppCancellationHardwareReauthenticationState(
+                    authChallenge = challenge,
+                    hardwareType = currentHardwareType(),
+                    rollback = dataState.rollback
+                  )
+                }
+                .onFailure { error ->
+                  state = FailedToCancelRecoveryState(
+                    cause = error,
+                    isNetworkError = error.isNetworkError(),
+                    rollback = dataState.rollback
+                  )
+                }
+            } else {
+              state = FailedToCancelRecoveryState(
+                cause = refreshError,
+                isNetworkError = refreshError.isNetworkError(),
+                rollback = dataState.rollback
+              )
+            }
+          }
+        }
+        CancellingData(props.recovery.factorToRecover)
+      }
+
+      is AwaitingLostAppCancellationHardwareReauthenticationState ->
+        AwaitingHardwareReauthenticationData(
+          authChallenge = dataState.authChallenge,
+          hardwareType = dataState.hardwareType,
+          purpose = HardwareReauthenticationPurpose.Cancellation,
+          onSignedChallenge = { signedChallenge ->
+            state = CompletingLostAppCancellationHardwareReauthenticationState(
+              authChallenge = dataState.authChallenge,
+              signedChallenge = signedChallenge,
+              rollback = dataState.rollback
+            )
+          },
+          onCancel = dataState.rollback
+        )
+
+      is CompletingLostAppCancellationHardwareReauthenticationState -> {
+        LaunchedEffect("complete-lost-app-cancellation-hardware-reauthentication") {
+          lostAppAndCloudRecoveryService.reauthenticateWithHardware(
+            accountId = props.recovery.fullAccountId,
+            session = dataState.authChallenge.session,
+            hwSignedChallenge = dataState.signedChallenge
+          ).onSuccess {
+            state = ResolvingHardwareTypeForCancellationState(dataState.rollback)
+          }.onFailure { error ->
+            state = FailedToCancelRecoveryState(
+              cause = error,
+              isNetworkError = error.isNetworkError(),
+              rollback = dataState.rollback
+            )
+          }
+        }
+        CancellingData(props.recovery.factorToRecover)
       }
 
       is ResolvingHardwareTypeForCancellationState -> {
@@ -294,7 +421,10 @@ class RecoveryInProgressDataStateMachineImpl(
           authTokens = dataState.authTokens,
           hardwareType = dataState.hardwareType,
           addProof = {
-            state = CancellingState(CancelLostAppAndCloudRecovery(it))
+            state = CancellingState(
+              cancellationRequest = CancelLostAppAndCloudRecovery(it),
+              rollback = dataState.rollback
+            )
           },
           rollback = dataState.rollback,
           fullAccountId = props.recovery.fullAccountId
@@ -895,9 +1025,7 @@ class RecoveryInProgressDataStateMachineImpl(
           recoveredFactor = props.recovery.factorToRecover,
           isNetworkError = dataState.isNetworkError,
           cause = dataState.cause,
-          onAcknowledge = {
-            state = ReadyToCompleteRecoveryState
-          }
+          onAcknowledge = dataState.rollback
         )
 
       is RegeneratingTcCertificatesState -> {
@@ -1726,8 +1854,13 @@ class RecoveryInProgressDataStateMachineImpl(
     rollbackFromAwaitingProofOfPossession: () -> Unit,
   ): State {
     return when (props.recovery.factorToRecover) {
-      App -> ResolvingHardwareTypeForCancellationState(rollbackFromAwaitingProofOfPossession)
-      Hardware -> CancellingState(CancelLostHardwareRecovery)
+      App -> RefreshingLostAppCancellationAuthenticationState(
+        rollbackFromAwaitingProofOfPossession
+      )
+      Hardware -> CancellingState(
+        cancellationRequest = CancelLostHardwareRecovery,
+        rollback = rollbackFromAwaitingProofOfPossession
+      )
     }
   }
 
@@ -1839,11 +1972,23 @@ class RecoveryInProgressDataStateMachineImpl(
     return HwSignedAction(dbHeader) to HwSignedAction(akHeader)
   }
 
-  private fun isW3Hardware(): Boolean =
+  private fun currentHardwareType(): HardwareType =
     firmwareDataService.firmwareData()
       .value
       .firmwareDeviceInfo
-      ?.hardwareType() == HardwareType.W3
+      ?.hardwareType() ?: HardwareType.W1
+
+  private fun isW3Hardware(): Boolean = currentHardwareType() == HardwareType.W3
+
+  private fun awaitingRecoveryChallengeState(recovery: StillRecovering) =
+    AwaitingChallengeAndSeksSignedWithHardwareState(
+      challenge = DelayNotifyChallenge.fromParts(
+        type = DelayNotifyChallenge.Type.RECOVERY,
+        app = recovery.appGlobalAuthKey,
+        recovery = recovery.appRecoveryAuthKey,
+        hw = recovery.hardwareAuthKey
+      )
+    )
 
   private sealed interface State {
     /**
@@ -1857,6 +2002,22 @@ class RecoveryInProgressDataStateMachineImpl(
     ) : State
 
     data object VerifyingNotificationCommsForCancellationState : State
+
+    data class RefreshingLostAppCancellationAuthenticationState(
+      val rollback: () -> Unit,
+    ) : State
+
+    data class AwaitingLostAppCancellationHardwareReauthenticationState(
+      val authChallenge: build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess,
+      val hardwareType: HardwareType,
+      val rollback: () -> Unit,
+    ) : State
+
+    data class CompletingLostAppCancellationHardwareReauthenticationState(
+      val authChallenge: build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess,
+      val signedChallenge: String,
+      val rollback: () -> Unit,
+    ) : State
 
     /**
      * Resolving the hardware type from FirmwareDeviceInfoDao before showing the
@@ -1881,9 +2042,22 @@ class RecoveryInProgressDataStateMachineImpl(
     data class FailedToCancelRecoveryState(
       val cause: Error,
       val isNetworkError: Boolean,
+      val rollback: () -> Unit,
     ) : State
 
     data object ReadyToCompleteRecoveryState : State
+
+    data object RefreshingLostAppAuthenticationState : State
+
+    data class AwaitingLostAppHardwareReauthenticationState(
+      val authChallenge: build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess,
+      val hardwareType: HardwareType,
+    ) : State
+
+    data class CompletingLostAppHardwareReauthenticationState(
+      val authChallenge: build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess,
+      val signedChallenge: String,
+    ) : State
 
     data class FailedToRotateAuthState(
       val cause: Throwable,
@@ -1913,6 +2087,7 @@ class RecoveryInProgressDataStateMachineImpl(
 
     data class CancellingState(
       val cancellationRequest: DelayNotifyCancellationRequest,
+      val rollback: () -> Unit,
     ) : State
 
     /**
@@ -2166,13 +2341,12 @@ class RecoveryInProgressDataStateMachineImpl(
   }
 }
 
-private fun Error.isNetworkError(): Boolean {
-  return when {
-    this !is CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError -> false
-    error is F8eError.ConnectivityError -> true
-    else -> false
-  }
-}
+private fun Error.isNetworkError(): Boolean =
+  this is CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError &&
+    error is F8eError.ConnectivityError || hasNetworkErrorCause()
+
+private fun Throwable.hasNetworkErrorCause(): Boolean =
+  this is HttpError.NetworkError || cause?.hasNetworkErrorCause() == true
 
 private fun CancelDelayNotifyRecoveryError.isNeedsCommsVerificationError(): Boolean {
   return when (this) {

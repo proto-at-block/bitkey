@@ -14,6 +14,8 @@ public protocol NotificationManager: AnyObject, UNUserNotificationCenterDelegate
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     )
 
+    func didReceive(response: UNNotificationResponse) async
+
     var delegate: NotificationManagerDelegate? { get set }
 }
 

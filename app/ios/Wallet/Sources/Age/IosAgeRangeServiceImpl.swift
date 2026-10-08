@@ -65,10 +65,10 @@ import UIKit
  * @see https://developer.apple.com/documentation/declaredagerange
  */
 public final class IosAgeRangeServiceImpl: Shared.IosAgeRangeService {
-    private let window: UIWindow
+    private let presentationContext: ScenePresentationContext
 
-    public init(window: UIWindow) {
-        self.window = window
+    init(presentationContext: ScenePresentationContext) {
+        self.presentationContext = presentationContext
     }
 
     /**
@@ -90,7 +90,7 @@ public final class IosAgeRangeServiceImpl: Shared.IosAgeRangeService {
 
         // Need a view controller to present the system age sharing dialog
         // This accesses UIKit on main actor
-        guard let viewController = await window.rootViewController else {
+        guard let viewController = await presentationContext.rootViewController else {
             throw AgeRangeServiceException(
                 errorCode: "NO_ROOT_VIEW_CONTROLLER",
                 message: "Window has no root view controller",

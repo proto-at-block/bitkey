@@ -33,8 +33,11 @@ import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreen
+import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.statemachine.nfc.DescriptorRepairUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
@@ -112,6 +115,11 @@ class SecurityHubPresenterTests : FunSpec({
       id = "nfc-session"
     ) {}
 
+  val descriptorRepairUiStateMachine = object : DescriptorRepairUiStateMachine,
+    ScreenStateMachineMock<DescriptorRepairUiProps>(
+      id = "descriptor-repair"
+    ) {}
+
   val recoveryContactCardsUiStateMachine = object : RecoveryContactCardsUiStateMachine,
     StateMachineMock<RecoveryContactCardsUiProps, LoadableValue<ImmutableList<CardModel.Status>>>(
       initialModel = LoadedValue(immutableListOf())
@@ -148,6 +156,7 @@ class SecurityHubPresenterTests : FunSpec({
     fingerprintResetAvailabilityService = fingerprintResetAvailabilityService,
     provisionAppAuthKeyTransactionProvider = provisionAppAuthKeyTransactionProvider,
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    descriptorRepairUiStateMachine = descriptorRepairUiStateMachine,
   )
 
   suspend fun setupFingerprintResetMinFirmwareVersion(minFirmwareVersion: String = "1.0.98") {
@@ -664,12 +673,26 @@ class SecurityHubPresenterTests : FunSpec({
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC)
         PAIR_HARDWARE_DEVICE -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE)
+        PROVISION_HARDWARE_DESCRIPTOR -> recommendation.navigationScreenId()
+          .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE)
         UPDATE_FIRMWARE -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE)
         ENABLE_TRANSACTION_VERIFICATION -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY)
         REPAIR_KEYSET_MISMATCH -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_KEYSET_REPAIR)
+      }
+    }
+  }
+
+  test("tapping PROVISION_HARDWARE_DESCRIPTOR recommendation opens descriptor repair") {
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        onRecommendationClick(PROVISION_HARDWARE_DESCRIPTOR)
+      }
+      awaitBodyMock<DescriptorRepairUiProps>(id = descriptorRepairUiStateMachine.id) {
+        fullAccount.shouldBe(FullAccountMock)
+        presentationStyle.shouldBe(ScreenPresentationStyle.Modal)
       }
     }
   }

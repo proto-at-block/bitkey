@@ -22,10 +22,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Internal Properties
 
     let appVariant = AppVariant.current()
-    var appContext: AppContext!
-    var appContextInitializationTask: Task<Void, Never>!
-
-    lazy var window: UIWindow? = UIWindow(frame: UIScreen.main.bounds)
+    private(set) var appContext: AppContext?
+    private var appContextInitializationTask: Task<AppContext, Never>?
+    let scenePresentationContext = ScenePresentationContext()
 
     // MARK: - Life Cycle
 
@@ -50,22 +49,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        let window = UIWindow(frame: UIScreen.main.bounds)
-        self.window = window
-
-        appContextInitializationTask = Task.detached { [weak self] in
-            guard let appVariant = await self?.appVariant else { return }
-
-            let context = AppContext(appVariant: appVariant, window: window)
+        appContextInitializationTask = Task.detached { [appVariant, scenePresentationContext] in
+            let context = AppContext(
+                appVariant: appVariant,
+                presentationContext: scenePresentationContext
+            )
             context.appComponent.loggerInitializer.initialize()
             context.appComponent.bugsnagContext.configureCommonMetadata()
 
             // W-8924: Exclude Library/Application Support directory from iCloud backups. Otherwise, if
             // a user performs an iCloud restore on a new phone, the app will think it is onboarded
-            // but
-            // will be missing the necessary keychain keys, resulting in a crash on boot. This is
-            // considered best-effort, both for our code and per Apple's documentation on
-            // isExcludedFromBackup.
+            // but will be missing the necessary keychain keys, resulting in a crash on boot.
             do {
                 var url = URL(fileURLWithPath: context.appComponent.fileDirectoryProvider.appDir())
                 var resourceValues = URLResourceValues()
@@ -75,26 +69,48 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 log(.error, error: error) { "Failed to exclude appDir from iCloud backup." }
             }
 
-            UNUserNotificationCenter.current().delegate = context.notificationManager
-            context.notificationManager.delegate = self
+            await MainActor.run {
+                UNUserNotificationCenter.current().delegate = context.notificationManager
+                context.notificationManager.delegate = self
+                self.appContext = context
 
-            await MainActor.run { [weak self] in
-                self?.appContext = context
-                context.sharingManager.mainWindow = window
-                window.rootViewController = context.activityComponent.composeAppUIController
-                    .viewController
-                window.makeKeyAndVisible()
-
-                // We have videos in our app which, even though they don't have audio, means when
-                // they play
-                // they take over audio control from other apps. This prevents that.
+                // Prevent silent videos from taking audio control from other apps.
                 try? AVAudioSession.sharedInstance().setCategory(
                     .playback,
                     mode: .default,
                     options: [.mixWithOthers]
                 )
             }
+
+            return context
         }
+        return true
+    }
+
+    @MainActor
+    func appContext() async -> AppContext? {
+        if let appContext {
+            return appContext
+        }
+        return await appContextInitializationTask?.value
+    }
+
+    @discardableResult
+    func handle(_ userActivity: NSUserActivity) -> Bool {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+              let url = userActivity.webpageURL
+        else {
+            return false
+        }
+        return handle(url: url)
+    }
+
+    @discardableResult
+    func handle(url: URL) -> Bool {
+        guard let route = Route.companion.from(url: url.absoluteString) else {
+            return false
+        }
+        Router.shared.route = route
         return true
     }
 
@@ -102,10 +118,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
-        appContext.notificationManager.application(
-            application,
-            didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
-        )
+        Task { @MainActor in
+            guard let appContext = await appContext() else { return }
+            appContext.notificationManager.application(
+                application,
+                didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
+            )
+        }
     }
 
     func application(
@@ -115,52 +134,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         log(.error, error: error) { "Failed to register for remote notifications" }
     }
 
-    func applicationDidBecomeActive(_ application: UIApplication) {
-        Task {
-            await appContextInitializationTask.value
-            guard let appContext else { return }
-            // Notify the session manager that we are now in the foreground.
-            // This is to refresh the session ID if a certain amount of time has passed in the
-            // background.
-            appContext.appComponent.appSessionManager.appDidEnterForeground()
 
-            // Notify the notification manager that we are now in the foreground so it can perform
-            // relevant tasks.
-            appContext.notificationManager.applicationDidEnterForeground(application)
-        }
-    }
-
-    func applicationWillResignActive(_: UIApplication) {
-        Task {
-            await appContextInitializationTask.value
-            guard let appContext else { return }
-            if !appContext.appComponent.biometricPrompter.isPrompting,
-               !appContext.activityComponent.nfcTransactor.isTransacting
-            {
-                appContext.appComponent.appSessionManager.appDidEnterBackground()
-            }
-        }
-    }
-
-    func application(
-        _: UIApplication,
-        continue userActivity: NSUserActivity,
-        restorationHandler _: @escaping ([UIUserActivityRestoring]?) -> Void
-    ) -> Bool {
-        // Get URL components from the incoming user activity.
-        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
-              let incomingURL = userActivity.webpageURL
-        else {
-            return false
-        }
-
-        if let route = Route.companion.from(url: incomingURL.absoluteString) {
-            Router.shared.route = route
-            return true
-        }
-
-        return false
-    }
 }
 
 private extension AppDelegate {

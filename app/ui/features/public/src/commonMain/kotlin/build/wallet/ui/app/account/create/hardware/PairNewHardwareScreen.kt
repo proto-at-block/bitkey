@@ -8,6 +8,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +49,8 @@ import build.wallet.ui.tooling.LocalIsPreviewTheme
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 
-private val HeroImageBottomSpacing = 40.dp
+private val HeroContentToFooterSpacing = 40.dp
+private val HeroFooterBottomPadding = 24.dp
 
 @Composable
 fun PairNewHardwareScreen(
@@ -242,58 +245,74 @@ private fun PairNewHardwareHeroScreen(
         )
       }
 
-      Spacer(Modifier.height(24.dp))
-
-      Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+      val scrollState = rememberScrollState()
+      BoxWithConstraints(
+        modifier = Modifier
+          .weight(1f)
+          .fillMaxWidth()
       ) {
-        headerModel.headline?.let { headline ->
-          Label(
-            text = headline,
-            type = LabelType.Body2MonoCaps,
-            treatment = LabelTreatment.Unspecified,
-            alignment = TextAlign.Center,
-            color = WalletTheme.colors.foreground
-          )
-        }
-
-        headerModel.sublineModel?.buildAnnotatedString()?.let { subline ->
-          Spacer(Modifier.height(8.dp))
-          Label(
-            text = subline,
-            type = LabelType.Body3Regular,
-            treatment = LabelTreatment.Unspecified,
-            alignment = TextAlign.Center,
-            color = WalletTheme.colors.foreground60
-          )
-        }
-      }
-      Spacer(Modifier.weight(1f))
-
-      heroImagePainter?.let { painter ->
-        Image(
-          painter = painter,
-          contentDescription = null,
+        // Fill at least the viewport so the weighted spacer keeps the hero image bottom-aligned
+        // when content fits, while still allowing tall content to scroll on compact layouts.
+        Column(
           modifier = Modifier
             .fillMaxWidth()
-            .then(
-              if (debugHeroLayout) {
-                Modifier.background(Color.Red.copy(alpha = 0.22f))
-              } else {
-                Modifier
-              }
-            ),
-          contentScale = ContentScale.FillWidth
-        )
+            .verticalScroll(scrollState)
+            .heightIn(min = maxHeight),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Spacer(Modifier.height(24.dp))
 
-        Spacer(Modifier.height(HeroImageBottomSpacing))
+          Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+          ) {
+            headerModel.headline?.let { headline ->
+              Label(
+                text = headline,
+                type = LabelType.Body2MonoCaps,
+                treatment = LabelTreatment.Unspecified,
+                alignment = TextAlign.Center,
+                color = WalletTheme.colors.foreground
+              )
+            }
+
+            headerModel.sublineModel?.buildAnnotatedString()?.let { subline ->
+              Spacer(Modifier.height(8.dp))
+              Label(
+                text = subline,
+                type = LabelType.Body3Regular,
+                treatment = LabelTreatment.Unspecified,
+                alignment = TextAlign.Center,
+                color = WalletTheme.colors.foreground60
+              )
+            }
+          }
+          Spacer(Modifier.height(24.dp))
+          Spacer(Modifier.weight(1f))
+
+          heroImagePainter?.let { painter ->
+            Image(
+              painter = painter,
+              contentDescription = null,
+              modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                  if (debugHeroLayout) {
+                    Modifier.background(Color.Red.copy(alpha = 0.22f))
+                  } else {
+                    Modifier
+                  }
+                ),
+              contentScale = ContentScale.FillWidth
+            )
+          }
+        }
       }
 
       Column(
         modifier = Modifier
           .fillMaxWidth()
-          .padding(bottom = 24.dp)
+          .padding(top = HeroContentToFooterSpacing, bottom = HeroFooterBottomPadding)
           .then(
             if (debugHeroLayout) {
               Modifier.background(Color.Green.copy(alpha = 0.14f))

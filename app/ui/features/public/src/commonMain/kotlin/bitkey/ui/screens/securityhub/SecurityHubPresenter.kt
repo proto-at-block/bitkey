@@ -48,6 +48,8 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.moneyhome.card.CardListModel
+import build.wallet.statemachine.nfc.DescriptorRepairUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
@@ -97,6 +99,7 @@ class SecurityHubPresenter(
   private val fingerprintResetAvailabilityService: FingerprintResetAvailabilityService,
   private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val descriptorRepairUiStateMachine: DescriptorRepairUiStateMachine,
 ) : ScreenPresenter<SecurityHubScreen> {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -257,6 +260,9 @@ class SecurityHubPresenter(
           COMPLETE_FINGERPRINT_RESET -> {
             uiState = SecurityHubUiState.FingerprintResetState
           }
+          PROVISION_HARDWARE_DESCRIPTOR -> {
+            uiState = SecurityHubUiState.DescriptorRepairState
+          }
           PROVISION_APP_KEY_TO_HARDWARE -> {
             navigator.goTo(
               screen = SecurityHubEducationScreen.ProvisionAppKeyEducation(
@@ -373,6 +379,16 @@ class SecurityHubPresenter(
               )
             },
             account = screen.account
+          )
+        )
+      }
+      is SecurityHubUiState.DescriptorRepairState -> {
+        descriptorRepairUiStateMachine.model(
+          props = DescriptorRepairUiProps(
+            fullAccount = screen.account,
+            presentationStyle = ScreenPresentationStyle.Modal,
+            onRepairComplete = exitToViewingSecurityHub,
+            onBack = exitToViewingSecurityHub
           )
         )
       }
@@ -608,6 +624,7 @@ fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =
     ADD_BENEFICIARY -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE
     SETUP_BIOMETRICS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC
     PAIR_HARDWARE_DEVICE -> NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
+    PROVISION_HARDWARE_DESCRIPTOR -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE
     UPDATE_FIRMWARE -> NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE
     ENABLE_TRANSACTION_VERIFICATION -> NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY
     REPAIR_KEYSET_MISMATCH -> NavigationScreenId.NAVIGATION_SCREEN_ID_KEYSET_REPAIR
@@ -630,6 +647,11 @@ sealed interface SecurityHubUiState {
    * State for resetting fingerprints
    */
   data object FingerprintResetState : SecurityHubUiState
+
+  /**
+   * State for repairing a missing hardware descriptor.
+   */
+  data object DescriptorRepairState : SecurityHubUiState
 
   /**
    * State for provisioning app key

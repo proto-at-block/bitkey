@@ -97,6 +97,8 @@ MODULES=(
   trailblaze-tracing
   trailblaze-agent
   trailblaze-report
+  trailblaze-scripting-fetch
+  trailblaze-ondevice-rpc-proto
 )
 
 echo "--- Verifying $TRAILBLAZE_REPOSITORY tag $TAG still points to $TRAILBLAZE_COMMIT"
@@ -137,11 +139,11 @@ PUBLISH_TASKS=()
 for m in "${MODULES[@]}"; do PUBLISH_TASKS+=(":$m:publishToMavenLocal"); done
 ./gradlew --no-daemon "${PUBLISH_TASKS[@]}"
 
-echo "--- Copying artifacts into vendor/maven (sources jars stripped)"
+echo "--- Copying artifacts into vendor/maven (sources and javadoc jars stripped)"
 rm -rf "$VENDOR_DIR/maven/xyz"
 mkdir -p "$VENDOR_DIR/maven/xyz/block"
 cp -R "$HOME/.m2/repository/xyz/block/trailblaze" "$VENDOR_DIR/maven/xyz/block/trailblaze"
-find "$VENDOR_DIR/maven" -name "*-sources.jar" -delete
+find "$VENDOR_DIR/maven" \n  \( -name "*-sources.jar" -o -name "*-javadoc.jar" \) -delete
 find "$VENDOR_DIR/maven" -name "maven-metadata-local.xml" -delete
 
 echo "--- Regenerating SHA256SUMS"

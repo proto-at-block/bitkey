@@ -2,6 +2,7 @@ package build.wallet.recovery
 
 import bitkey.account.AccountConfigService
 import bitkey.account.HardwareType
+import bitkey.auth.AccountAuthTokens
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.f8e.error.F8eError.SpecificClientError
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
@@ -13,6 +14,8 @@ import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import bitkey.recovery.InitiateDelayNotifyRecoveryError.*
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthTokensService
+import build.wallet.availability.AuthSignatureStatus.Authenticated
+import build.wallet.availability.F8eAuthSignatureStatusProvider
 import build.wallet.auth.logAuthFailure
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.f8e.FullAccountId
@@ -55,6 +58,7 @@ class LostAppAndCloudRecoveryServiceImpl(
   private val accountConfigService: AccountConfigService,
   private val accountAuthenticator: AccountAuthenticator,
   private val authTokensService: AuthTokensService,
+  private val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider,
   private val deviceTokenManager: DeviceTokenManager,
   private val appKeysGenerator: AppKeysGenerator,
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
@@ -139,6 +143,26 @@ class LostAppAndCloudRecoveryServiceImpl(
         }
       }
     }
+
+  override suspend fun reauthenticateWithHardware(
+    accountId: FullAccountId,
+    session: String,
+    hwSignedChallenge: String,
+  ): Result<AccountAuthTokens, Error> = recoveryLock.withLock {
+    coroutineBinding {
+      val authTokens = accountAuthenticator
+        .hwAuth(accountId, session, hwSignedChallenge)
+        .logAuthFailure { "Failed to reauthenticate with hardware during lost app recovery" }
+        .mapError { it as Error }
+        .bind()
+
+      authTokensService.setTokens(accountId, authTokens, Global)
+        .mapError { error -> error as? Error ?: Error(error) }
+        .bind()
+      f8eAuthSignatureStatusProvider.updateAuthSignatureStatus(Authenticated)
+      authTokens
+    }
+  }
 
   override suspend fun initiateRecovery(
     completedAuth: CompletedAuth,

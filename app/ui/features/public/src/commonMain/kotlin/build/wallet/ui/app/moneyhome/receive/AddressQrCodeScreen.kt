@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import build.wallet.partnerships.PartnerInfo
@@ -58,6 +59,9 @@ import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.delay
 
+private val QrCodeCardMaxWidth = 360.dp
+private val UnfoldedReceiveLayoutMinWidth = 700.dp
+
 @Composable
 fun AddressQrCodeScreen(
   modifier: Modifier = Modifier,
@@ -81,10 +85,12 @@ fun AddressQrCodeScreen(
       ) {
         val scrollState = rememberScrollState()
 
-        Box(
+        BoxWithConstraints(
           contentAlignment = Alignment.TopCenter,
           modifier = Modifier.fillMaxSize()
         ) {
+          val useUnfoldedLayout = maxWidth >= UnfoldedReceiveLayoutMinWidth
+
           Column(
             modifier = Modifier
               .verticalScroll(scrollState)
@@ -93,58 +99,15 @@ fun AddressQrCodeScreen(
           ) {
             when (val content = model.content) {
               is QrCode -> {
-                var isAddressExpanded by remember(content.addressDisplayString) {
-                  mutableStateOf(false)
-                }
-
-                Box(modifier = Modifier.padding(horizontal = 32.dp)) {
-                  QrCodeWithAddressCard(
-                    onCopyClick = content.onCopyClick,
-                    qrCodeState = content.qrCodeState
-                  )
-                }
-                val copied = content.copyButtonIcon == Icon.SmallIconCheckFilled
-
-                if (content.hideAddressByDefault) {
-                  ExpandableAddressSection(
-                    modifier = Modifier
-                      .padding(horizontal = 32.dp),
-                    expanded = isAddressExpanded,
-                    onToggle = { isAddressExpanded = !isAddressExpanded },
-                    onCopyClick = content.onCopyClick,
-                    copied = copied,
-                    address = content.addressDisplayString,
-                    isLoadingPlaceholder = content.isAddressLoadingPlaceholder,
-                    isRefreshing = content.isRefreshing,
-                    onVerifyClick = content.onVerifyClick
+                if (useUnfoldedLayout) {
+                  UnfoldedQrCodeContent(
+                    content = content,
+                    qrCodeMaxWidth = QrCodeCardMaxWidth
                   )
                 } else {
-                  StaticAddressSection(
-                    modifier = Modifier
-                      .padding(horizontal = 32.dp),
-                    onCopyClick = content.onCopyClick,
-                    copied = copied,
-                    address = content.addressDisplayString,
-                    isLoadingPlaceholder = content.isAddressLoadingPlaceholder,
-                    isRefreshing = content.isRefreshing,
-                    onVerifyClick = content.onVerifyClick
-                  )
-                }
-                Box(
-                  modifier = Modifier
-                    .padding(horizontal = 32.dp)
-                    .padding(top = 8.dp)
-                ) {
-                  Label(
-                    model = LabelModel.StringModel(
-                      "This address only accepts Bitcoin (BTC). " +
-                        "Sending other assets will result in permanent loss of funds."
-                    ),
-                    type = LabelType.Body4Mono,
-                    alignment = TextAlign.Start,
-                    treatment = LabelTreatment.Secondary,
-                    style = WalletTheme.labelStyle(LabelType.Body4Mono, LabelTreatment.Secondary, TextAlign.Start)
-                      .copy(fontSize = 10.sp)
+                  FoldedQrCodeContent(
+                    content = content,
+                    qrCodeMaxWidth = QrCodeCardMaxWidth
                   )
                 }
               }
@@ -207,15 +170,155 @@ fun AddressQrCodeScreen(
 }
 
 @Composable
+private fun FoldedQrCodeContent(
+  content: QrCode,
+  qrCodeMaxWidth: Dp,
+) {
+  var isAddressExpanded by remember(content.addressDisplayString) {
+    mutableStateOf(false)
+  }
+  val copied = content.copyButtonIcon == Icon.SmallIconCheckFilled
+
+  Column(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 32.dp),
+      contentAlignment = Alignment.Center
+    ) {
+      QrCodeWithAddressCard(
+        onCopyClick = content.onCopyClick,
+        qrCodeState = content.qrCodeState,
+        maxWidth = qrCodeMaxWidth
+      )
+    }
+
+    if (content.hideAddressByDefault) {
+      ExpandableAddressSection(
+        modifier = Modifier.padding(horizontal = 32.dp),
+        expanded = isAddressExpanded,
+        onToggle = { isAddressExpanded = !isAddressExpanded },
+        onCopyClick = content.onCopyClick,
+        copied = copied,
+        address = content.addressDisplayString,
+        isLoadingPlaceholder = content.isAddressLoadingPlaceholder,
+        isRefreshing = content.isRefreshing,
+        onVerifyClick = content.onVerifyClick
+      )
+    } else {
+      StaticAddressSection(
+        modifier = Modifier.padding(horizontal = 32.dp),
+        onCopyClick = content.onCopyClick,
+        copied = copied,
+        address = content.addressDisplayString,
+        isLoadingPlaceholder = content.isAddressLoadingPlaceholder,
+        isRefreshing = content.isRefreshing,
+        onVerifyClick = content.onVerifyClick
+      )
+    }
+
+    ReceiveWarningLabel(
+      modifier = Modifier
+        .padding(horizontal = 32.dp)
+        .padding(top = 8.dp)
+    )
+  }
+}
+
+@Composable
+private fun UnfoldedQrCodeContent(
+  content: QrCode,
+  qrCodeMaxWidth: Dp,
+) {
+  var isAddressExpanded by remember(content.addressDisplayString) {
+    mutableStateOf(false)
+  }
+  val copied = content.copyButtonIcon == Icon.SmallIconCheckFilled
+
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(horizontal = 32.dp),
+    horizontalArrangement = Arrangement.spacedBy(32.dp),
+    verticalAlignment = Alignment.Top
+  ) {
+    // Weight a wrapper rather than the card itself: a filling weight gives its child an exact
+    // width, which would override the card's max-width cap.
+    Box(
+      modifier = Modifier.weight(1f),
+      contentAlignment = Alignment.TopCenter
+    ) {
+      QrCodeWithAddressCard(
+        onCopyClick = content.onCopyClick,
+        qrCodeState = content.qrCodeState,
+        maxWidth = qrCodeMaxWidth
+      )
+    }
+
+    Column(
+      modifier = Modifier.weight(1f)
+    ) {
+      if (content.hideAddressByDefault) {
+        ExpandableAddressSection(
+          expanded = isAddressExpanded,
+          onToggle = { isAddressExpanded = !isAddressExpanded },
+          onCopyClick = content.onCopyClick,
+          copied = copied,
+          address = content.addressDisplayString,
+          isLoadingPlaceholder = content.isAddressLoadingPlaceholder,
+          isRefreshing = content.isRefreshing,
+          onVerifyClick = content.onVerifyClick
+        )
+      } else {
+        StaticAddressSection(
+          onCopyClick = content.onCopyClick,
+          copied = copied,
+          address = content.addressDisplayString,
+          isLoadingPlaceholder = content.isAddressLoadingPlaceholder,
+          isRefreshing = content.isRefreshing,
+          onVerifyClick = content.onVerifyClick
+        )
+      }
+
+      ReceiveWarningLabel(modifier = Modifier.padding(top = 8.dp))
+    }
+  }
+}
+
+@Composable
+private fun ReceiveWarningLabel(modifier: Modifier = Modifier) {
+  Box(modifier = modifier) {
+    Label(
+      model = LabelModel.StringModel(
+        "This address only accepts Bitcoin (BTC). " +
+          "Sending other assets will result in permanent loss of funds."
+      ),
+      type = LabelType.Body4Mono,
+      alignment = TextAlign.Start,
+      treatment = LabelTreatment.Secondary,
+      style = WalletTheme.labelStyle(LabelType.Body4Mono, LabelTreatment.Secondary, TextAlign.Start)
+        .copy(fontSize = 10.sp)
+    )
+  }
+}
+
+@Composable
 private fun QrCodeWithAddressCard(
+  modifier: Modifier = Modifier,
   onCopyClick: () -> Unit = {},
   qrCodeState: QrCodeState,
+  maxWidth: Dp,
 ) {
   val cardBackgroundColor = WalletTheme.colors.subtleBackground
   val interactionSource = remember { MutableInteractionSource() }
 
   CardContainer(
-    modifier = Modifier
+    // Apply the cap before filling so the card fills only up to [maxWidth].
+    modifier = modifier
+      .widthIn(max = maxWidth)
       .fillMaxWidth()
       .clickable(
         interactionSource = interactionSource,

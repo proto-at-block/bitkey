@@ -86,7 +86,13 @@ private const val BITKEY_DEVICE_DIRECTIONAL_SNAP_THRESHOLD_DEGREES = 24.0f
 private const val BITKEY_DEVICE_DIRECTION_EPSILON = 0.001f
 private const val BITKEY_DEVICE_MODEL_SCALE_TO_UNITS = 1.0f
 private const val BITKEY_DEVICE_CAMERA_OFFSET_Y = 0.0f
-private const val BITKEY_DEVICE_CAMERA_DISTANCE = 1.4f
+/**
+ * Matches iOS's 25° vertical FOV instead of SceneView's 28 mm default (46.4°). Store this on the
+ * [CameraNode] because SceneView rebuilds direct projections on resize from its focal length.
+ * Camera distance is scaled by 54/28 from the prior 1.4f to preserve framing.
+ */
+private const val BITKEY_DEVICE_CAMERA_FOCAL_LENGTH_MM = 54.0
+private const val BITKEY_DEVICE_CAMERA_DISTANCE = 2.7f // 1.4f * (54.0 / 28.0)
 private const val BITKEY_DEVICE_CAMERA_TARGET_OFFSET_Y = 0.0f
 private const val BITKEY_DEVICE_MODEL_SCALE = 1.0f
 
@@ -449,6 +455,9 @@ internal actual fun BitkeyDeviceMedia(
       azimuthDegrees = BITKEY_DEVICE_FILL_LIGHT_AZIMUTH_DEGREES,
       elevationDegrees = BITKEY_DEVICE_FILL_LIGHT_ELEVATION_DEGREES
     )
+if (cameraNode.focalLength != BITKEY_DEVICE_CAMERA_FOCAL_LENGTH_MM) {
+  cameraNode.focalLength = BITKEY_DEVICE_CAMERA_FOCAL_LENGTH_MM
+}
     cameraNode.position = Position(y = BITKEY_DEVICE_CAMERA_OFFSET_Y, z = BITKEY_DEVICE_CAMERA_DISTANCE)
     cameraNode.lookAt(Position(y = BITKEY_DEVICE_CAMERA_TARGET_OFFSET_Y))
     applyModelTransform()

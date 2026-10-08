@@ -37,7 +37,7 @@ import build.wallet.ui.components.label.LabelTreatment.Unspecified
 import build.wallet.ui.components.label.buildAnnotatedString
 import build.wallet.ui.components.toolbar.CollapsibleToolbar
 import build.wallet.ui.components.toolbar.CollapsibleToolbarHorizontalPadding
-import build.wallet.ui.components.toolbar.CollapsibleToolbarReservedHeight
+import build.wallet.ui.components.toolbar.collapsibleToolbarReservedHeight
 import build.wallet.ui.components.toolbar.CollapsibleToolbarTitleCollapseRange
 import build.wallet.ui.components.toolbar.fadeOutAlpha
 import build.wallet.ui.components.toolbar.inlineTitleFadeIn
@@ -99,7 +99,7 @@ fun TransactionDetailScreen(
           .padding(bottom = contentShadowHeight)
           .padding(horizontal = CollapsibleToolbarHorizontalPadding)
       ) {
-        Spacer(modifier = Modifier.height(CollapsibleToolbarReservedHeight))
+        Spacer(modifier = Modifier.height(collapsibleToolbarReservedHeight()))
         TransactionDetailHeader(
           headerModel = model.formHeaderModel,
           collapseProgress = collapseProgress

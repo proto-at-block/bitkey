@@ -19,6 +19,7 @@ class CurrencyConverterImpl(
   private val accountService: AccountService,
   private val exchangeRateDao: ExchangeRateDao,
   private val exchangeRateF8eClient: ExchangeRateF8eClient,
+  private val exchangeRateService: ExchangeRateService,
 ) : CurrencyConverter {
   override fun convert(
     fromAmount: Money,
@@ -147,7 +148,9 @@ class CurrencyConverterImpl(
     fromCurrency: Currency,
     toCurrency: Currency,
   ): Flow<Instant?> {
-    return exchangeRateDao.allExchangeRates()
+    // Environment-filtered: a rate from another f8e environment is a different price,
+    // so it must not be reported as the latest rate for the active one.
+    return exchangeRateService.exchangeRates
       .map { rates ->
         rates.filter {
           it.fromCurrency == fromCurrency.textCode &&
@@ -164,7 +167,9 @@ class CurrencyConverterImpl(
       return flowOf(fromAmount)
     }
 
-    return exchangeRateDao.allExchangeRates()
+    // Environment-filtered: converting with another environment's rate would display
+    // and spend the wrong amount.
+    return exchangeRateService.exchangeRates
       .mapLatest { convert(fromAmount, toCurrency, rates = it) }
       .distinctUntilChanged()
   }

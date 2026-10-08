@@ -2,6 +2,7 @@ package bitkey.f8e.error
 
 import bitkey.f8e.error.code.*
 import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.CONFLICT
+import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.FORBIDDEN
 import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.INVITATION_EXPIRED
 import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.MAX_PROTECTED_CUSTOMERS_REACHED
 import bitkey.f8e.error.code.MobilePayErrorCode.NO_SPENDING_LIMIT_EXISTS
@@ -86,6 +87,14 @@ class F8eErrorTests : FunSpec({
       jsonDecoder.decodeFromString(json)
     clientErrorResponse.errors.first().code
       .shouldBe(CONFLICT)
+  }
+
+  test("AcceptTrustedContactInvitationErrorCode - FORBIDDEN deserializes correctly") {
+    val json = """{"errors":[{"category":"INVALID_REQUEST_ERROR","code":"FORBIDDEN"}]}"""
+    val clientErrorResponse: F8eClientErrorResponse<AcceptTrustedContactInvitationErrorCode> =
+      jsonDecoder.decodeFromString(json)
+    clientErrorResponse.errors.first().code
+      .shouldBe(FORBIDDEN)
   }
 
   test("AcceptTrustedContactInvitationErrorCode - INVITATION_EXPIRED deserializes correctly") {

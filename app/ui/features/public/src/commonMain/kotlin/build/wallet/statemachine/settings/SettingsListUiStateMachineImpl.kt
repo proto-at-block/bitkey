@@ -76,6 +76,7 @@ class SettingsListUiStateMachineImpl(
           title = "Advanced",
           rowTypes = immutableListOfNotNull(
             CustomElectrumServer::class,
+            AppKeyWallet::class,
             DebugMenu::class,
             UtxoConsolidation::class,
             ExportTools::class,
@@ -133,6 +134,7 @@ class SettingsListUiStateMachineImpl(
         is AppearancePreference -> Pair(PaintBrush, "Appearance")
         is NotificationPreferences -> Pair(Notification, "Notifications")
         is CustomElectrumServer -> Pair(Electrum, "Custom Electrum Server")
+        is AppKeyWallet -> Pair(Wallet, "App Key Wallet")
         is ContactUs -> Pair(Message, "Contact Us")
         is HelpCenter -> Pair(Question, "Help Center")
         is TrustedContacts -> Pair(ShieldPerson, "Recovery Contacts")
@@ -186,10 +188,10 @@ class SettingsListUiStateMachineImpl(
         appFunctionalityStatus.featureStates.notifications == Available
       is CustomElectrumServer ->
         appFunctionalityStatus.featureStates.customElectrumServer == Available
+      is AppKeyWallet -> true
       is TrustedContacts ->
         appFunctionalityStatus.featureStates.securityAndRecovery == Available
-      is HelpCenter ->
-        appFunctionalityStatus.featureStates.helpCenter == Available
+      is HelpCenter -> true
       is RotateAuthKey ->
         appFunctionalityStatus.featureStates.securityAndRecovery == Available
       is ContactUs ->

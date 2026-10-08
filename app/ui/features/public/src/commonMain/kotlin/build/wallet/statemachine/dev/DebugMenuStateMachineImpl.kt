@@ -54,6 +54,8 @@ import build.wallet.statemachine.dev.logs.LogsUiStateMachine
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.nfc.ConfirmationResultContent
+import build.wallet.statemachine.receive.AddressQrCodeUiProps
+import build.wallet.statemachine.receive.AddressQrCodeUiStateMachine
 import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -111,6 +113,8 @@ class DebugMenuScreenPresenter(
   private val onboardingCompletionService: OnboardingCompletionService,
   private val inheritanceUpsellService: InheritanceUpsellService,
   private val mockScenarioService: MockScenarioService,
+  private val addressQrCodeUiStateMachine: AddressQrCodeUiStateMachine,
+  private val accountService: build.wallet.account.AccountService,
 ) : ScreenPresenter<DebugMenuScreen> {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -119,6 +123,7 @@ class DebugMenuScreenPresenter(
     screen: DebugMenuScreen,
   ): ScreenModel {
     var uiState: DebugMenuState by remember { mutableStateOf(DebugMenuState.ShowingDebugMenu) }
+    val activeAccount by remember { accountService.activeAccount() }.collectAsState(null)
 
     val firmwareData by remember {
       firmwareDataService.firmwareData()
@@ -206,6 +211,32 @@ class DebugMenuScreenPresenter(
         featureFlagsStateMachine.model(
           FeatureFlagsProps(onBack = { uiState = DebugMenuState.ShowingDebugMenu })
         )
+
+      is DebugMenuState.ShowingAppKeyWalletAddress ->
+        when (val account = activeAccount) {
+          null -> LoadingBodyModel(
+            id = null,
+            title = "Loading account…",
+            onBack = { uiState = DebugMenuState.ShowingDebugMenu }
+          ).asModalScreen()
+
+          is build.wallet.bitkey.account.FullAccount ->
+            addressQrCodeUiStateMachine.model(
+              AddressQrCodeUiProps(
+                account = account,
+                onBack = { uiState = DebugMenuState.ShowingDebugMenu },
+                onWebLinkOpened = { _, _, _ -> },
+                addressSource = AddressQrCodeUiProps.AddressSource.AppKeyWallet,
+                showPartners = false,
+                title = "App Key Wallet"
+              )
+            )
+
+          else -> {
+            LaunchedEffect(account) { uiState = DebugMenuState.ShowingDebugMenu }
+            LoadingBodyModel(id = null, title = "Loading account…").asModalScreen()
+          }
+        }
 
       is DebugMenuState.ShowingMockDataProvider ->
         MockDataProviderBodyModel(
@@ -353,7 +384,9 @@ class DebugMenuScreenPresenter(
               onDone = { uiState = DebugMenuState.ShowingDebugMenu },
               selectedMcuUpdates = state.firmwareData.mcuUpdates,
               hardwareTypeOverride = firmwareData.firmwareDeviceInfo.hardwareTypeForRealDevice(),
-              showNativeSheetOnIos = false
+              showNativeSheetOnIos = false,
+              // The debug menu is explicitly used to update bench/unpaired devices.
+              allowUnpairedHardware = true
             )
         )
 
@@ -501,6 +534,10 @@ class DebugMenuScreenPresenter(
               verifyState = VerifyMetadataSubState.SavingAndSyncing(deviceInfo, metadata)
             },
             onCancel = { onBack() },
+            // Reading metadata from a device that isn't the paired one is a core debug
+            // menu use case. Without this the prop defaults to Required(), which is
+            // fail-closed on W3 and rejects the tap before the session runs.
+            hardwareVerification = NotRequired,
             needsAuthentication = false,
             skipFirmwareTelemetry = true,
             screenPresentationStyle = Modal,
@@ -514,8 +551,11 @@ class DebugMenuScreenPresenter(
 
       is VerifyMetadataSubState.SavingAndSyncing -> {
         LaunchedEffect("save-and-sync") {
-          // Save fresh device info to DB first so memfault sync uses correct active slots
-          firmwareDeviceInfoDao.setDeviceInfo(current.deviceInfo)
+          // Save fresh device info to DB first so memfault sync uses correct active slots.
+          // Skipped when a bench/unpaired device was tapped, so the paired device's identity
+          // isn't replaced in the shared DAO. In that case the sync below falls back to the
+          // stored (paired) device info.
+          firmwareDeviceInfoDao.setDeviceInfoIfPaired(current.deviceInfo)
           firmwareMetadataDao.setFirmwareMetadata(current.metadata)
 
           // Sync from memfault — uses the fresh device info we just saved
@@ -573,6 +613,8 @@ sealed interface DebugMenuState {
   data object ShowingMockSeedInput : DebugMenuState
 
   data object ShowingFakeHardwareSeed : DebugMenuState
+
+  data object ShowingAppKeyWalletAddress : DebugMenuState
 
   /**
    * Shows firmware update details before starting the update.

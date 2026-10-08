@@ -22,7 +22,7 @@ runs:
   steps:
     - name: Get codestyle bot token
       id: bot-token
-      uses: getsentry/action-github-app-token@d4b5da6c5e37703f8c3b3e43abb5705b46e159cc # v3.0.0
+      uses: getsentry/action-github-app-token@5c1e90706fe007857338ac1bfbd7a4177db2f789 # v4.0.0
       with:
         app_id: ${{ inputs.app-id }}
         private_key: ${{ inputs.private-key }}
@@ -38,7 +38,7 @@ runs:
         base: main
         branch: ${{ inputs.pr-branch }}
         labels: automerge,no-autoplan
-    - uses: hmarr/auto-approve-action@a2e6f2a0ccf5c63ef8754de360464edbf47e66ee  # v3.0.0
+    - uses: hmarr/auto-approve-action@44888193675f29a83e04faf4002fa8c0b537b1e4  # v3.2.1
       if: ${{ steps.create-pr.outputs.pull-request-number }}
       with:
         github-token: ${{ steps.bot-token.outputs.token}}

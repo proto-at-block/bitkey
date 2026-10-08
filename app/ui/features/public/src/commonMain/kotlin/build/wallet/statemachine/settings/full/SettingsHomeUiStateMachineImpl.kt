@@ -8,6 +8,7 @@ import bitkey.ui.verification.TxVerificationPolicyStateMachine
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.AppKeyWalletFeatureFlag
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.biometric.BiometricSettingScreen
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreen
@@ -30,6 +31,8 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState.*
+import build.wallet.statemachine.settings.full.appkeywallet.AppKeyWalletUiProps
+import build.wallet.statemachine.settings.full.appkeywallet.AppKeyWalletUiStateMachine
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerProps
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerSettingUiStateMachine
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
@@ -62,12 +65,15 @@ class SettingsHomeUiStateMachineImpl(
   private val exportToolsUiStateMachine: ExportToolsUiStateMachine,
   private val transactionVerificationPolicyStateMachine: TxVerificationPolicyStateMachine,
   private val privateWalletMigrationUiStateMachine: PrivateWalletMigrationUiStateMachine,
+  private val appKeyWalletFeatureFlag: AppKeyWalletFeatureFlag,
+  private val appKeyWalletUiStateMachine: AppKeyWalletUiStateMachine,
 ) : SettingsHomeUiStateMachine {
   @Composable
   override fun model(props: SettingsHomeUiProps): ScreenModel {
     var state: SettingsListState by remember {
       mutableStateOf(props.settingsListState ?: ShowingAllSettingsUiState)
     }
+    val appKeyWalletEnabled by appKeyWalletFeatureFlag.flagValue().collectAsState()
 
     return when (state) {
       is ShowingAllSettingsUiState -> {
@@ -84,6 +90,9 @@ class SettingsHomeUiStateMachineImpl(
                       SettingsListUiProps.SettingsListRow.CustomElectrumServer {
                         state = ShowingCustomElectrumServerSettingsUiState
                       },
+                      SettingsListUiProps.SettingsListRow.AppKeyWallet {
+                        state = ShowingAppKeyWalletUiState
+                      }.takeIf { appKeyWalletEnabled.value },
                       SettingsListUiProps.SettingsListRow.AppearancePreference {
                         state = ShowingAppearancePreferenceUiState
                       },
@@ -130,6 +139,14 @@ class SettingsHomeUiStateMachineImpl(
           alertModel = alertModel
         )
       }
+
+      is ShowingAppKeyWalletUiState ->
+        appKeyWalletUiStateMachine.model(
+          AppKeyWalletUiProps(
+            account = props.account as FullAccount,
+            onBack = { state = ShowingAllSettingsUiState }
+          )
+        )
 
       is ShowingMobilePaySettingsUiState ->
         mobilePaySettingsUiStateMachine.model(
@@ -286,6 +303,8 @@ class SettingsHomeUiStateMachineImpl(
      * Showing home of all settings.
      */
     data object ShowingAllSettingsUiState : SettingsListState
+
+    data object ShowingAppKeyWalletUiState : SettingsListState
 
     /**
      * Showing settings for Mobile Pay.

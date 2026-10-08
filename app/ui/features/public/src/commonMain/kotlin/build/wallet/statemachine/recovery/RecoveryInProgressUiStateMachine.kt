@@ -46,6 +46,8 @@ data class RecoveryInProgressUiProps(
 class RecoveryInProgressUiStateMachineImpl(
   private val completingRecoveryUiStateMachine: CompletingRecoveryUiStateMachine,
   private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
+  private val lostAppHardwareReauthenticationUiStateMachine:
+    LostAppHardwareReauthenticationUiStateMachine,
   private val clock: Clock,
   private val eventTracker: EventTracker,
   private val recoveryNotificationVerificationUiStateMachine:
@@ -142,6 +144,14 @@ class RecoveryInProgressUiStateMachineImpl(
             completingRecoveryData = recoveryInProgressData,
             onExit = props.onExit,
             onComplete = props.onComplete
+          )
+        )
+
+      is AwaitingHardwareReauthenticationData ->
+        lostAppHardwareReauthenticationUiStateMachine.model(
+          LostAppHardwareReauthenticationUiProps(
+            data = recoveryInProgressData,
+            presentationStyle = props.presentationStyle
           )
         )
 

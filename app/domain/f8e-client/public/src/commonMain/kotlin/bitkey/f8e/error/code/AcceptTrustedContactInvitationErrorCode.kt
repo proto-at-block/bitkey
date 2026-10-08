@@ -25,6 +25,9 @@ enum class AcceptTrustedContactInvitationErrorCode : F8eClientErrorCode {
   /** Account is already a trusted contact for the customer **/
   CONFLICT,
 
+  /** The request to accept the invitation was forbidden. **/
+  FORBIDDEN,
+
   /** Indicates the account has reached the maximum number of protected customers (20). **/
   MAX_PROTECTED_CUSTOMERS_REACHED,
 }

@@ -35,7 +35,14 @@ void coproc_power_on(void);
 void coproc_power_off(void);
 
 /**
- * @brief Resets the co-processor.
+ * @brief The minimum time, in ms, that coproc_power_reset() holds the co-processor's reset.
+ *
+ * @note The hardware does not support a reset shorter than 1 ms.
+ */
+#define COPROC_RESET_HOLD_MS (2u)
+
+/**
+ * @brief Resets the co-processor, holding the reset for at least COPROC_RESET_HOLD_MS.
  *
  * @note Assumes active low.
  */

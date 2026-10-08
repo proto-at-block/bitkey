@@ -2,6 +2,9 @@ package build.wallet.ui.components.toolbar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -11,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -27,7 +32,7 @@ import build.wallet.ui.tokens.LabelType
  * A reusable collapsible top-of-screen toolbar that fades in an inline title as a
  * scroll-driven [collapseProgress] approaches 1f.
  *
- * Pair this with [Modifier.height] equal to [CollapsibleToolbarReservedHeight] reserved at
+ * Pair this with [Modifier.height] equal to [collapsibleToolbarReservedHeight] reserved at
  * the top of the scroll content so the title block can scroll underneath. Use
  * [CollapsibleToolbarTitleCollapseRange] to derive [collapseProgress] from a scroll state.
  *
@@ -58,11 +63,12 @@ fun CollapsibleToolbar(
 ) {
   val leadingAccessory = toolbarModel?.leadingAccessory
   val trailingAccessory = toolbarModel?.trailingAccessory
+  val topPadding = collapsibleToolbarTopPadding()
   Box(
     modifier = Modifier
       .fillMaxWidth()
       .height(
-        CollapsibleToolbarTopPadding +
+        topPadding +
           CollapsibleToolbarHeight +
           CollapsibleToolbarBottomPadding +
           CollapsibleToolbarBottomGradientHeight
@@ -71,7 +77,7 @@ fun CollapsibleToolbar(
     Box(
       modifier = Modifier
         .fillMaxWidth()
-        .height(CollapsibleToolbarTopPadding + CollapsibleToolbarHeight + CollapsibleToolbarBottomPadding)
+        .height(topPadding + CollapsibleToolbarHeight + CollapsibleToolbarBottomPadding)
         .thenIf(backgroundAlpha > 0f) {
           Modifier.background(background.copy(alpha = background.alpha * backgroundAlpha))
         }
@@ -79,7 +85,7 @@ fun CollapsibleToolbar(
       Box(
         modifier = Modifier
           .padding(
-            top = CollapsibleToolbarTopPadding,
+            top = topPadding,
             start = horizontalPadding,
             end = horizontalPadding
           )
@@ -172,12 +178,42 @@ val CollapsibleToolbarBottomPadding: Dp = 8.dp
 val CollapsibleToolbarBottomGradientHeight: Dp = 20.dp
 
 /**
+ * Top padding used when no status bar sits above the window and the display's rounded corners
+ * are on the sides instead (e.g. unfolded iPhone Duo, where the status bar is beside the app).
+ * Matches the legacy [Toolbar]'s top padding so toolbar accessories clear the display corner.
+ */
+private val CollapsibleToolbarTopPaddingWithoutStatusBar: Dp = 24.dp
+
+/**
+ * Top padding for collapsible toolbars. On regular portrait phones the status bar inset already
+ * keeps the toolbar clear of the display corners, so [CollapsibleToolbarTopPadding] is used. When
+ * there's no top inset but there are horizontal ones (unfolded iPhone Duo), extra top padding is
+ * used so accessories aren't tucked into the rounded corner.
+ */
+@Composable
+fun collapsibleToolbarTopPadding(): Dp {
+  val density = LocalDensity.current
+  val layoutDirection = LocalLayoutDirection.current
+  val hasTopInset = WindowInsets.statusBars.getTop(density) > 0
+  val safeDrawing = WindowInsets.safeDrawing
+  val hasHorizontalInset =
+    safeDrawing.getLeft(density, layoutDirection) > 0 ||
+      safeDrawing.getRight(density, layoutDirection) > 0
+  return if (!hasTopInset && hasHorizontalInset) {
+    CollapsibleToolbarTopPaddingWithoutStatusBar
+  } else {
+    CollapsibleToolbarTopPadding
+  }
+}
+
+/**
  * Vertical space the [CollapsibleToolbar] occupies — reserve this at the top of the scroll
  * content so the title block can scroll underneath the toolbar. Excludes the bottom gradient,
  * which is intended to overflow into the scroll content.
  */
-val CollapsibleToolbarReservedHeight: Dp =
-  CollapsibleToolbarTopPadding +
+@Composable
+fun collapsibleToolbarReservedHeight(): Dp =
+  collapsibleToolbarTopPadding() +
     CollapsibleToolbarHeight +
     CollapsibleToolbarBottomPadding
 

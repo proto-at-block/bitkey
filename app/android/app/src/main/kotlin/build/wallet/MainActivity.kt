@@ -11,15 +11,18 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATION_OPEN
 import build.wallet.di.AndroidActivityComponent
 import build.wallet.logging.logInfo
+import build.wallet.platform.appVariant
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.ui.app.App
+import build.wallet.ui.app.LocalAppVariant
 import build.wallet.ui.theme.Theme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -60,13 +63,15 @@ class MainActivity : FragmentActivity() {
       observeThemeChanges(activityComponent)
 
       setContent {
-        App(
-          model = activityComponent.appUiStateMachine.model(Unit),
-          deviceInfo = appComponent.deviceInfoProvider.getDeviceInfo(),
-          accelerometer = appComponent.accelerometer,
-          themePreferenceService = activityComponent.themePreferenceService,
-          haptics = appComponent.haptics
-        )
+        CompositionLocalProvider(LocalAppVariant provides appVariant) {
+          App(
+            model = activityComponent.appUiStateMachine.model(Unit),
+            deviceInfo = appComponent.deviceInfoProvider.getDeviceInfo(),
+            accelerometer = appComponent.accelerometer,
+            themePreferenceService = activityComponent.themePreferenceService,
+            haptics = appComponent.haptics
+          )
+        }
       }
 
       createNotificationChannel()

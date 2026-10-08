@@ -1,0 +1,1061 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "url": "../../trailblaze-common/2026.09.04/trailblaze-common-2026.09.04.module",
+    "group": "xyz.block.trailblaze",
+    "module": "trailblaze-common",
+    "version": "2026.09.04",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.5"
+    }
+  },
+  "variants": [
+    {
+      "name": "jvmApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1-0.6.x-compat"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.11.0"
+          }
+        },
+        {
+          "group": "com.charleskorn.kaml",
+          "module": "kaml",
+          "version": {
+            "requires": "0.104.0"
+          }
+        },
+        {
+          "group": "com.squareup.okio",
+          "module": "okio",
+          "version": {
+            "requires": "3.16.4"
+          }
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-tools",
+          "version": {
+            "requires": "1.2.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-core",
+          "version": {
+            "requires": "3.5.0"
+          }
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.09.04"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          }
+        },
+        {
+          "group": "junit",
+          "module": "junit",
+          "version": {
+            "requires": "4.13.2"
+          }
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-orchestra-models",
+          "version": {
+            "requires": "2.6.1"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-client",
+          "version": {
+            "requires": "2.6.1"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-utils",
+          "version": {
+            "requires": "2.6.1"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-common-jvm-2026.09.04.jar",
+          "url": "trailblaze-common-jvm-2026.09.04.jar",
+          "size": 2589636,
+          "sha512": "97f957673b246472c0e18d08dc2afb59d4edd504b2f4cdffabd2ddfa86f2efcb9b39449b17ecff5e69d580be7b8d8b3a8b533a11a9f0acc29b6642f5c4139d51",
+          "sha256": "93ded68743d558febf7d29d2d9138a80e213a016aa340a8544dd1a7c615f8a9a",
+          "sha1": "3820aeb190f69db09a72fc0c2044a91e1ace9e56",
+          "md5": "7bff64da1d0b79d7d93115a3c2122258"
+        }
+      ]
+    },
+    {
+      "name": "jvmRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-datetime",
+          "version": {
+            "requires": "0.7.1-0.6.x-compat"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.11.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.11.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "com.charleskorn.kaml",
+          "module": "kaml",
+          "version": {
+            "requires": "0.104.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "com.squareup.okio",
+          "module": "okio",
+          "version": {
+            "requires": "3.16.4"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "agents-tools",
+          "version": {
+            "requires": "1.2.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-core",
+          "version": {
+            "requires": "3.5.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-models",
+          "version": {
+            "requires": "2026.09.04"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.4.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "junit",
+          "module": "junit",
+          "version": {
+            "requires": "4.13.2"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-orchestra-models",
+          "version": {
+            "requires": "2.6.1"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-client",
+          "version": {
+            "requires": "2.6.1"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-utils",
+          "version": {
+            "requires": "2.6.1"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "dadb",
+          "version": {
+            "requires": "1.2.10"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-server-core",
+          "version": {
+            "requires": "3.5.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-ondevice-rpc-proto",
+          "version": {
+            "requires": "2026.09.04"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "xyz.block.trailblaze",
+          "module": "trailblaze-tracing",
+          "version": {
+            "requires": "2026.09.04"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-model",
+          "version": {
+            "requires": "1.2.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-core",
+          "version": {
+            "requires": "1.11.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-logging",
+          "version": {
+            "requires": "3.5.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-websockets",
+          "version": {
+            "requires": "3.5.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-http",
+          "version": {
+            "requires": "3.5.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-utils",
+          "version": {
+            "requires": "3.5.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "koog-agents",
+          "version": {
+            "requires": "1.2.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "ai.koog",
+          "module": "prompt-executor-clients",
+          "version": {
+            "requires": "1.2.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "net.objecthunter",
+          "module": "exp4j",
+          "version": {
+            "requires": "0.4.8"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "com.google.code.gson",
+          "module": "gson",
+          "version": {
+            "requires": "2.13.2"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-okhttp",
+          "version": {
+            "requires": "3.5.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-reflect",
+          "version": {
+            "requires": "2.4.0"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "dev.mobile",
+          "module": "maestro-orchestra",
+          "version": {
+            "requires": "2.6.1"
+          },
+          "excludes": [
+            {
+              "group": "*",
+              "module": "*"
+            }
+          ]
+        },
+        {
+          "group": "com.fasterxml.jackson.dataformat",
+          "module": "jackson-dataformat-yaml",
+          "version": {
+            "requires": "2.21.2"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        },
+        {
+          "group": "com.fasterxml.jackson.module",
+          "module": "jackson-module-kotlin",
+          "version": {
+            "requires": "2.21.2"
+          },
+          "excludes": [
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-bedrock-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-dashscope-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-deepseek-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-executor-mistralai-client"
+            },
+            {
+              "group": "ai.koog",
+              "module": "prompt-cache-redis"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "name": "trailblaze-common-jvm-2026.09.04.jar",
+          "url": "trailblaze-common-jvm-2026.09.04.jar",
+          "size": 2589636,
+          "sha512": "97f957673b246472c0e18d08dc2afb59d4edd504b2f4cdffabd2ddfa86f2efcb9b39449b17ecff5e69d580be7b8d8b3a8b533a11a9f0acc29b6642f5c4139d51",
+          "sha256": "93ded68743d558febf7d29d2d9138a80e213a016aa340a8544dd1a7c615f8a9a",
+          "sha1": "3820aeb190f69db09a72fc0c2044a91e1ace9e56",
+          "md5": "7bff64da1d0b79d7d93115a3c2122258"
+        }
+      ]
+    },
+    {
+      "name": "jvmSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "files": [
+        {
+          "name": "trailblaze-common-jvm-2026.09.04-sources.jar",
+          "url": "trailblaze-common-jvm-2026.09.04-sources.jar",
+          "size": 778745,
+          "sha512": "4bc15f374b803ec04bf5e22500aa3a6f559b62d78e71ac2aad48d74070ade875f04d1a69944d5383b71e9cffa78c58ee46ab7783ff2a30bfd34564b5831838c4",
+          "sha256": "92501088a8181afd2de67262c2e75e9068da592234bb49070470bac04405bc52",
+          "sha1": "5f6a363ee4b576c7aead5f31000a2da26ab98b69",
+          "md5": "af3cdee95c1f2a11d255779385e03770"
+        }
+      ]
+    }
+  ]
+}

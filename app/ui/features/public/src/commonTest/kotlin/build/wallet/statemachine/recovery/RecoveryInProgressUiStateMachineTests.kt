@@ -44,6 +44,11 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
           ScreenStateMachineMock<HardwareAuthUiProps>(
             "hardware-auth"
           ) {},
+      lostAppHardwareReauthenticationUiStateMachine =
+        object : LostAppHardwareReauthenticationUiStateMachine,
+          ScreenStateMachineMock<LostAppHardwareReauthenticationUiProps>(
+            "lost-app-hardware-reauthentication"
+          ) {},
       clock = clock,
       eventTracker = EventTrackerMock(turbines::create),
       recoveryNotificationVerificationUiStateMachine =

@@ -27,7 +27,8 @@ void coproc_power_off(void) {
 
 void coproc_power_reset(void) {
   coproc_power_assert_reset();
-  rtos_thread_sleep(1);
+  /* A tick sleep can return a tick early. */
+  rtos_thread_sleep(COPROC_RESET_HOLD_MS + 1u);
   coproc_power_deassert_reset();
 }
 

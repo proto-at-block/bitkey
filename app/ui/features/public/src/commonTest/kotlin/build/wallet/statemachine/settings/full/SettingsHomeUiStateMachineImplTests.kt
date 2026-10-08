@@ -6,6 +6,9 @@ import bitkey.ui.verification.TxVerificationPolicyProps
 import bitkey.ui.verification.TxVerificationPolicyStateMachine
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.feature.flags.AppKeyWalletFeatureFlag
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -26,6 +29,8 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.DebugMenu
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
+import build.wallet.statemachine.settings.full.appkeywallet.AppKeyWalletUiProps
+import build.wallet.statemachine.settings.full.appkeywallet.AppKeyWalletUiStateMachine
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerProps
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerSettingUiStateMachine
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
@@ -59,6 +64,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     )
 
   val navigatorPresenter = NavigatorPresenterFake()
+  val appKeyWalletFeatureFlag = AppKeyWalletFeatureFlag(FeatureFlagDaoFake())
 
   fun stateMachine(appVariant: AppVariant = AppVariant.Customer) =
     SettingsHomeUiStateMachineImpl(
@@ -94,7 +100,10 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       privateWalletMigrationUiStateMachine = object : PrivateWalletMigrationUiStateMachine,
         ScreenStateMachineMock<PrivateWalletMigrationUiProps>(
           "private-wallet-migration"
-        ) {}
+        ) {},
+      appKeyWalletFeatureFlag = appKeyWalletFeatureFlag,
+      appKeyWalletUiStateMachine = object : AppKeyWalletUiStateMachine,
+        ScreenStateMachineMock<AppKeyWalletUiProps>("app-key-wallet") {}
     )
 
   test("onBack calls props onBack") {
@@ -127,6 +136,18 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
               SettingsListUiProps.SettingsListRow.PrivateWalletMigration::class
             )
           )
+      }
+    }
+  }
+
+  test("App Key Wallet row reacts to live feature flag updates") {
+    stateMachine().test(props) {
+      awaitBodyMock<SettingsListUiProps> {
+        supportedRows.none { it is SettingsListUiProps.SettingsListRow.AppKeyWallet }.shouldBe(true)
+      }
+      appKeyWalletFeatureFlag.setFlagValue(BooleanFlag(true))
+      awaitBodyMock<SettingsListUiProps> {
+        supportedRows.any { it is SettingsListUiProps.SettingsListRow.AppKeyWallet }.shouldBe(true)
       }
     }
   }

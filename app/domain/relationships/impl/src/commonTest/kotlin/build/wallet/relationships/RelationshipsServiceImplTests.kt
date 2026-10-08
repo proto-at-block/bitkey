@@ -9,15 +9,17 @@ import bitkey.f8e.error.code.CreateTrustedContactInvitationErrorCode
 import bitkey.relationships.Relationships
 import build.wallet.account.AccountServiceFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
+import build.wallet.bitkey.f8e.AccountId
+import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.createBackgroundScope
-import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.relationships.RelationshipsF8eClient
@@ -26,20 +28,25 @@ import build.wallet.f8e.relationships.isEmpty
 import build.wallet.f8e.relationships.shouldBeEmpty
 import build.wallet.f8e.relationships.shouldOnlyHaveEndorsed
 import build.wallet.ktor.result.HttpError
+import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.test.HttpResponseMock
-import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.sqldelight.InMemorySqlDriverFactory
+import build.wallet.worker.RunStrategy
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -78,7 +85,6 @@ class RelationshipsServiceImplTests : FunSpec({
   )
   val tcBobVerified = tcBobUnverified.copy(authenticationState = VERIFIED)
 
-  val appSessionManager = AppSessionManagerFake()
   val accountService = AccountServiceFake()
   val accountConfigService = AccountConfigServiceFake()
   val clock = ClockFake()
@@ -97,7 +103,6 @@ class RelationshipsServiceImplTests : FunSpec({
       relationshipsEnrollmentAuthenticationDao = authDao,
       relationshipsCrypto = relationshipsCrypto,
       relationshipsCodeBuilder = RelationshipsCodeBuilderFake(),
-      appSessionManager = appSessionManager,
       accountService = accountService,
       appCoroutineScope = backgroundScope,
       clock = clock,
@@ -112,7 +117,6 @@ class RelationshipsServiceImplTests : FunSpec({
     accountConfigService.reset()
     accountConfigService.setActiveConfig(FullAccountMock.config)
     appKeyDao.reset()
-    appSessionManager.reset()
     dao.clear()
     relationshipsCrypto.reset()
     relationshipsCrypto.reset()
@@ -281,36 +285,62 @@ class RelationshipsServiceImplTests : FunSpec({
       .endorsedTrustedContacts.single().authenticationState shouldBe VERIFIED
   }
 
-  test("syncing does not occur while app is in the background") {
-    val backgroundScope = createBackgroundScope()
-    val service = relationshipsService(backgroundScope)
+  test("runs periodically and when the active account changes") {
+    val service = relationshipsService(createBackgroundScope())
 
-    appSessionManager.appDidEnterBackground()
-    backgroundScope.launch {
-      service.executeWork()
+    service.runStrategy.map { it::class }.shouldContainExactlyInAnyOrder(
+      RunStrategy.Periodic::class,
+      RunStrategy.OnEvent::class
+    )
+    service.runStrategy.filterIsInstance<RunStrategy.Periodic>().single()
+      .shouldBe(RunStrategy.Periodic(interval = syncFrequency))
+  }
+
+  test("worker syncs relationships for the active account") {
+    val service = relationshipsService(createBackgroundScope())
+    accountService.setActiveAccount(FullAccountMock)
+    relationshipsCrypto.invalidCertificates += tcAliceUnverified.keyCertificate
+    relationshipsCrypto.validCertificates += tcBobUnverified.keyCertificate
+    relationshipsF8eFake.endorsedTrustedContacts += tcAliceUnverified
+    relationshipsF8eFake.endorsedTrustedContacts += tcBobUnverified
+
+    service.executeWork()
+
+    dao.relationships().first().getOrThrow()
+      .shouldOnlyHaveEndorsed(tcAliceTampered, tcBobVerified)
+  }
+
+  test("worker re-reads the active account after waiting for an in-flight sync") {
+    val service = relationshipsService(createBackgroundScope())
+    val firstAccount = FullAccountMock
+    val secondAccount = FullAccountMock.copy(accountId = FullAccountId("second-account"))
+    accountService.setActiveAccount(firstAccount)
+    val firstSyncStarted = CompletableDeferred<Unit>()
+    val releaseFirstSync = CompletableDeferred<Unit>()
+    var firstCall = true
+    relationshipsF8eClient = object : RelationshipsF8eClient by relationshipsF8eFake {
+      override suspend fun getRelationships(
+        accountId: AccountId,
+        f8eEnvironment: F8eEnvironment,
+      ): Result<Relationships, NetworkingError> {
+        if (firstCall) {
+          firstCall = false
+          firstSyncStarted.complete(Unit)
+          releaseFirstSync.await()
+        }
+        return relationshipsF8eFake.getRelationships(accountId, f8eEnvironment)
+      }
     }
 
-    service.relationships.test {
-      awaitUntil(Relationships.EMPTY)
+    val firstSync = async { service.executeWork() }
+    firstSyncStarted.await()
+    accountService.setActiveAccount(secondAccount)
+    val secondSync = async { service.executeWork() }
+    releaseFirstSync.complete(Unit)
+    firstSync.await()
+    secondSync.await()
 
-      // Mark tcAlice's cert as invalid
-      relationshipsCrypto.invalidCertificates += tcAliceUnverified.keyCertificate
-      // Mark tcBob's cert as valid
-      relationshipsCrypto.validCertificates += tcBobUnverified.keyCertificate
-
-      // Add both to f8e
-      relationshipsF8eFake.endorsedTrustedContacts += tcAliceUnverified
-      relationshipsF8eFake.endorsedTrustedContacts += tcBobUnverified
-
-      // App is still in background - wait longer than sync frequency to ensure
-      // the ticker has fired and been filtered due to background state.
-      awaitNoEvents(timeout = syncFrequency * 5)
-
-      appSessionManager.appDidEnterForeground()
-      awaitUntil { it != null && !it.isEmpty() }
-        .shouldNotBeNull()
-        .shouldOnlyHaveEndorsed(tcAliceTampered, tcBobVerified)
-    }
+    relationshipsF8eFake.getRelationshipsCallCount.shouldBe(2)
   }
 
   test("createInvitation propagates specific F8e errors") {

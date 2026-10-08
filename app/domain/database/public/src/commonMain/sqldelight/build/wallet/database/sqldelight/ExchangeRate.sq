@@ -1,3 +1,4 @@
+import build.wallet.f8e.F8eEnvironment;
 import build.wallet.money.currency.code.IsoCurrencyTextCode;
 import kotlinx.datetime.Instant;
 
@@ -7,17 +8,26 @@ CREATE TABLE exchangeRateEntity(
     toCurrency    TEXT AS IsoCurrencyTextCode NOT NULL,
     rate          REAL NOT NULL,
     timeRetrieved INTEGER AS Instant NOT NULL,
+    -- The F8e environment this rate was fetched from. Different environments serve
+    -- different prices, so a rate is only valid for the environment that produced it.
+    -- Nullable so rows written before this column existed are treated as unknown
+    -- provenance and discarded rather than trusted.
+    f8eEnvironment TEXT AS F8eEnvironment,
     CONSTRAINT currency_combination_unique UNIQUE (fromCurrency, toCurrency)
 );
 
 insertExchangeRate:
-INSERT INTO exchangeRateEntity(fromCurrency, toCurrency, rate, timeRetrieved)
-VALUES(?, ?, ?, ?);
+INSERT INTO exchangeRateEntity(fromCurrency, toCurrency, rate, timeRetrieved, f8eEnvironment)
+VALUES(?, ?, ?, ?, ?);
 
 updateExchangeRate:
 UPDATE exchangeRateEntity
-SET rate = ?, timeRetrieved = ?
+SET rate = ?, timeRetrieved = ?, f8eEnvironment = ?
 WHERE fromCurrency == ? AND toCurrency == ?;
+
+deleteRatesNotFromEnvironment:
+DELETE FROM exchangeRateEntity
+WHERE f8eEnvironment IS NULL OR f8eEnvironment != ?;
 
 allExchangeRates:
 SELECT * FROM exchangeRateEntity;

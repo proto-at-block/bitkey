@@ -51,12 +51,14 @@ class BdkWalletSyncerImpl(
   override suspend fun sync(
     bdkWallet: BdkWallet,
     networkType: BitcoinNetworkType,
+    waitForInFlightSync: Boolean,
   ): Result<Unit, BdkError> =
     coroutineBinding {
       logDebug { "Attempting wallet sync..." }
-      // Ignore a request if there is already a sync in progress
+      // Syncs are serialized and never dropped. In particular, explicit app-key scans must wait
+      // for an in-flight sync and then scan their own wallet before reporting success.
       if (syncLock.isLocked) {
-        return@coroutineBinding Unit
+        logDebug { "Wallet sync already in progress; waiting for it to finish before syncing." }
       }
       syncLock.withLock {
         val electrumServerSetting = electrumServerSettingProvider.get().first()

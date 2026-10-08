@@ -23,10 +23,15 @@ interface FwupNfcUiStateMachine :
  * @property hardwareTypeOverride When provided, overrides the hardware type detection
  *   from account config. Used by debug menu when real hardware is enabled but we need
  *   to derive hardware type from the firmware update itself.
+ * @property allowUnpairedHardware When true, skips the paired-hardware check so that a
+ *   device other than the currently-paired one can be updated. Debug menu only: the
+ *   check is fail-closed on W3 (serial comparison), which otherwise blocks every tap of
+ *   an unpaired device. Must remain false for all customer-facing flows.
  */
 data class FwupNfcUiProps(
   val onDone: () -> Unit,
   val selectedMcuUpdates: ImmutableList<McuFwupData> = persistentListOf(),
   val hardwareTypeOverride: HardwareType? = null,
   val showNativeSheetOnIos: Boolean = false,
+  val allowUnpairedHardware: Boolean = false,
 )

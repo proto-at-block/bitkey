@@ -356,6 +356,12 @@ class DebugMenuListStateMachineImpl(
                 }
               ),
               ListItemModel(
+                title = "App Key Wallet Address",
+                secondaryText = "Generate and display an app-key wallet receive address",
+                trailingAccessory = ListItemAccessory.drillIcon(),
+                onClick = { onSetState(DebugMenuState.ShowingAppKeyWalletAddress) }
+              ).takeIf { account is build.wallet.bitkey.account.FullAccount },
+              ListItemModel(
                 title = "Fake Hardware Seed",
                 secondaryText = "View/share mock hardware seed",
                 trailingAccessory = ListItemAccessory.drillIcon(),

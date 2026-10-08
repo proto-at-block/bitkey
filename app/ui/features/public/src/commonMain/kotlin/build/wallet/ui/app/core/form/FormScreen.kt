@@ -22,7 +22,7 @@ import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.toolbar.CollapsibleToolbar
-import build.wallet.ui.components.toolbar.CollapsibleToolbarReservedHeight
+import build.wallet.ui.components.toolbar.collapsibleToolbarReservedHeight
 import build.wallet.ui.components.toolbar.CollapsibleToolbarTitleCollapseRange
 import build.wallet.ui.components.toolbar.EmptyToolbar
 import build.wallet.ui.compose.thenIf
@@ -212,7 +212,7 @@ private fun FormScreenLargeTitle(
             modifier = Modifier
               .fillMaxSize()
           ) {
-            Spacer(modifier = Modifier.height(CollapsibleToolbarReservedHeight))
+            Spacer(modifier = Modifier.height(collapsibleToolbarReservedHeight()))
             FormScreenLargeTitleBlock(
               eyebrow = eyebrow,
               title = title
@@ -312,7 +312,7 @@ private fun BoxScope.FormScreenLargeTitleScrollable(
       .padding(bottom = contentShadowHeight)
       .padding(horizontal = horizontalPadding)
   ) {
-    Spacer(modifier = Modifier.height(CollapsibleToolbarReservedHeight))
+    Spacer(modifier = Modifier.height(collapsibleToolbarReservedHeight()))
     Column {
       FormScreenLargeTitleBlock(
         eyebrow = eyebrow,

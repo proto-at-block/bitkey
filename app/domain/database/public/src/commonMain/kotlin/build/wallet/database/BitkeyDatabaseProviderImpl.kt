@@ -144,7 +144,8 @@ class BitkeyDatabaseProviderImpl(
         ExchangeRateEntity.Adapter(
           fromCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter,
           toCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter,
-          timeRetrievedAdapter = legacyInstantAsEpochMillisecondsColumnAdapter
+          timeRetrievedAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
+          f8eEnvironmentAdapter = F8eEnvironmentColumnAdapter
         ),
       historicalExchangeRateEntityAdapter =
         HistoricalExchangeRateEntity.Adapter(
