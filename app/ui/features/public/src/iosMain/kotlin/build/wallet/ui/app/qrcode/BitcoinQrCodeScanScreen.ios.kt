@@ -41,7 +41,10 @@ private sealed class PermissionState {
 }
 
 @Composable
-internal actual fun NativeQrCodeScanner(model: QrCodeScanBodyModel) {
+internal actual fun NativeQrCodeScanner(
+  model: QrCodeScanBodyModel,
+  showPermissionPrompts: Boolean,
+) {
   val permissionState by produceState<PermissionState>(PermissionState.Unset) {
     when (AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) {
       AVAuthorizationStatusAuthorized -> value = PermissionState.Granted
@@ -71,7 +74,9 @@ internal actual fun NativeQrCodeScanner(model: QrCodeScanBodyModel) {
     }
 
     PermissionState.Denied -> {
-      PermissionDeniedDialog(onClose = model.onClose)
+      if (showPermissionPrompts) {
+        PermissionDeniedDialog(onClose = model.onClose)
+      }
     }
 
     PermissionState.Unset -> {

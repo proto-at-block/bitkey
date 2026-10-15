@@ -10,7 +10,7 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
   build-essential=12.9ubuntu3 \
   libclang1=1:14.0-55~exp2 \
   openjdk-17-jdk=17.0.20.1+1-1~22.04 \
-  curl=7.81.0-1ubuntu1.29 \
+  curl=7.81.0-1ubuntu1.30 \
   sdkmanager=0.5.1-1 \
   unzip=6.0-26ubuntu3.2 \
   zip=3.0-12build2

@@ -321,7 +321,8 @@ class SendUiStateMachineImpl(
     val recipientAddressBodyModel =
       recipientAddressBodyModel(
         recipientAddress = state.recipientAddress,
-        showToolbarIcons = state.isAddressSheetExpanded,
+        // The Dynamic Island portal fades the recipient screen, toolbar included, with its animation.
+        showToolbarIcons = usesDynamicIslandPortal || state.isAddressSheetExpanded,
         props = props,
         defaultAmountEntryAmount = defaultAmountEntryAmount,
         setDynamicIslandQrScannerClosing = setDynamicIslandQrScannerClosing,

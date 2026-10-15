@@ -34,7 +34,10 @@ import build.wallet.statemachine.send.QrCodeScanBodyModel
  * This is intentionally only present in the jvmMain source set; Android/iOS use real cameras.
  */
 @Composable
-internal actual fun NativeQrCodeScanner(model: QrCodeScanBodyModel) {
+internal actual fun NativeQrCodeScanner(
+  model: QrCodeScanBodyModel,
+  showPermissionPrompts: Boolean,
+) {
   var input by remember { mutableStateOf("") }
   val colorScheme = MaterialTheme.colorScheme
   val typography = MaterialTheme.typography

@@ -26,7 +26,10 @@ import build.wallet.logging.*
 import build.wallet.statemachine.send.QrCodeScanBodyModel
 
 @Composable
-internal actual fun NativeQrCodeScanner(model: QrCodeScanBodyModel) {
+internal actual fun NativeQrCodeScanner(
+  model: QrCodeScanBodyModel,
+  showPermissionPrompts: Boolean,
+) {
   val context = LocalContext.current
   val lifecycleOwner = LocalLifecycleOwner.current
 

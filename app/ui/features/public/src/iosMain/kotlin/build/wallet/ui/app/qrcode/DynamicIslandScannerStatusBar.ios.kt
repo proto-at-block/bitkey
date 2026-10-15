@@ -8,8 +8,10 @@ private const val DYNAMIC_ISLAND_SCANNER_STATUS_BAR_HIDDEN_NOTIFICATION =
   "build.wallet.dynamicIslandScannerStatusBarHiddenChanged"
 
 @Composable
-internal actual fun DynamicIslandScannerStatusBarHiddenEffect() {
-  DisposableEffect(Unit) {
+internal actual fun DynamicIslandScannerStatusBarHiddenEffect(hidden: Boolean) {
+  DisposableEffect(hidden) {
+    if (!hidden) return@DisposableEffect onDispose {}
+
     postStatusBarHiddenChange(hidden = true)
 
     onDispose {
